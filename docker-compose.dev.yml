@@ -1,0 +1,76 @@
+# docker-compose.dev.yml
+# Development configuration with hot-reload
+# Run: docker-compose -f docker-compose.dev.yml up --build
+# Note: Requires external PostgreSQL database configured in .env file
+
+version: '3.9'
+
+services:
+  # ==========================================================================
+  # Redis - Message broker for Celery
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: auth_redis_dev
+    ports:
+      - "6379:6379"
+    networks:
+      - auth_network_dev
+
+  # ==========================================================================
+  # Django Web Application (Development)
+  # ==========================================================================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth_web_dev
+    command: >
+      sh -c "
+        python manage.py migrate --noinput &&
+        python manage.py setup_groups &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      # Mount source code for hot-reload
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      - redis
+    networks:
+      - auth_network_dev
+
+  # ==========================================================================
+  # Celery Worker (Development)
+  # ==========================================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auth_celery_worker_dev
+    command: celery -A config worker -l DEBUG
+    env_file:
+      - .env
+    environment:
+      - DEBUG=True
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      - redis
+    networks:
+      - auth_network_dev
+
+networks:
+  auth_network_dev:
+    driver: bridge
