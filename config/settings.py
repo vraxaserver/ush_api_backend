@@ -157,10 +157,10 @@ LOCALE_PATHS = [
 
 # Static files
 STATIC_URL = "static/"
-STATIC_ROOT = "/app/staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/mediafiles"
+MEDIA_ROOT = BASE_DIR / "mediafiles"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
