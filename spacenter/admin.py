@@ -117,6 +117,8 @@ class ServiceAdmin(TranslationAdmin):
     list_display = [
         "name",
         "specialty",
+        "country",
+        "city",
         "duration_minutes",
         "currency",
         "base_price",
@@ -127,16 +129,19 @@ class ServiceAdmin(TranslationAdmin):
         "sort_order",
         "image_count",
     ]
-    list_filter = ["is_active", "is_home_service", "specialty", "currency"]
+    list_filter = ["is_active", "is_home_service", "specialty", "currency", "country", "city"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
-    autocomplete_fields = ["specialty"]
+    autocomplete_fields = ["specialty", "country", "city"]
     inlines = [ServiceImageInline]
 
     fieldsets = (
         (None, {
             "fields": ("name", "description", "specialty")
+        }),
+        ("Location", {
+            "fields": ("country", "city")
         }),
         ("Pricing & Duration", {
             "fields": ("duration_minutes", "currency", "base_price", "discount_price")

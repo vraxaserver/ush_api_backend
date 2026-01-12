@@ -152,6 +152,20 @@ class Service(models.Model):
         verbose_name=_("specialty"),
     )
     
+    # Location - Service belongs to a country and city
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="services",
+        verbose_name=_("country"),
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="services",
+        verbose_name=_("city"),
+    )
+    
     # Duration and pricing
     duration_minutes = models.PositiveIntegerField(
         _("duration (minutes)"),
@@ -232,10 +246,10 @@ class Service(models.Model):
         ordering = ["sort_order", "name"]
 
     def __str__(self):
-        return f"{self.name} ({self.duration_minutes} min)"
+        return f"{self.name} ({self.city.name}, {self.country.code})"
 
     def clean(self):
-        """Validate benefits JSON structure and discount price."""
+        """Validate benefits JSON structure, discount price, and city belongs to country."""
         if self.benefits:
             if not isinstance(self.benefits, list):
                 raise ValidationError(
@@ -252,6 +266,13 @@ class Service(models.Model):
             if self.discount_price >= self.base_price:
                 raise ValidationError(
                     {"discount_price": _("Discount price must be less than base price.")}
+                )
+        
+        # Validate city belongs to country
+        if self.city and self.country:
+            if self.city.country != self.country:
+                raise ValidationError(
+                    {"city": _("Selected city does not belong to the selected country.")}
                 )
 
     @property

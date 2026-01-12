@@ -109,6 +109,8 @@ class Migration(migrations.Migration):
                 ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='created at')),
                 ('updated_at', models.DateTimeField(auto_now=True, verbose_name='updated at')),
                 ('specialty', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='services', to='spacenter.specialty', verbose_name='specialty')),
+                ('country', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='services', to='spacenter.country', verbose_name='country')),
+                ('city', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='services', to='spacenter.city', verbose_name='city')),
                 ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='created_services', to=settings.AUTH_USER_MODEL, verbose_name='created by')),
             ],
             options={

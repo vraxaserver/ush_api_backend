@@ -164,14 +164,21 @@ class ServiceFilter(django_filters.FilterSet):
     min_duration = django_filters.NumberFilter(field_name="duration_minutes", lookup_expr="gte")
     max_duration = django_filters.NumberFilter(field_name="duration_minutes", lookup_expr="lte")
     
-    # Filter by spa center, city, country (using country code)
-    spa_center = django_filters.UUIDFilter(field_name="spa_centers__id")
-    city = django_filters.UUIDFilter(field_name="spa_centers__city__id")
+    # Filter by country code and city (direct fields on Service)
     country = django_filters.CharFilter(
-        field_name="spa_centers__country__code",
+        field_name="country__code",
         lookup_expr="iexact",
         help_text="Filter by country code (e.g., UAE, SAU, QAT)",
     )
+    city = django_filters.UUIDFilter(field_name="city__id")
+    city_name = django_filters.CharFilter(
+        field_name="city__name",
+        lookup_expr="icontains",
+        help_text="Filter by city name (partial match)",
+    )
+    
+    # Filter by spa center (for services assigned to branches)
+    spa_center = django_filters.UUIDFilter(field_name="spa_centers__id")
 
     class Meta:
         model = Service
@@ -186,9 +193,10 @@ class ServiceFilter(django_filters.FilterSet):
             "max_price",
             "min_duration",
             "max_duration",
-            "spa_center",
-            "city",
             "country",
+            "city",
+            "city_name",
+            "spa_center",
         ]
 
 
@@ -371,7 +379,9 @@ class ServiceViewSet(viewsets.ModelViewSet):
     DELETE /api/v1/spa/services/{id}/ - Delete service (Admin/Branch Manager)
     """
 
-    queryset = Service.objects.select_related("specialty", "created_by").prefetch_related("images", "spa_centers")
+    queryset = Service.objects.select_related(
+        "specialty", "country", "city", "created_by"
+    ).prefetch_related("images", "spa_centers")
     filterset_class = ServiceFilter
     filter_backends = [
         django_filters.DjangoFilterBackend,

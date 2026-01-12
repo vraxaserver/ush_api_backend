@@ -179,6 +179,8 @@ class ServiceSerializer(serializers.ModelSerializer):
     """Serializer for Service model with translations."""
     
     specialty_detail = SpecialtyListSerializer(source="specialty", read_only=True)
+    country_detail = CountryListSerializer(source="country", read_only=True)
+    city_detail = CityListSerializer(source="city", read_only=True)
     images = ServiceImageSerializer(many=True, read_only=True)
     current_price = serializers.DecimalField(
         max_digits=10,
@@ -206,6 +208,10 @@ class ServiceSerializer(serializers.ModelSerializer):
             "description_ar",
             "specialty",
             "specialty_detail",
+            "country",
+            "country_detail",
+            "city",
+            "city_detail",
             "duration_minutes",
             "currency",
             "base_price",
@@ -235,15 +241,16 @@ class ServiceSerializer(serializers.ModelSerializer):
             for b in obj.spa_centers.filter(is_active=True)[:5]
         ]
 
-    def validate_images(self, value):
-        """Validate that service has between 1-3 images."""
-        if self.instance:
-            current_count = self.instance.images.count()
-            if current_count < 1:
-                raise serializers.ValidationError(
-                    "Service must have at least 1 image."
-                )
-        return value
+    def validate(self, attrs):
+        """Validate city belongs to country."""
+        city = attrs.get("city", getattr(self.instance, "city", None))
+        country = attrs.get("country", getattr(self.instance, "country", None))
+        
+        if city and country and city.country != country:
+            raise serializers.ValidationError({
+                "city": "Selected city does not belong to the selected country."
+            })
+        return attrs
 
 
 class ServiceCreateSerializer(serializers.ModelSerializer):
@@ -273,6 +280,8 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             "description_en",
             "description_ar",
             "specialty",
+            "country",
+            "city",
             "duration_minutes",
             "currency",
             "base_price",
@@ -290,13 +299,20 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        """Validate discount price and branch assignment."""
+        """Validate discount price, branch assignment, and city belongs to country."""
         base_price = attrs.get("base_price")
         discount_price = attrs.get("discount_price")
+        city = attrs.get("city")
+        country = attrs.get("country")
         
         if discount_price and base_price and discount_price >= base_price:
             raise serializers.ValidationError({
                 "discount_price": "Discount price must be less than base price."
+            })
+        
+        if city and country and city.country != country:
+            raise serializers.ValidationError({
+                "city": "Selected city does not belong to the selected country."
             })
         
         request = self.context.get("request")
@@ -352,6 +368,9 @@ class ServiceListSerializer(serializers.ModelSerializer):
     """Minimal serializer for service lists."""
     
     specialty_name = serializers.CharField(source="specialty.name", read_only=True)
+    country_code = serializers.CharField(source="country.code", read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True)
     primary_image = serializers.SerializerMethodField()
     current_price = serializers.DecimalField(
         max_digits=10,
@@ -370,6 +389,11 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "name_ar",
             "specialty",
             "specialty_name",
+            "country",
+            "country_code",
+            "country_name",
+            "city",
+            "city_name",
             "duration_minutes",
             "currency",
             "base_price",
