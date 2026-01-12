@@ -26,6 +26,27 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
+# ----------------------------
+# Reverse proxy / HTTPS headers
+# ----------------------------
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# ----------------------------
+# CSRF trusted origins (required for Django 4+)
+# ----------------------------
+CSRF_TRUSTED_ORIGINS = [
+    "http://api.spaush.com",
+    "https://api.spaush.com",
+]
+
+# If admin uses cookies cross-site (rare), keep defaults; otherwise:
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
 # Application definition
 DJANGO_APPS = [
     "modeltranslation",  # Must be before admin for translation support
