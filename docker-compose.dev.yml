@@ -11,11 +11,11 @@ services:
   # ==========================================================================
   redis:
     image: redis:7-alpine
-    container_name: auth_redis_dev
+    container_name: spaush_redis_dev
     ports:
       - "6379:6379"
     networks:
-      - auth_network_dev
+      - spaush_network_dev
 
   # ==========================================================================
   # Django Web Application (Development)
@@ -24,7 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_web_dev
+    container_name: spaush_web_dev
     command: >
       sh -c "
         python manage.py migrate --noinput &&
@@ -46,7 +46,7 @@ services:
     depends_on:
       - redis
     networks:
-      - auth_network_dev
+      - spaush_network_dev
 
   # ==========================================================================
   # Celery Worker (Development)
@@ -55,7 +55,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_celery_worker_dev
+    container_name: spaush_celery_worker_dev
     command: celery -A config worker -l DEBUG
     env_file:
       - .env
@@ -69,8 +69,8 @@ services:
     depends_on:
       - redis
     networks:
-      - auth_network_dev
+      - spaush_network_dev
 
 networks:
-  auth_network_dev:
+  spaush_network_dev:
     driver: bridge

@@ -10,7 +10,7 @@ services:
   # ==========================================================================
   redis:
     image: redis:7-alpine
-    container_name: auth_redis
+    container_name: spaush_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -18,12 +18,12 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - auth_network
+      - spaush_network
 
   # ==========================================================================
   # Django Web Application
@@ -32,12 +32,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_web
+    container_name: spaush_web
     restart: unless-stopped
     command: >
       sh -c "
         python manage.py migrate --noinput &&
         python manage.py setup_groups &&
+        mkdir -p /app/staticfiles /app/mediafiles &&
         python manage.py collectstatic --noinput &&
         gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --access-logfile - --error-logfile -
       "
@@ -56,13 +57,13 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/auth/health/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/auth/health/" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
-      - auth_network
+      - spaush_network
 
   # ==========================================================================
   # Celery Worker - Async task processing
@@ -71,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_celery_worker
+    container_name: spaush_celery_worker
     restart: unless-stopped
     command: celery -A config worker -l INFO --concurrency=2
     env_file:
@@ -85,7 +86,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - auth_network
+      - spaush_network
 
   # ==========================================================================
   # Celery Beat - Periodic task scheduler
@@ -94,7 +95,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_celery_beat
+    container_name: spaush_celery_beat
     restart: unless-stopped
     command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
@@ -110,7 +111,7 @@ services:
       web:
         condition: service_healthy
     networks:
-      - auth_network
+      - spaush_network
 
   # ==========================================================================
   # Flower - Celery monitoring (optional, comment out if not needed)
@@ -119,7 +120,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: auth_flower
+    container_name: spaush_flower
     restart: unless-stopped
     command: celery -A config flower --port=5555 --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin123}
     ports:
@@ -133,22 +134,22 @@ services:
       - redis
       - celery_worker
     networks:
-      - auth_network
+      - spaush_network
 
 # ==========================================================================
 # Volumes
 # ==========================================================================
 volumes:
   redis_data:
-    driver: local
+    name: spaush_redis_data
   static_volume:
-    driver: local
+    name: ush_api_backend_static_volume
   media_volume:
-    driver: local
+    name: ush_api_backend_media_volume
 
 # ==========================================================================
 # Networks
 # ==========================================================================
 networks:
-  auth_network:
+  spaush_network:
     driver: bridge
