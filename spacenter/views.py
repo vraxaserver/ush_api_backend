@@ -25,6 +25,9 @@ from .models import (
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
+    ProductCategory,
+    BaseProduct,
+    SpaProduct,
 )
 from .serializers import (
     CityListSerializer,
@@ -39,9 +42,13 @@ from .serializers import (
     SpaCenterDetailSerializer,
     SpaCenterListSerializer,
     SpaCenterOperatingHoursSerializer,
+    ProductCategorySerializer,
     SpecialtyListSerializer,
     SpecialtySerializer,
     TherapistProfileSerializer,
+    
+    SpaProductListSerializer,
+    SpaProductDetailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -702,3 +709,159 @@ class TherapistViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             queryset = queryset.filter(is_available=True)
         return queryset.distinct()
+
+
+# =============================================================================
+# Product Category ViewSet
+# =============================================================================
+
+class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for ProductCategory (Read Only).
+    
+    Public read-only access to product categories.
+    Only active categories are shown.
+    """
+
+    queryset = ProductCategory.objects.filter(is_active=True)
+    serializer_class = ProductCategorySerializer
+    permission_classes = [permissions.AllowAny]
+    filter_backends = [
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    search_fields = ["name", "name_en", "name_ar", "description"]
+    ordering_fields = ["sort_order", "name", "created_at"]
+    ordering = ["sort_order", "name"]
+
+
+# =============================================================================
+# Product Filters
+# =============================================================================
+
+class SpaProductFilter(django_filters.FilterSet):
+    """
+    Filter for SpaProduct.
+    
+    Supports filtering by:
+    - country (code, e.g., 'UAE', 'QAT')
+    - city (UUID or name)
+    - category (string, e.g., 'Oils', 'Skincare')
+    - in_stock (boolean)
+    - active (boolean - filters by product status)
+    """
+
+    # Location filters
+    country = django_filters.CharFilter(
+        field_name="country__code",
+        lookup_expr="iexact",
+        help_text="Filter by country code (e.g., UAE, QAT)",
+    )
+    city = django_filters.UUIDFilter(
+        field_name="city__id",
+        help_text="Filter by city UUID",
+    )
+    city_name = django_filters.CharFilter(
+        field_name="city__name",
+        lookup_expr="icontains",
+        help_text="Filter by city name (partial match)",
+    )
+
+    # Category filter (CharField in BaseProduct)
+    category = django_filters.CharFilter(
+        field_name="product__category",
+        lookup_expr="iexact",
+        help_text="Filter by category (e.g., Oils, Skincare)",
+    )
+
+    # Stock filter
+    in_stock = django_filters.BooleanFilter(
+        method="filter_in_stock",
+        help_text="Filter products that are in stock",
+    )
+
+    # Active filter (product status)
+    active = django_filters.BooleanFilter(
+        method="filter_active",
+        help_text="Filter by product active status",
+    )
+
+    class Meta:
+        model = SpaProduct
+        fields = [
+            "country",
+            "city",
+            "city_name",
+            "category",
+            "in_stock",
+            "active",
+        ]
+
+    def filter_in_stock(self, queryset, name, value):
+        """Filter by in-stock status."""
+        if value is True:
+            return queryset.filter(quantity__gt=0)
+        elif value is False:
+            return queryset.filter(quantity=0)
+        return queryset
+
+    def filter_active(self, queryset, name, value):
+        """Filter by product active status."""
+        if value is True:
+            return queryset.filter(product__status="active")
+        elif value is False:
+            return queryset.filter(product__status="inactive")
+        return queryset
+
+
+# =============================================================================
+# Product ViewSets (Read Only)
+# =============================================================================
+
+class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for SpaProduct listing (Read Only).
+    
+    Public read-only access to spa products with filtering by:
+    - country/city (location)
+    - category
+    - in_stock status
+    - active status
+    
+    Only shows products where base product is visible.
+    """
+
+    queryset = SpaProduct.objects.select_related(
+        "product",
+        "country",
+        "city",
+    ).filter(
+        product__is_visible=True,
+    )
+    permission_classes = [permissions.AllowAny]
+    filterset_class = SpaProductFilter
+    filter_backends = [
+        django_filters.DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    search_fields = [
+        "product__name",
+        "product__name_en",
+        "product__name_ar",
+        "product__sku",
+        "product__brand",
+        "product__category",
+    ]
+    ordering_fields = [
+        "price",
+        "quantity",
+        "updated_at",
+        "product__name",
+    ]
+    ordering = ["-updated_at"]
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return SpaProductDetailSerializer
+        return SpaProductListSerializer

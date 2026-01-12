@@ -603,3 +603,258 @@ class TherapistProfile(models.Model):
         if self.spa_center:
             return self.spa_center.country
         return None
+
+
+# =============================================================================
+# Product Models
+# =============================================================================
+
+class ProductCategory(models.Model):
+    """
+    Category for spa products.
+    
+    Examples: Skincare, Body Care, Aromatherapy, Hair Care, Wellness
+    Translatable fields: name, description
+    Only Admin can add/update/delete.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(_("category name"), max_length=100, unique=True)
+    description = models.TextField(_("description"), blank=True)
+
+    is_active = models.BooleanField(_("active"), default=True)
+    sort_order = models.PositiveIntegerField(_("sort order"), default=0)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("product category")
+        verbose_name_plural = _("product categories")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class BaseProduct(models.Model):
+    """
+    Master product catalog.
+    
+    Contains product information independent of location.
+    Only Admin can add/update/delete.
+    Translatable fields: name, short_description
+    """
+
+    PRODUCT_TYPE_CHOICES = (
+        ("retail", "Retail Product"),
+        ("service_addon", "Service Add-on"),
+        ("consumable", "Consumable"),
+    )
+
+    STATUS_CHOICES = (
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    name = models.CharField(_("product name"), max_length=255)
+    short_description = models.CharField(
+        _("short description"),
+        max_length=300,
+        blank=True,
+    )
+
+    product_type = models.CharField(
+        _("product type"),
+        max_length=20,
+        choices=PRODUCT_TYPE_CHOICES,
+        default="retail",
+    )
+    category = models.CharField(
+        _("category"),
+        max_length=100,
+        help_text=_("e.g. Oils, Skincare, Aromatherapy"),
+    )
+    brand = models.CharField(_("brand"), max_length=100, blank=True)
+
+    sku = models.CharField(
+        _("SKU"),
+        max_length=100,
+        unique=True,
+        help_text=_("Stock Keeping Unit"),
+    )
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active",
+    )
+
+    image = models.ImageField(
+        _("image"),
+        upload_to="spa_products/",
+        blank=True,
+        null=True,
+    )
+
+    is_organic = models.BooleanField(_("organic"), default=False)
+    is_aromatherapy = models.BooleanField(_("aromatherapy"), default=False)
+    suitable_for_sensitive_skin = models.BooleanField(
+        _("suitable for sensitive skin"),
+        default=False,
+    )
+
+    is_featured = models.BooleanField(_("featured"), default=False)
+    is_visible = models.BooleanField(_("visible"), default=True)
+
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("base product")
+        verbose_name_plural = _("base products")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["category"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.sku})"
+
+    @property
+    def is_active(self):
+        """Check if product is active."""
+        return self.status == "active"
+
+
+class SpaProduct(models.Model):
+    """
+    Stock per product per location.
+    
+    Links BaseProduct to specific country/city with pricing and inventory.
+    Admin and Branch Manager can add/update.
+    Branch Manager can only manage products in their branch's location.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    product = models.ForeignKey(
+        BaseProduct,
+        on_delete=models.CASCADE,
+        related_name="stocks",
+        verbose_name=_("product"),
+    )
+
+    # Location
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="spa_products",
+        verbose_name=_("country"),
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="spa_products",
+        verbose_name=_("city"),
+    )
+
+    # Pricing
+    price = models.DecimalField(
+        _("price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    discounted_price = models.DecimalField(
+        _("discounted price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
+    currency = models.CharField(
+        _("currency"),
+        max_length=10,
+        default="QAR",
+    )
+
+    # Inventory
+    quantity = models.PositiveIntegerField(_("quantity"), default=0)
+    reserved_quantity = models.PositiveIntegerField(
+        _("reserved quantity"),
+        default=0,
+        help_text=_("For carts/orders not yet finalized"),
+    )
+    low_stock_threshold = models.PositiveIntegerField(
+        _("low stock threshold"),
+        default=5,
+    )
+
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("spa product")
+        verbose_name_plural = _("spa products")
+        ordering = ["-updated_at"]
+        unique_together = ["product", "country", "city"]
+
+    def __str__(self):
+        return f"{self.product.sku} @ {self.city.name}, {self.country.code}: {self.quantity} units"
+
+    def clean(self):
+        """Validate city belongs to country."""
+        if self.city and self.country:
+            if self.city.country != self.country:
+                raise ValidationError(
+                    {"city": _("Selected city does not belong to the selected country.")}
+                )
+
+    @property
+    def available_quantity(self):
+        """Get available quantity (total - reserved)."""
+        return max(0, self.quantity - self.reserved_quantity)
+
+    @property
+    def is_in_stock(self):
+        """Check if product is in stock."""
+        return self.available_quantity > 0
+
+    @property
+    def is_low_stock(self):
+        """Check if stock is below threshold."""
+        return self.available_quantity <= self.low_stock_threshold
+
+    @property
+    def current_price(self):
+        """Get current price (discounted if available)."""
+        if self.discounted_price:
+            return self.discounted_price
+        return self.price
+
+    @property
+    def has_discount(self):
+        """Check if product has an active discount."""
+        return self.discounted_price is not None and self.discounted_price < self.price
+
+    @property
+    def discount_percentage(self):
+        """Calculate discount percentage."""
+        if self.has_discount:
+            discount = ((self.price - self.discounted_price) / self.price) * 100
+            return round(discount, 0)
+        return 0
+
+    @property
+    def stock_status(self):
+        """Get stock status string."""
+        if self.available_quantity == 0:
+            return "out_of_stock"
+        elif self.is_low_stock:
+            return "low_stock"
+        return "in_stock"
+

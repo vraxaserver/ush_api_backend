@@ -14,6 +14,9 @@ from .models import (
     SpaCenter,
     Specialty,
     TherapistProfile,
+    ProductCategory,
+    BaseProduct,
+    SpaProduct,
 )
 
 
@@ -57,3 +60,24 @@ class TherapistProfileTranslationOptions(TranslationOptions):
     """Translation options for TherapistProfile model."""
     
     fields = ("bio",)
+
+
+@register(ProductCategory)
+class ProductCategoryTranslationOptions(TranslationOptions):
+    """Translation options for ProductCategory model."""
+    
+    fields = ("name", "description")
+
+
+@register(BaseProduct)
+class BaseProductTranslationOptions(TranslationOptions):
+    """Translation options for BaseProduct model."""
+    
+    fields = ("name", "short_description")
+
+
+@register(SpaProduct)
+class SpaProductTranslationOptions(TranslationOptions):
+    """Translation options for SpaProduct model."""
+    
+    fields = ("product", "country", "city", "currency", "price", "discounted_price")

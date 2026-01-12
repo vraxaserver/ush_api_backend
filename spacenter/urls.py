@@ -15,6 +15,8 @@ from .views import (
     SpaCenterViewSet,
     SpecialtyViewSet,
     TherapistViewSet,
+    ProductCategoryViewSet,
+    SpaProductViewSet,
 )
 
 app_name = "spacenter"
@@ -26,6 +28,8 @@ router.register(r"specialties", SpecialtyViewSet, basename="specialty")
 router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"branches", SpaCenterViewSet, basename="spacenter")
 router.register(r"therapists", TherapistViewSet, basename="therapist")
+router.register(r"product-categories", ProductCategoryViewSet, basename="product-category")
+router.register(r"products", SpaProductViewSet, basename="product")
 
 urlpatterns = [
     path("", include(router.urls)),

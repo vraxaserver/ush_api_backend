@@ -64,7 +64,7 @@ python manage.py migrate
 python manage.py setup_groups
 
 # Create admin user
-python manage.py create_admin --email=admin@example.com --password=your-secure-password
+python manage.py create_admin --email=admin@gmail.com --password=Mamun@123
 ```
 
 ### 3. Run Development Server

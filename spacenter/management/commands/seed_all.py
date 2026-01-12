@@ -21,6 +21,7 @@ from spacenter.models import (
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
+    
 )
 
 
@@ -71,6 +72,11 @@ class Command(BaseCommand):
         self.stdout.write("Step 5/5: Seeding Therapists")
         self.stdout.write("-" * 40)
         call_command("seed_therapists", *clear_flag)
+
+        self.stdout.write("\n" + "-" * 40)
+        self.stdout.write("Step 6/5: Seeding Products")
+        self.stdout.write("-" * 40)
+        call_command("seed_products", *clear_flag)
 
         # Print final summary
         self.print_summary()

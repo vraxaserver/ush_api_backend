@@ -6,6 +6,7 @@ Supports multi-language (English, Arabic) via django-modeltranslation.
 """
 
 from django.contrib import admin
+from django.db.models import Sum
 from django.utils.html import format_html
 from modeltranslation.admin import TranslationAdmin
 
@@ -18,6 +19,9 @@ from .models import (
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
+    ProductCategory,
+    BaseProduct,
+    SpaProduct,
 )
 
 
@@ -361,3 +365,257 @@ class TherapistProfileAdmin(TranslationAdmin):
             names += f" (+{obj.specialties.count() - 3} more)"
         return names or "-"
     specialty_list.short_description = "Specialties"
+
+# =============================================================================
+# Product Admin (Only Admin can add/update/delete ProductCategory and BaseProduct)
+# =============================================================================
+
+@admin.register(ProductCategory)
+class ProductCategoryAdmin(TranslationAdmin):
+    """
+    Admin for ProductCategory model.
+    Only Admin can add/update/delete.
+    """
+
+    list_display = [
+        "name",
+        "is_active",
+        "sort_order",
+        "created_at",
+    ]
+    list_filter = ["is_active"]
+    search_fields = ["name", "name_en", "name_ar", "description"]
+    ordering = ["sort_order", "name"]
+    list_editable = ["sort_order", "is_active"]
+
+    fieldsets = (
+        (None, {
+            "fields": ("name", "description")
+        }),
+        ("Status", {
+            "fields": ("is_active", "sort_order")
+        }),
+    )
+
+
+@admin.register(BaseProduct)
+class BaseProductAdmin(TranslationAdmin):
+    """
+    Admin for BaseProduct model.
+    Only Admin can add/update/delete.
+    """
+
+    list_display = [
+        "name",
+        "sku",
+        "category",
+        "brand",
+        "product_type",
+        "status",
+        "is_featured",
+        "is_visible",
+        "total_stock_display",
+        "locations_count_display",
+        "image_preview",
+    ]
+    list_filter = [
+        "status",
+        "product_type",
+        "category",
+        "is_featured",
+        "is_visible",
+        "is_organic",
+        "is_aromatherapy",
+        "suitable_for_sensitive_skin",
+    ]
+    search_fields = [
+        "name",
+        "name_en",
+        "name_ar",
+        "sku",
+        "brand",
+        "short_description",
+        "category",
+    ]
+    ordering = ["-created_at"]
+    list_editable = ["status", "is_featured", "is_visible"]
+
+    fieldsets = (
+        (None, {
+            "fields": ("name", "sku", "short_description")
+        }),
+        ("Classification", {
+            "fields": ("product_type", "category", "brand")
+        }),
+        ("Media", {
+            "fields": ("image",)
+        }),
+        ("Product Attributes", {
+            "fields": (
+                "is_organic",
+                "is_aromatherapy",
+                "suitable_for_sensitive_skin",
+            )
+        }),
+        ("Display Settings", {
+            "fields": ("status", "is_featured", "is_visible")
+        }),
+    )
+
+    def total_stock_display(self, obj):
+        """Display total stock across all locations."""
+        total = obj.stocks.aggregate(total=Sum("quantity"))["total"] or 0
+        if total == 0:
+            return format_html('<span style="color: red;">0</span>')
+        return total
+    total_stock_display.short_description = "Total Stock"
+
+    def locations_count_display(self, obj):
+        """Display number of locations with stock."""
+        count = obj.stocks.filter(quantity__gt=0).count()
+        return count
+    locations_count_display.short_description = "Locations"
+
+    def image_preview(self, obj):
+        """Display image preview."""
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 40px; max-width: 60px;" />',
+                obj.image.url
+            )
+        return "-"
+    image_preview.short_description = "Image"
+
+
+@admin.register(SpaProduct)
+class SpaProductAdmin(admin.ModelAdmin):
+    """
+    Admin for SpaProduct model.
+    Admin and Branch Manager can add/update.
+    Branch Manager can only manage products in their branch's location.
+    """
+
+    list_display = [
+        "product",
+        "country",
+        "city",
+        "currency",
+        "price",
+        "discounted_price",
+        "current_price_display",
+        "quantity",
+        "reserved_quantity",
+        "available_display",
+        "stock_status_display",
+    ]
+    list_filter = [
+        "country",
+        "city",
+        "currency",
+        "product__category",
+        "product__status",
+    ]
+    search_fields = [
+        "product__name",
+        "product__sku",
+        "country__name",
+        "city__name",
+    ]
+    ordering = ["-updated_at"]
+    list_editable = ["quantity", "price", "discounted_price"]
+    autocomplete_fields = ["product", "country", "city"]
+
+    fieldsets = (
+        (None, {
+            "fields": ("product",)
+        }),
+        ("Location", {
+            "fields": ("country", "city")
+        }),
+        ("Pricing", {
+            "fields": ("currency", "price", "discounted_price")
+        }),
+        ("Inventory", {
+            "fields": ("quantity", "reserved_quantity", "low_stock_threshold")
+        }),
+    )
+
+    def current_price_display(self, obj):
+        """Display current price with discount indicator."""
+        if obj.has_discount:
+            return format_html(
+                '<span style="text-decoration: line-through; color: #999;">{}</span> '
+                '<span style="color: green; font-weight: bold;">{}</span> '
+                '<span style="color: red;">(-{}%)</span>',
+                obj.price,
+                obj.current_price,
+                obj.discount_percentage
+            )
+        return obj.price
+    current_price_display.short_description = "Current Price"
+
+    def available_display(self, obj):
+        """Display available quantity."""
+        available = obj.available_quantity
+        if available == 0:
+            return format_html('<span style="color: red;">0</span>')
+        elif obj.is_low_stock:
+            return format_html('<span style="color: orange;">{}</span>', available)
+        return available
+    available_display.short_description = "Available"
+
+    def stock_status_display(self, obj):
+        """Display stock status with color coding."""
+        status = obj.stock_status
+        if status == "out_of_stock":
+            return format_html('<span style="color: red;">Out of Stock</span>')
+        elif status == "low_stock":
+            return format_html('<span style="color: orange;">Low Stock</span>')
+        return format_html('<span style="color: green;">In Stock</span>')
+    stock_status_display.short_description = "Status"
+
+    def get_queryset(self, request):
+        """
+        Filter queryset based on user role.
+        Branch managers can only see products in their branch's location.
+        """
+        qs = super().get_queryset(request)
+        
+        # Check if user is a branch manager (not superuser/admin)
+        if not request.user.is_superuser:
+            if hasattr(request.user, 'managed_spa_center'):
+                spa_center = request.user.managed_spa_center
+                if spa_center:
+                    return qs.filter(
+                        country=spa_center.country,
+                        city=spa_center.city
+                    )
+        
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Limit country/city choices for branch managers.
+        """
+        if not request.user.is_superuser:
+            if hasattr(request.user, 'managed_spa_center'):
+                spa_center = request.user.managed_spa_center
+                if spa_center:
+                    if db_field.name == "country":
+                        kwargs["queryset"] = Country.objects.filter(id=spa_center.country_id)
+                    elif db_field.name == "city":
+                        kwargs["queryset"] = City.objects.filter(id=spa_center.city_id)
+        
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        """Auto-set country/city for branch managers on create."""
+        if not change and not request.user.is_superuser:
+            if hasattr(request.user, 'managed_spa_center'):
+                spa_center = request.user.managed_spa_center
+                if spa_center:
+                    obj.country = spa_center.country
+                    obj.city = spa_center.city
+        super().save_model(request, obj, form, change)
+
+

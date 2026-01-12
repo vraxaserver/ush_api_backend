@@ -22,6 +22,9 @@ from .models import (
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
+    ProductCategory,
+    BaseProduct,
+    SpaProduct,
 )
 
 User = get_user_model()
@@ -817,3 +820,160 @@ class TherapistUpdateSerializer(serializers.ModelSerializer):
             instance.services.set(service_ids)
 
         return instance
+
+
+
+# =============================================================================
+# Product Serializers (SpaProduct API - Read Only)
+# =============================================================================
+
+class ProductCategorySerializer(serializers.ModelSerializer):
+    """Serializer for ProductCategory."""
+
+    class Meta:
+        model = ProductCategory
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "description",
+            "description_en",
+            "description_ar",
+            "is_active",
+        ]
+
+
+class BaseProductSerializer(serializers.ModelSerializer):
+    """Serializer for BaseProduct (master product catalog)."""
+
+    class Meta:
+        model = BaseProduct
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "short_description",
+            "short_description_en",
+            "short_description_ar",
+            "product_type",
+            "category",
+            "brand",
+            "sku",
+            "status",
+            "image",
+            "is_organic",
+            "is_aromatherapy",
+            "suitable_for_sensitive_skin",
+            "is_featured",
+            "is_visible",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class BaseProductListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for BaseProduct in lists."""
+
+    class Meta:
+        model = BaseProduct
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "short_description",
+            "product_type",
+            "category",
+            "brand",
+            "sku",
+            "status",
+            "image",
+            "is_organic",
+            "is_aromatherapy",
+            "suitable_for_sensitive_skin",
+            "is_featured",
+        ]
+
+
+class SpaProductListSerializer(serializers.ModelSerializer):
+    """
+    Serializer for SpaProduct listing.
+    
+    Includes product details, location, pricing, and stock information.
+    Used for public API listing.
+    """
+
+    # Product details
+    product = BaseProductListSerializer(read_only=True)
+    product_id = serializers.UUIDField(source="product.id", read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    product_image = serializers.ImageField(source="product.image", read_only=True)
+    category = serializers.CharField(source="product.category", read_only=True)
+
+    # Location
+    country_code = serializers.CharField(source="country.code", read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True)
+
+    # Computed fields
+    current_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    has_discount = serializers.BooleanField(read_only=True)
+    discount_percentage = serializers.IntegerField(read_only=True)
+    is_in_stock = serializers.BooleanField(read_only=True)
+    available_quantity = serializers.IntegerField(read_only=True)
+    stock_status = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = SpaProduct
+        fields = [
+            "id",
+            # Product info
+            "product",
+            "product_id",
+            "product_name",
+            "product_sku",
+            "product_image",
+            "category",
+            # Location
+            "country",
+            "country_code",
+            "country_name",
+            "city",
+            "city_name",
+            # Pricing
+            "currency",
+            "price",
+            "discounted_price",
+            "current_price",
+            "has_discount",
+            "discount_percentage",
+            # Stock
+            "quantity",
+            "available_quantity",
+            "is_in_stock",
+            "stock_status",
+            # Timestamps
+            "updated_at",
+        ]
+
+
+class SpaProductDetailSerializer(SpaProductListSerializer):
+    """
+    Detailed serializer for SpaProduct.
+    
+    Includes all fields including reserved quantity and low stock threshold.
+    """
+
+    class Meta(SpaProductListSerializer.Meta):
+        fields = SpaProductListSerializer.Meta.fields + [
+            "reserved_quantity",
+            "low_stock_threshold",
+        ]
+
