@@ -64,6 +64,8 @@ python manage.py migrate
 python manage.py setup_groups
 
 # Create admin user
+# docker compose exec web python manage.py create_admin --email=admin@gmail.com --password=Mamun@123
+
 python manage.py create_admin --email=admin@gmail.com --password=Mamun@123
 ```
 
