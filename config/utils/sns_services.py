@@ -36,4 +36,4 @@ class SNSSMSService:
             }
 
 
-sms_service = SNSSMSService(region=config("AWS_SNS_REGION_NAME"))
+sms_service = SNSSMSService(region=config("AWS_REGION_NAME"))

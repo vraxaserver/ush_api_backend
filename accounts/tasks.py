@@ -11,6 +11,8 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from config.utils.sns_services import sms_service
+from config.utils.ses_mailer import ses_mailer
+
 import pdb
 logger = logging.getLogger(__name__)
 
@@ -55,13 +57,21 @@ def send_email_verification(self, email, code, is_password_reset=False):
 
         plain_message = f"Your verification code is: {code}. This code will expire in {context['expiry_minutes']} minutes."
 
-        send_mail(
+        # send_mail(
+        #     subject=subject,
+        #     message=plain_message,
+        #     from_email=settings.DEFAULT_FROM_EMAIL,
+        #     recipient_list=[email],
+        #     html_message=html_message,
+        #     fail_silently=False,
+        # )
+
+        ses_mailer.send(
             subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            html_message=html_message,
-            fail_silently=False,
+            sender=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            html_body=html_message,
+            text_body=plain_message
         )
 
         logger.info(f"Verification email sent to {email}")
@@ -128,13 +138,21 @@ def send_welcome_email(email, first_name):
 
         plain_message = f"Welcome, {first_name}! Thank you for registering with us."
 
-        send_mail(
+        # send_mail(
+        #     subject=subject,
+        #     message=plain_message,
+        #     from_email=settings.DEFAULT_FROM_EMAIL,
+        #     recipient_list=[email],
+        #     html_message=html_message,
+        #     fail_silently=True,
+        # )
+
+        ses_mailer.send(
             subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            html_message=html_message,
-            fail_silently=True,
+            sender=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            html_body=html_message,
+            text_body=plain_message
         )
 
         logger.info(f"Welcome email sent to {email}")
@@ -179,13 +197,21 @@ def send_employee_created_email(email, first_name, temporary_password):
 
         plain_message = f"Welcome, {first_name}! Your employee account has been created. Email: {email}, Temporary Password: {temporary_password}"
 
-        send_mail(
+        # send_mail(
+        #     subject=subject,
+        #     message=plain_message,
+        #     from_email=settings.DEFAULT_FROM_EMAIL,
+        #     recipient_list=[email],
+        #     html_message=html_message,
+        #     fail_silently=False,
+        # )
+
+        ses_mailer.send(
             subject=subject,
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            html_message=html_message,
-            fail_silently=False,
+            sender=settings.DEFAULT_FROM_EMAIL,
+            to=[email],
+            html_body=html_message,
+            text_body=plain_message
         )
 
         logger.info(f"Employee creation email sent to {email}")
