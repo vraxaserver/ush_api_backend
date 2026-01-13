@@ -10,7 +10,8 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-
+from config.utils.sns_services import sms_service
+import pdb
 logger = logging.getLogger(__name__)
 
 
@@ -84,55 +85,20 @@ def send_sms_verification(self, phone_number, code):
         bool: True if SMS sent successfully
     """
     try:
-        import boto3
-        from botocore.exceptions import ClientError
 
-        # Check if AWS is configured
-        aws_access_key = getattr(settings, "AWS_ACCESS_KEY_ID", "")
-        aws_secret_key = getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
-        aws_region = getattr(settings, "AWS_SNS_REGION_NAME", "us-east-1")
-
-        if not all([aws_access_key, aws_secret_key]):
-            logger.warning("AWS SNS not configured. SMS not sent.")
-            # In development, just log the code
-            logger.info(f"SMS Verification Code for {phone_number}: {code}")
-            return True
-
-        # Create SNS client
-        sns_client = boto3.client(
-            "sns",
-            region_name=aws_region,
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-        )
+        logger.info(f"SMS Verification Code for {phone_number}: {code}")
 
         # Send SMS
         expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
         message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
+        resutl = sms_service.send_sms(phone_number, message)
+        print(resutl)
 
-        response = sns_client.publish(
-            PhoneNumber=phone_number,
-            Message=message,
-            MessageAttributes={
-                "AWS.SNS.SMS.SenderID": {
-                    "DataType": "String",
-                    "StringValue": getattr(settings, "AWS_SNS_SENDER_ID", "AuthSvc"),
-                },
-                "AWS.SNS.SMS.SMSType": {
-                    "DataType": "String",
-                    "StringValue": "Transactional",  # Use Transactional for OTP
-                },
-            },
-        )
-
-        logger.info(f"SMS sent to {phone_number}, MessageId: {response['MessageId']}")
+        # logger.info(f"SMS sent to {phone_number}, MessageId: {resutl['message_id']}")
         return True
 
-    except ClientError as e:
-        logger.error(f"AWS SNS error sending to {phone_number}: {e}")
-        raise self.retry(exc=e, countdown=60)
     except Exception as e:
-        logger.error(f"Failed to send SMS to {phone_number}: {e}")
+        logger.error(f"AWS SNS error sending to {phone_number}: {e}")
         raise self.retry(exc=e, countdown=60)
 
 
