@@ -14,17 +14,18 @@ from accounts.models import EmployeeRole, UserType
 from profiles.models import EmployeeProfile
 
 from .models import (
+    AddOnService,
+    BaseProduct,
     City,
     Country,
+    ProductCategory,
     Service,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
+    SpaProduct,
     Specialty,
     TherapistProfile,
-    ProductCategory,
-    BaseProduct,
-    SpaProduct,
 )
 
 User = get_user_model()
@@ -166,6 +167,50 @@ class SpecialtyListSerializer(serializers.ModelSerializer):
 
 
 # =============================================================================
+# Add-on Service Serializers
+# =============================================================================
+
+class AddOnServiceSerializer(serializers.ModelSerializer):
+    """Serializer for AddOnService model with translations."""
+
+    class Meta:
+        model = AddOnService
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "description",
+            "description_en",
+            "description_ar",
+            "duration_minutes",
+            "price",
+            "currency",
+            "image",
+            "is_active",
+            "sort_order",
+        ]
+        read_only_fields = ["id"]
+
+
+class AddOnServiceListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for AddOnService in lists."""
+
+    class Meta:
+        model = AddOnService
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "duration_minutes",
+            "price",
+            "currency",
+            "image",
+        ]
+
+
+# =============================================================================
 # Service Serializers
 # =============================================================================
 
@@ -185,6 +230,7 @@ class ServiceSerializer(serializers.ModelSerializer):
     country_detail = CountryListSerializer(source="country", read_only=True)
     city_detail = CityListSerializer(source="city", read_only=True)
     images = ServiceImageSerializer(many=True, read_only=True)
+    add_on_services = AddOnServiceListSerializer(many=True, read_only=True)
     current_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -198,6 +244,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     branches = serializers.SerializerMethodField()
+    therapists = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -229,8 +276,10 @@ class ServiceSerializer(serializers.ModelSerializer):
             "ideal_for_en",
             "ideal_for_ar",
             "benefits",
+            "add_on_services",
             "images",
             "branches",
+            "therapists",
             "is_active",
             "sort_order",
             "created_at",
@@ -244,7 +293,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             for b in obj.spa_centers.filter(is_active=True)[:5]
         ]
 
-    def validate(self, attrs):
+    def validate(self, attrs): 
         """Validate city belongs to country."""
         city = attrs.get("city", getattr(self.instance, "city", None))
         country = attrs.get("country", getattr(self.instance, "country", None))
@@ -254,6 +303,23 @@ class ServiceSerializer(serializers.ModelSerializer):
                 "city": "Selected city does not belong to the selected country."
             })
         return attrs
+    
+    def get_therapists(self, obj):
+        """
+        Return therapists who can perform this service.
+        By default: only available therapists.
+        Optionally, you can also restrict them to branches that offer this service.
+        """
+        qs = obj.therapists.select_related(
+            "employee_profile__user",
+            "spa_center",
+        ).filter(is_available=True)
+
+        # Optional (recommended): only therapists assigned to branches that offer this service
+        # This avoids showing therapists from other unrelated branches.
+        qs = qs.filter(spa_center__in=obj.spa_centers.filter(is_active=True))
+
+        return TherapistMiniSerializer(qs, many=True, context=self.context).data
 
 
 class ServiceCreateSerializer(serializers.ModelSerializer):
@@ -375,6 +441,8 @@ class ServiceListSerializer(serializers.ModelSerializer):
     country_name = serializers.CharField(source="country.name", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
     primary_image = serializers.SerializerMethodField()
+    add_on_services = AddOnServiceListSerializer(many=True, read_only=True)
+    addon_count = serializers.SerializerMethodField()
     current_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -408,6 +476,8 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "home_service_price",
             "ideal_for",
             "primary_image",
+            "add_on_services",
+            "addon_count",
         ]
 
     def get_primary_image(self, obj):
@@ -424,6 +494,10 @@ class ServiceListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(first_image.image.url)
             return first_image.image.url
         return None
+
+    def get_addon_count(self, obj):
+        """Get count of add-on services."""
+        return obj.add_on_services.filter(is_active=True).count()
 
 
 # =============================================================================
@@ -822,6 +896,34 @@ class TherapistUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 
+class TherapistMiniSerializer(serializers.ModelSerializer):
+    """
+    Lightweight therapist serializer for embedding inside service details.
+    """
+    user_id = serializers.UUIDField(source="employee_profile.user.id", read_only=True)
+    full_name = serializers.CharField(source="employee_profile.user.get_full_name", read_only=True)
+    email = serializers.EmailField(source="employee_profile.user.email", read_only=True)
+    phone = serializers.CharField(source="employee_profile.user.phone_number", read_only=True)
+    spa_center_id = serializers.UUIDField(source="spa_center.id", read_only=True, allow_null=True)
+    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
+
+    class Meta:
+        model = TherapistProfile
+        fields = [
+            "id",
+            "user_id",
+            "full_name",
+            "email",
+            "phone",
+            "spa_center_id",
+            "spa_center_name",
+            "years_of_experience",
+            "bio",
+            "bio_en",
+            "bio_ar",
+            "is_available",
+        ]
+
 
 # =============================================================================
 # Product Serializers (SpaProduct API - Read Only)
@@ -976,4 +1078,3 @@ class SpaProductDetailSerializer(SpaProductListSerializer):
             "reserved_quantity",
             "low_stock_threshold",
         ]
-

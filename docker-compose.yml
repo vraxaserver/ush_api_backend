@@ -34,7 +34,6 @@ services:
     restart: unless-stopped
     command: >
       sh -c "
-        python manage.py migrate --noinput &&
         python manage.py setup_groups &&
         mkdir -p /app/staticfiles /app/mediafiles &&
         python manage.py collectstatic --noinput &&

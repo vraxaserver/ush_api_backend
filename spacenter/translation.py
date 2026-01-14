@@ -8,15 +8,15 @@ Uses django-modeltranslation.
 from modeltranslation.translator import TranslationOptions, register
 
 from .models import (
+    AddOnService,
+    BaseProduct,
     City,
     Country,
+    ProductCategory,
     Service,
     SpaCenter,
     Specialty,
     TherapistProfile,
-    ProductCategory,
-    BaseProduct,
-    SpaProduct,
 )
 
 
@@ -37,6 +37,13 @@ class CityTranslationOptions(TranslationOptions):
 @register(Specialty)
 class SpecialtyTranslationOptions(TranslationOptions):
     """Translation options for Specialty model."""
+    
+    fields = ("name", "description")
+
+
+@register(AddOnService)
+class AddOnServiceTranslationOptions(TranslationOptions):
+    """Translation options for AddOnService model."""
     
     fields = ("name", "description")
 
@@ -74,10 +81,3 @@ class BaseProductTranslationOptions(TranslationOptions):
     """Translation options for BaseProduct model."""
     
     fields = ("name", "short_description")
-
-
-@register(SpaProduct)
-class SpaProductTranslationOptions(TranslationOptions):
-    """Translation options for SpaProduct model."""
-    
-    fields = ("product", "country", "city", "currency", "price", "discounted_price")

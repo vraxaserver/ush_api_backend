@@ -121,6 +121,58 @@ class Specialty(models.Model):
         return self.name
 
 
+class AddOnService(models.Model):
+    """
+    Add-on service model.
+    
+    Additional services that can be attached to main services.
+    Translatable fields: name, description
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(_("add-on name"), max_length=150)
+    description = models.TextField(_("description"), blank=True)
+    
+    # Duration and pricing
+    duration_minutes = models.PositiveIntegerField(
+        _("duration (minutes)"),
+        default=15,
+        help_text=_("Additional time for this add-on"),
+    )
+    price = models.DecimalField(
+        _("price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    currency = models.CharField(
+        _("currency"),
+        max_length=3,
+        default="QAR",
+    )
+    
+    # Image
+    image = models.ImageField(
+        _("image"),
+        upload_to="services/addons/",
+        null=True,
+        blank=True,
+    )
+    
+    is_active = models.BooleanField(_("active"), default=True)
+    sort_order = models.PositiveIntegerField(_("sort order"), default=0)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("add-on service")
+        verbose_name_plural = _("add-on services")
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return f"{self.name} (+{self.duration_minutes} min, {self.currency} {self.price})"
+
+
 class Service(models.Model):
     """
     Service model for spa services.
@@ -223,6 +275,15 @@ class Service(models.Model):
         default=list,
         blank=True,
         help_text=_("List of benefits as key-value pairs"),
+    )
+    
+    # Add-on services
+    add_on_services = models.ManyToManyField(
+        AddOnService,
+        blank=True,
+        related_name="services",
+        verbose_name=_("add-on services"),
+        help_text=_("Additional services that can be added to this service"),
     )
     
     # Created by tracking

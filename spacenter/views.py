@@ -17,6 +17,7 @@ from accounts.models import EmployeeRole
 from accounts.permissions import IsAdminUser
 
 from .models import (
+    AddOnService,
     BaseProduct,
     City,
     Country,
@@ -30,6 +31,8 @@ from .models import (
     TherapistProfile,
 )
 from .serializers import (
+    AddOnServiceListSerializer,
+    AddOnServiceSerializer,
     CityListSerializer,
     CitySerializer,
     CountryListSerializer,
@@ -387,7 +390,14 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
     queryset = Service.objects.select_related(
         "specialty", "country", "city", "created_by"
-    ).prefetch_related("images", "spa_centers")
+    ).prefetch_related(
+        "images",
+        "spa_centers",
+        "add_on_services",
+        "therapists__employee_profile__user",
+        "therapists__spa_center",
+    )
+
     filterset_class = ServiceFilter
     filter_backends = [
         django_filters.DjangoFilterBackend,
@@ -943,4 +953,39 @@ class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return SpaProductDetailSerializer
         return SpaProductListSerializer
+
+
+# =============================================================================
+# Add-on Service ViewSet
+# =============================================================================
+
+class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for AddOnService listing (Read Only).
+    
+    Public read-only access to add-on services.
+    
+    GET /api/v1/spa/add-on-services/ - List all active add-on services
+    GET /api/v1/spa/add-on-services/{id}/ - Get add-on service details
+    """
+
+    queryset = AddOnService.objects.filter(is_active=True)
+    permission_classes = [permissions.AllowAny]
+    filter_backends = [
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    search_fields = [
+        "name",
+        "name_en",
+        "name_ar",
+        "description",
+    ]
+    ordering_fields = ["name", "price", "duration_minutes", "sort_order"]
+    ordering = ["sort_order", "name"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return AddOnServiceListSerializer
+        return AddOnServiceSerializer
 

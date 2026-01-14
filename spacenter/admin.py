@@ -11,17 +11,18 @@ from django.utils.html import format_html
 from modeltranslation.admin import TranslationAdmin
 
 from .models import (
+    AddOnService,
+    BaseProduct,
     City,
     Country,
+    ProductCategory,
     Service,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
+    SpaProduct,
     Specialty,
     TherapistProfile,
-    ProductCategory,
-    BaseProduct,
-    SpaProduct,
 )
 
 
@@ -104,6 +105,60 @@ class SpecialtyAdmin(TranslationAdmin):
     service_count.short_description = "Services"
 
 
+@admin.register(AddOnService)
+class AddOnServiceAdmin(TranslationAdmin):
+    """Admin for AddOnService model."""
+
+    list_display = [
+        "name",
+        "duration_minutes",
+        "currency",
+        "price",
+        "is_active",
+        "sort_order",
+        "service_count",
+        "image_preview",
+    ]
+    list_filter = ["is_active", "currency"]
+    search_fields = ["name", "name_en", "name_ar", "description"]
+    ordering = ["sort_order", "name"]
+    list_editable = ["sort_order", "is_active", "price", "duration_minutes"]
+
+    fieldsets = (
+        ("English", {
+            "fields": ("name_en", "description_en")
+        }),
+        ("Arabic", {
+            "fields": ("name_ar", "description_ar"),
+            "classes": ("collapse",)
+        }),
+        ("Pricing & Duration", {
+            "fields": ("duration_minutes", "currency", "price")
+        }),
+        ("Media", {
+            "fields": ("image",)
+        }),
+        ("Status", {
+            "fields": ("is_active", "sort_order")
+        }),
+    )
+
+    def service_count(self, obj):
+        """Count of services using this add-on."""
+        return obj.services.count()
+    service_count.short_description = "Used In"
+
+    def image_preview(self, obj):
+        """Display image thumbnail."""
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 40px; max-width: 60px;" />',
+                obj.image.url
+            )
+        return "-"
+    image_preview.short_description = "Image"
+
+
 class ServiceImageInline(admin.TabularInline):
     """Inline for service images."""
 
@@ -131,6 +186,7 @@ class ServiceAdmin(TranslationAdmin):
         "is_home_service",
         "is_active",
         "sort_order",
+        "addon_count",
         "image_count",
     ]
     list_filter = ["is_active", "is_home_service", "specialty", "currency", "country", "city"]
@@ -138,6 +194,7 @@ class ServiceAdmin(TranslationAdmin):
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
     autocomplete_fields = ["specialty", "country", "city"]
+    filter_horizontal = ["add_on_services"]
     inlines = [ServiceImageInline]
 
     fieldsets = (
@@ -153,6 +210,10 @@ class ServiceAdmin(TranslationAdmin):
         ("Home Service", {
             "fields": ("is_home_service", "price_for_home_service")
         }),
+        ("Add-on Services", {
+            "fields": ("add_on_services",),
+            "description": "Select additional services that can be added to this service."
+        }),
         ("Additional Info", {
             "fields": ("ideal_for", "benefits")
         }),
@@ -161,6 +222,14 @@ class ServiceAdmin(TranslationAdmin):
         }),
     )
     readonly_fields = ["created_by"]
+
+    def addon_count(self, obj):
+        """Count of add-on services attached."""
+        count = obj.add_on_services.count()
+        if count > 0:
+            return format_html('<span style="color: green;">{}</span>', count)
+        return "-"
+    addon_count.short_description = "Add-ons"
 
     def current_price_display(self, obj):
         if obj.has_discount:
@@ -365,6 +434,7 @@ class TherapistProfileAdmin(TranslationAdmin):
             names += f" (+{obj.specialties.count() - 3} more)"
         return names or "-"
     specialty_list.short_description = "Specialties"
+
 
 # =============================================================================
 # Product Admin (Only Admin can add/update/delete ProductCategory and BaseProduct)
@@ -617,5 +687,4 @@ class SpaProductAdmin(admin.ModelAdmin):
                     obj.country = spa_center.country
                     obj.city = spa_center.city
         super().save_model(request, obj, form, change)
-
 
