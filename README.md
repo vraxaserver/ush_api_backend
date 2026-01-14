@@ -221,8 +221,70 @@ python manage.py runserver
 | GET | `/branches/?city={uuid}` | Filter by city | Public |
 | GET | `/branches/?is_active=true` | Active branches only | Public |
 | GET | `/branches/{id}/` | Get branch details | Public |
-| GET | `/branches/{id}/services/` | Get branch services | Public |
-| GET | `/branches/{id}/therapists/` | Get branch therapists | Public |
+| GET | `/branches/{id}/services/` | Get branch services (paginated) | Public |
+| GET | `/branches/{id}/therapists/` | Get branch therapists (paginated) | Public |
+
+**Branch Services Endpoint** (`/branches/{id}/services/`)
+
+Query parameters:
+- `page`: Page number (default: 1)
+- `page_size`: Items per page (default: 10, max: 100)
+- `search`: Search by service name
+- `category`: Filter by category
+- `is_home_service`: Filter by home service (true/false)
+- `ordering`: Sort by `name`, `-name`, `price`, `-price`, `duration_minutes`, `sort_order`
+
+**Response:**
+```json
+{
+    "count": 25,
+    "next": "http://localhost:8000/api/v1/spa/branches/{id}/services/?page=2",
+    "previous": null,
+    "results": [
+        {
+            "id": "uuid",
+            "name": "Swedish Massage",
+            "name_en": "Swedish Massage",
+            "name_ar": "تدليك سويدي",
+            "category": "Massage",
+            "price": "150.00",
+            "duration_minutes": 60,
+            "is_home_service": true,
+            "image": "https://..."
+        }
+    ]
+}
+```
+
+**Branch Therapists Endpoint** (`/branches/{id}/therapists/`)
+
+Query parameters:
+- `page`: Page number (default: 1)
+- `page_size`: Items per page (default: 10, max: 100)
+- `search`: Search by therapist name
+- `specialty`: Filter by specialty UUID
+- `gender`: Filter by gender (M/F)
+- `ordering`: Sort by `experience_years`, `-experience_years`, `hourly_rate`, `-hourly_rate`
+
+**Response:**
+```json
+{
+    "count": 12,
+    "next": "http://localhost:8000/api/v1/spa/branches/{id}/therapists/?page=2",
+    "previous": null,
+    "results": [
+        {
+            "id": "uuid",
+            "full_name": "Jane Smith",
+            "gender": "F",
+            "experience_years": 5,
+            "hourly_rate": "75.00",
+            "specialties": ["Deep Tissue", "Aromatherapy"],
+            "is_available": true
+        }
+    ]
+}
+```
 
 #### Therapists
 

@@ -17,23 +17,24 @@ from accounts.models import EmployeeRole
 from accounts.permissions import IsAdminUser
 
 from .models import (
+    BaseProduct,
     City,
     Country,
+    ProductCategory,
     Service,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
+    SpaProduct,
     Specialty,
     TherapistProfile,
-    ProductCategory,
-    BaseProduct,
-    SpaProduct,
 )
 from .serializers import (
     CityListSerializer,
     CitySerializer,
     CountryListSerializer,
     CountrySerializer,
+    ProductCategorySerializer,
     ServiceCreateSerializer,
     ServiceImageSerializer,
     ServiceListSerializer,
@@ -42,13 +43,11 @@ from .serializers import (
     SpaCenterDetailSerializer,
     SpaCenterListSerializer,
     SpaCenterOperatingHoursSerializer,
-    ProductCategorySerializer,
+    SpaProductDetailSerializer,
+    SpaProductListSerializer,
     SpecialtyListSerializer,
     SpecialtySerializer,
     TherapistProfileSerializer,
-    
-    SpaProductListSerializer,
-    SpaProductDetailSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -621,21 +620,100 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def therapists(self, request, pk=None):
-        """Get therapists for a specific spa center."""
+        """
+        Get therapists for a specific spa center with pagination.
+        
+        Query parameters:
+        - page: Page number (default: 1)
+        - page_size: Number of items per page (default: 10, max: 100)
+        - search: Search by therapist name
+        - specialty: Filter by specialty UUID
+        - gender: Filter by gender (M/F)
+        - ordering: Sort results (e.g., 'experience_years', '-experience_years')
+        """
         spa_center = self.get_object()
         therapists = TherapistProfile.objects.filter(
             spa_center=spa_center,
             is_available=True,
         ).select_related("employee_profile__user").prefetch_related("specialties", "services")
         
+        # Apply search filter
+        search = request.query_params.get("search")
+        if search:
+            therapists = therapists.filter(
+                employee_profile__user__first_name__icontains=search
+            ) | therapists.filter(
+                employee_profile__user__last_name__icontains=search
+            )
+        
+        # Apply specialty filter
+        specialty = request.query_params.get("specialty")
+        if specialty:
+            therapists = therapists.filter(specialties__id=specialty)
+        
+        # Apply gender filter
+        gender = request.query_params.get("gender")
+        if gender and gender.upper() in ["M", "F"]:
+            therapists = therapists.filter(employee_profile__user__gender=gender.upper())
+        
+        # Apply ordering
+        ordering = request.query_params.get("ordering", "-experience_years")
+        valid_orderings = ["experience_years", "-experience_years", "hourly_rate", "-hourly_rate"]
+        if ordering in valid_orderings:
+            therapists = therapists.order_by(ordering)
+        
+        # Paginate results
+        page = self.paginate_queryset(therapists)
+        if page is not None:
+            serializer = TherapistProfileSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
         serializer = TherapistProfileSerializer(therapists, many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def services(self, request, pk=None):
-        """Get services for a specific spa center."""
+        """
+        Get services for a specific spa center with pagination.
+        
+        Query parameters:
+        - page: Page number (default: 1)
+        - page_size: Number of items per page (default: 10, max: 100)
+        - search: Search by service name
+        - category: Filter by category
+        - is_home_service: Filter by home service flag
+        - ordering: Sort results (e.g., 'price', '-price', 'name')
+        """
         spa_center = self.get_object()
         services = spa_center.services.filter(is_active=True)
+        
+        # Apply search filter
+        search = request.query_params.get("search")
+        if search:
+            services = services.filter(name__icontains=search)
+        
+        # Apply category filter
+        category = request.query_params.get("category")
+        if category:
+            services = services.filter(category__iexact=category)
+        
+        # Apply home service filter
+        is_home_service = request.query_params.get("is_home_service")
+        if is_home_service is not None:
+            is_home = is_home_service.lower() in ("true", "1", "yes")
+            services = services.filter(is_home_service=is_home)
+        
+        # Apply ordering
+        ordering = request.query_params.get("ordering", "name")
+        valid_orderings = ["name", "-name", "price", "-price", "duration_minutes", "-duration_minutes", "sort_order"]
+        if ordering in valid_orderings:
+            services = services.order_by(ordering)
+        
+        # Paginate results
+        page = self.paginate_queryset(services)
+        if page is not None:
+            serializer = ServiceListSerializer(page, many=True, context={"request": request})
+            return self.get_paginated_response(serializer.data)
         
         serializer = ServiceListSerializer(services, many=True, context={"request": request})
         return Response(serializer.data)
@@ -865,3 +943,4 @@ class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return SpaProductDetailSerializer
         return SpaProductListSerializer
+
