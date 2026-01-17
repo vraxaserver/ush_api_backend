@@ -227,6 +227,7 @@ class PhoneRegistrationSerializer(serializers.Serializer):
     """Serializer for phone-only registration."""
 
     phone_number = PhoneNumberField(required=True)
+    email = serializers.CharField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=True)
     last_name = serializers.CharField(max_length=150, required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
@@ -256,6 +257,7 @@ class PhoneRegistrationSerializer(serializers.Serializer):
 
         user = User.objects.create_user(
             phone_number=validated_data["phone_number"],
+            email=validated_data.get("email"),
             password=password,
             first_name=validated_data["first_name"],
             last_name=validated_data["last_name"],

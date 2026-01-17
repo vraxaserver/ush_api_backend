@@ -16,8 +16,8 @@ class UserAdmin(BaseUserAdmin):
     """Custom admin for User model."""
 
     list_display = [
-        "email",
         "phone_number",
+        "email",
         "first_name",
         "last_name",
         "user_type",
