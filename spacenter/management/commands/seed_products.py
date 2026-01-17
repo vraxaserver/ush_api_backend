@@ -22,7 +22,7 @@ from spacenter.models import (
     SpaProduct,
 )
 
-from .seed_base import BaseSeedCommand, CLOUD_IMAGES
+from .seed_base import BaseSeedCommand
 
 
 # Currency mapping by country code
@@ -33,6 +33,22 @@ CURRENCY_BY_COUNTRY = {
     "KWT": "KWD",
     "BHR": "BHD",
     "OMN": "OMR",
+}
+
+# Cloud images for products
+PRODUCT_CLOUD_IMAGES = {
+    "facial_serum": "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=800&q=80",
+    "moisturizer": "https://images.unsplash.com/photo-1611930022073-b7a4ba5fcccd?w=800&q=80",
+    "body_lotion": "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=800&q=80",
+    "massage_oil": "https://images.unsplash.com/photo-1600428877878-1a0fd85beda8?w=800&q=80",
+    "essential_oil": "https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=800&q=80",
+    "bath_salt": "https://images.unsplash.com/photo-1620756236308-65c3ef5d25f3?w=800&q=80",
+    "body_scrub": "https://images.unsplash.com/photo-1570194065650-d99fb4b38b15?w=800&q=80",
+    "face_mask": "https://images.unsplash.com/photo-1596755389378-c31d21fd1273?w=800&q=80",
+    "shampoo": "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?w=800&q=80",
+    "candle": "https://images.unsplash.com/photo-1602607434641-ab54a5e36149?w=800&q=80",
+    "diffuser": "https://images.unsplash.com/photo-1608181831718-c9ffd8685ca8?w=800&q=80",
+    "soap": "https://images.unsplash.com/photo-1600857544200-b2f666a9a2ec?w=800&q=80",
 }
 
 # Product categories data (for ProductCategory model - used in admin)
@@ -339,6 +355,10 @@ class Command(BaseSeedCommand):
 
         self.stdout.write(f"  Created {ProductCategory.objects.count()} categories")
 
+    def get_product_image_url(self, image_key):
+        """Get cloud image URL for a product."""
+        return PRODUCT_CLOUD_IMAGES.get(image_key)
+
     def create_base_products(self):
         """Create base products (master catalog)."""
         base_products = []
@@ -368,9 +388,9 @@ class Command(BaseSeedCommand):
                 },
             )
 
-            # Download product image
+            # Download product image from cloud
             if not product.image:
-                image_url = self.get_image_url("products", data["image_key"])
+                image_url = self.get_product_image_url(data["image_key"])
                 if image_url:
                     image_content = self.download_image(
                         image_url,
@@ -381,6 +401,15 @@ class Command(BaseSeedCommand):
                             f"product_{sku}.jpg",
                             image_content,
                             save=True
+                        )
+                        self.stdout.write(
+                            f"    ✓ Downloaded image for {data['name_en']}"
+                        )
+                    else:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"    ⚠ Failed to download image for {data['name_en']}"
+                            )
                         )
 
             # Store base price and discount for spa product creation
@@ -421,3 +450,4 @@ class Command(BaseSeedCommand):
             )
 
         return all_spa_products
+        
