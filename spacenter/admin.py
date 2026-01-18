@@ -8,6 +8,7 @@ Supports multi-language (English, Arabic) via django-modeltranslation.
 from django.contrib import admin
 from django.db.models import Sum
 from django.utils.html import format_html
+from django_unfold_admin_listfilter_dropdown.filters import RelatedDropdownFilter
 from modeltranslation.admin import TranslationAdmin
 
 from .models import (
@@ -189,7 +190,7 @@ class ServiceAdmin(TranslationAdmin):
         "addon_count",
         "image_count",
     ]
-    list_filter = ["is_active", "is_home_service", "specialty", "currency", "country", "city"]
+    list_filter = ["is_active", "is_home_service", "specialty", "country", ("city", RelatedDropdownFilter)]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
@@ -580,8 +581,7 @@ class SpaProductAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         "country",
-        "city",
-        "currency",
+        ("city", RelatedDropdownFilter),
         "product__category",
         "product__status",
     ]

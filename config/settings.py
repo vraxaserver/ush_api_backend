@@ -114,6 +114,9 @@ SESSION_COOKIE_SECURE = True
 # Application definition
 DJANGO_APPS = [
     "modeltranslation",  # Must be before admin for translation support
+    "unfold",  # Must be before admin
+    "unfold.contrib.filters",  # Optional: for additional filters support
+    "django_unfold_admin_listfilter_dropdown",  # Required for templates
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
