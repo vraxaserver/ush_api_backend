@@ -78,6 +78,11 @@ class Command(BaseCommand):
         self.stdout.write("-" * 40)
         call_command("seed_products", *clear_flag)
 
+        self.stdout.write("\n" + "-" * 40)
+        self.stdout.write("Step 7/7: Seeding Customers")
+        self.stdout.write("-" * 40)
+        call_command("seed_customers", *clear_flag)
+
         # Print final summary
         self.print_summary()
 
@@ -125,6 +130,10 @@ class Command(BaseCommand):
         self.stdout.write("\n  Therapist:")
         self.stdout.write("    Email:    therapist.1@demo.spa.com")
         self.stdout.write("    Password: Demo@123")
+        self.stdout.write("\n  Customer:")
+        self.stdout.write("    Email:    customer.1@demo.spa.com")
+        self.stdout.write("    Password: Demo@123")
+        self.stdout.write("    (VIP):    vip.customer@demo.spa.com")
 
         self.stdout.write("\n" + "=" * 60)
         self.stdout.write("🔗 API ENDPOINTS")
