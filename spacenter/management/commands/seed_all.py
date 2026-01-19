@@ -21,8 +21,8 @@ from spacenter.models import (
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
-    
 )
+from bookings.models import Booking, ServiceArrangement
 
 
 class Command(BaseCommand):
@@ -83,6 +83,11 @@ class Command(BaseCommand):
         self.stdout.write("-" * 40)
         call_command("seed_customers", *clear_flag)
 
+        self.stdout.write("\n" + "-" * 40)
+        self.stdout.write("Step 8/8: Seeding Bookings")
+        self.stdout.write("-" * 40)
+        call_command("seed_bookings", *clear_flag)
+
         # Print final summary
         self.print_summary()
 
@@ -106,6 +111,8 @@ class Command(BaseCommand):
         self.stdout.write(f"  🏢 Spa Centers:      {SpaCenter.objects.count()}")
         self.stdout.write(f"  💪 Therapists:       {TherapistProfile.objects.count()}")
         self.stdout.write(f"  🖼️ Service Images:   {ServiceImage.objects.count()}")
+        self.stdout.write(f"  🏠 Arrangements:     {ServiceArrangement.objects.count()}")
+        self.stdout.write(f"  📅 Bookings:         {Booking.objects.count()}")
 
         # Per-city breakdown
         self.stdout.write("\n📍 Per-City Breakdown:")

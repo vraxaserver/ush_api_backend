@@ -150,6 +150,7 @@ LOCAL_APPS = [
     "profiles",
     "spacenter",
     "promotions",
+    "bookings",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
