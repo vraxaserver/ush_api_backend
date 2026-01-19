@@ -1,22 +1,12 @@
-"""
-Booking Admin Configuration.
-
-Admin interface for managing service arrangements, time slots, and bookings.
-Uses Django Unfold for modern admin styling.
-"""
-
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-
-from unfold.admin import ModelAdmin
-from unfold.decorators import display
 
 from .models import Booking, ServiceArrangement, TimeSlot
 
 
 @admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(ModelAdmin):
+class ServiceArrangementAdmin(admin.ModelAdmin):
     """Admin for ServiceArrangement model."""
 
     list_display = [
@@ -81,7 +71,7 @@ class ServiceArrangementAdmin(ModelAdmin):
 
 
 @admin.register(TimeSlot)
-class TimeSlotAdmin(ModelAdmin):
+class TimeSlotAdmin(admin.ModelAdmin):
     """Admin for TimeSlot model."""
 
     list_display = [
@@ -131,7 +121,7 @@ class TimeSlotAdmin(ModelAdmin):
 
 
 @admin.register(Booking)
-class BookingAdmin(ModelAdmin):
+class BookingAdmin(admin.ModelAdmin):
     """Admin for Booking model."""
 
     list_display = [
@@ -232,18 +222,7 @@ class BookingAdmin(ModelAdmin):
     def get_booking_time(self, obj):
         return f"{obj.time_slot.start_time} - {obj.time_slot.end_time}"
 
-    @display(
-        description=_("Status"),
-        label={
-            Booking.BookingStatus.REQUESTED: "info",
-            Booking.BookingStatus.PAYMENT_PENDING: "warning",
-            Booking.BookingStatus.PAYMENT_SUCCESS: "success",
-            Booking.BookingStatus.CONFIRMED: "success",
-            Booking.BookingStatus.ON_HOLD: "warning",
-            Booking.BookingStatus.CANCELED: "danger",
-            Booking.BookingStatus.COMPLETED: "success",
-        },
-    )
+    @admin.display(description=_("Status"))
     def display_status(self, obj):
         return obj.get_status_display()
 
