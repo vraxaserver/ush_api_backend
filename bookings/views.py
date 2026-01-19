@@ -253,7 +253,7 @@ class ServiceAvailabilityView(APIView):
                 }
                 for arr in arrangements
             ],
-            "merged_availability": merged_availability_dict,
+            "timeslots_availability": merged_availability_dict,
         }
 
         return Response(response_data)
