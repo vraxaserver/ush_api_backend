@@ -140,6 +140,7 @@ THIRD_PARTY_APPS = [
     "phonenumber_field",
     "django_celery_beat",
     "django_filters",
+    "admin_searchable_dropdown"
 ]
 
 LOCAL_APPS = [

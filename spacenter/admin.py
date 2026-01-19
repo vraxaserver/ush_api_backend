@@ -25,6 +25,8 @@ from .models import (
     TherapistProfile,
 )
 
+from .filters import CountryFilter, CityFilter, TherapistCityFilter, TherapistCountryFilter, TherapistSpaCenterFilter
+
 
 @admin.register(Country)
 class CountryAdmin(TranslationAdmin):
@@ -189,7 +191,7 @@ class ServiceAdmin(TranslationAdmin):
         "addon_count",
         "image_count",
     ]
-    list_filter = ["is_active", "is_home_service", "specialty", "country", "city"]
+    list_filter = [CountryFilter, CityFilter, "is_active", "is_home_service", "specialty"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
@@ -298,7 +300,7 @@ class SpaCenterAdmin(TranslationAdmin):
         "on_service",
         "sort_order",
     ]
-    list_filter = ["is_active", "on_service", "country", "city"]
+    list_filter = [CountryFilter, CityFilter, "is_active", "on_service"]
     search_fields = ["name", "name_en", "name_ar", "address", "city__name"]
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ["services"]
@@ -384,10 +386,8 @@ class TherapistProfileAdmin(TranslationAdmin):
         "specialty_list",
     ]
     list_filter = [
+        
         "is_available",
-        "spa_center__country",
-        "spa_center__city",
-        "spa_center",
         "specialties",
     ]
     search_fields = [
@@ -579,8 +579,8 @@ class SpaProductAdmin(admin.ModelAdmin):
         "stock_status_display",
     ]
     list_filter = [
-        "country",
-        "city",
+        CountryFilter,
+        CityFilter,
         "product__category",
         "product__status",
     ]
