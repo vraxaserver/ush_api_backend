@@ -14,6 +14,8 @@ cryptography>=41.0.0
 dj-rest-auth[with_social]>=5.0.0
 django-allauth>=0.58.0
 
+django-admin-searchable-dropdown
+
 # Database
 psycopg2-binary>=2.9.9
 
