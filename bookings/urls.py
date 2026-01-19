@@ -9,7 +9,8 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     BookingViewSet,
-    CustomerBookingsView,
+    UpcomingBookingsView,
+    PastBookingsView,
     ServiceArrangementListView,
     ServiceAvailabilityView,
 )
@@ -32,11 +33,17 @@ urlpatterns = [
         ServiceAvailabilityView.as_view(),
         name="service-availability",
     ),
-    # Customer's bookings
+    # Customer's upcoming bookings
     path(
-        "my-bookings/",
-        CustomerBookingsView.as_view(),
-        name="my-bookings",
+        "upcoming-bookings/",
+        UpcomingBookingsView.as_view(),
+        name="upcoming-bookings",
+    ),
+    # Customer's past bookings
+    path(
+        "past-bookings/",
+        PastBookingsView.as_view(),
+        name="past-bookings",
     ),
     # Booking CRUD (router handles the rest)
     path("", include(router.urls)),

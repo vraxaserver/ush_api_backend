@@ -306,7 +306,7 @@ class Command(DjangoBaseCommand):
             self.stdout.write(f"\n  GET /api/v1/bookings/services/{sample_service.id}/arrangements/")
             self.stdout.write(f"  GET /api/v1/bookings/services/{sample_service.id}/availability/")
         
-        self.stdout.write("  GET /api/v1/bookings/my-bookings/ (requires auth)")
+        self.stdout.write("  GET /api/v1/bookings/upcoming-bookings/ (requires auth)")
         self.stdout.write("  POST /api/v1/bookings/ (requires auth)")
         
         self.stdout.write("\n" + "=" * 50)

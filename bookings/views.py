@@ -264,13 +264,13 @@ class ServiceAvailabilityView(APIView):
 # =============================================================================
 
 
-class CustomerBookingsView(generics.ListAPIView):
+class UpcomingBookingsView(generics.ListAPIView):
     """
-    List all bookings for the authenticated customer.
+    List upcoming bookings for the authenticated customer.
     
-    GET /api/v1/bookings/my-bookings/
+    GET /api/v1/bookings/upcoming-bookings/
     
-    Returns all bookings for the current user, ordered by creation date.
+    Returns all bookings for the current user with date >= today, ordered by date.
     """
 
     serializer_class = BookingListSerializer
@@ -278,12 +278,36 @@ class CustomerBookingsView(generics.ListAPIView):
 
     def get_queryset(self):
         return Booking.objects.filter(
-            customer=self.request.user
+            customer=self.request.user,
+            time_slot__date__gte=timezone.now().date()
         ).select_related(
             "spa_center",
             "service_arrangement__service",
             "time_slot",
-        ).order_by("-created_at")
+        ).order_by("time_slot__date", "time_slot__start_time")
+
+
+class PastBookingsView(generics.ListAPIView):
+    """
+    List past bookings for the authenticated customer.
+    
+    GET /api/v1/bookings/past-bookings/
+    
+    Returns all bookings for the current user with date < today, ordered by date desc.
+    """
+
+    serializer_class = BookingListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Booking.objects.filter(
+            customer=self.request.user,
+            time_slot__date__lt=timezone.now().date()
+        ).select_related(
+            "spa_center",
+            "service_arrangement__service",
+            "time_slot",
+        ).order_by("-time_slot__date", "-time_slot__start_time")
 
 
 class BookingViewSet(viewsets.ModelViewSet):
