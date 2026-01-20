@@ -234,7 +234,9 @@ class BookingCreateSerializer(serializers.Serializer):
     - Booking creation
     """
 
-    service_arrangement = serializers.UUIDField()
+    arrangement_type = serializers.ChoiceField(choices=ServiceArrangement.ArrangementType.choices)
+    service = serializers.UUIDField()
+    spa_center = serializers.UUIDField()
     date = serializers.DateField()
     start_time = serializers.TimeField()
     add_on_services = serializers.ListField(
@@ -245,17 +247,21 @@ class BookingCreateSerializer(serializers.Serializer):
     therapist = serializers.UUIDField(required=False, allow_null=True)
     customer_message = serializers.CharField(required=False, allow_blank=True, default="")
 
-    def validate_service_arrangement(self, value):
-        """Validate that the arrangement exists and is active."""
+    def validate_service(self, value):
+        """Validate that the service exists and is active."""
         try:
-            arrangement = ServiceArrangement.objects.select_related(
-                "service", "spa_center"
-            ).get(id=value, is_active=True)
-            return arrangement
-        except ServiceArrangement.DoesNotExist:
-            raise serializers.ValidationError(
-                "Service arrangement not found or not active."
-            )
+            service = Service.objects.get(id=value, is_active=True)
+            return service
+        except Service.DoesNotExist:
+            raise serializers.ValidationError("Service not found or not active.")
+
+    def validate_spa_center(self, value):
+        """Validate that the spa center exists and is active."""
+        try:
+            spa_center = SpaCenter.objects.get(id=value, is_active=True)
+            return spa_center
+        except SpaCenter.DoesNotExist:
+            raise serializers.ValidationError("Spa center not found or not active.")
 
     def validate_date(self, value):
         """Validate that the date is not in the past."""
@@ -292,11 +298,13 @@ class BookingCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         """
         Cross-field validation:
-        - Check if the time slot is available
+        - Find available arrangement
         - Calculate end time
-        - Check for overlapping bookings
+        - Check spa center operating hours
         """
-        arrangement = attrs["service_arrangement"]
+        service = attrs["service"]
+        spa_center = attrs["spa_center"]
+        arrangement_type = attrs["arrangement_type"]
         date = attrs["date"]
         start_time = attrs["start_time"]
         addons = attrs.get("add_on_services", [])
@@ -304,15 +312,27 @@ class BookingCreateSerializer(serializers.Serializer):
         # Calculate total add-on duration
         addon_duration = sum(addon.duration_minutes for addon in addons)
 
-        # Calculate end time
-        service_duration = arrangement.service.duration_minutes
-        cleanup_duration = arrangement.cleanup_duration
-        end_time = Booking.calculate_end_time(
-            start_time, service_duration, addon_duration, cleanup_duration
+        # Calculate end time based on service duration and potential additions
+        service_duration = service.duration_minutes
+        
+        # We need a potential end_time to check availability
+        # We'll use a default cleanup of 15 if we can't get it from arrangement yet
+        # but actually each arrangement has its own cleanup_duration.
+        # Let's find arrangements first, then check availability for each.
+        
+        arrangements = ServiceArrangement.objects.filter(
+            service=service,
+            spa_center=spa_center,
+            arrangement_type=arrangement_type,
+            is_active=True
         )
 
+        if not arrangements.exists():
+            raise serializers.ValidationError({
+                "arrangement_type": "No arrangements of this type available for the selected service at this spa center."
+            })
+
         # Check spa center operating hours
-        spa_center = arrangement.spa_center
         opening_time = spa_center.default_opening_time
         closing_time = spa_center.default_closing_time
 
@@ -321,30 +341,40 @@ class BookingCreateSerializer(serializers.Serializer):
                 "start_time": f"Spa center opens at {opening_time}."
             })
 
-        if end_time > closing_time:
-            raise serializers.ValidationError({
-                "start_time": f"Booking would extend past closing time ({closing_time})."
-            })
+        selected_arrangement = None
+        final_end_time = None
 
-        # Check for overlapping time slots
-        overlapping = TimeSlot.objects.filter(
-            arrangement=arrangement,
-            date=date,
-        ).filter(
-            # Check for any overlap
-            start_time__lt=end_time,
-            end_time__gt=start_time,
-        ).exists()
+        for arrangement in arrangements:
+            cleanup_duration = arrangement.cleanup_duration
+            end_time = Booking.calculate_end_time(
+                start_time, service_duration, addon_duration, cleanup_duration
+            )
 
-        if overlapping:
+            if end_time > closing_time:
+                continue # This arrangement's cleanup might push it past closing, though unlikely if others don't
+
+            # Check for overlapping time slots for THIS arrangement
+            overlapping = TimeSlot.objects.filter(
+                arrangement=arrangement,
+                date=date,
+                start_time__lt=end_time,
+                end_time__gt=start_time,
+            ).exists()
+
+            if not overlapping:
+                selected_arrangement = arrangement
+                final_end_time = end_time
+                break
+
+        if not selected_arrangement:
             raise serializers.ValidationError({
-                "start_time": "This time slot is not available. Please choose another time."
+                "start_time": "No available arrangements found for this time slot."
             })
 
         # Store calculated values
-        attrs["end_time"] = end_time
+        attrs["service_arrangement"] = selected_arrangement
+        attrs["end_time"] = final_end_time
         attrs["addon_duration"] = addon_duration
-        attrs["spa_center"] = spa_center
 
         return attrs
 
