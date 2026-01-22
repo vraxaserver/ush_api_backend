@@ -6,8 +6,9 @@ Customizes Django admin for profile management.
 
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
+from modeltranslation.admin import TranslationAdmin
 
-from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule
+from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule, Slide
 
 
 @admin.register(CustomerProfile)
@@ -145,3 +146,41 @@ class EmployeeScheduleAdmin(admin.ModelAdmin):
     list_filter = ["day_of_week", "is_working"]
     search_fields = ["employee__user__email", "employee__user__first_name"]
     raw_id_fields = ["employee"]
+
+
+@admin.register(Slide)
+class SlideAdmin(TranslationAdmin):
+    """Admin for slideshow slides with translation support."""
+
+    list_display = [
+        "title",
+        "order",
+        "is_active",
+        "created_at",
+        "updated_at",
+    ]
+    list_filter = ["is_active", "created_at"]
+    search_fields = ["title", "title_en", "title_ar", "description"]
+    list_editable = ["order", "is_active"]
+    ordering = ["order", "-created_at"]
+    readonly_fields = ["created_at", "updated_at"]
+
+    fieldsets = (
+        (_("English"), {
+            "fields": ("title_en", "description_en")
+        }),
+        (_("Arabic"), {
+            "fields": ("title_ar", "description_ar"),
+            "classes": ("collapse",)
+        }),
+        (_("Media & Link"), {
+            "fields": ("image", "link")
+        }),
+        (_("Display Settings"), {
+            "fields": ("order", "is_active")
+        }),
+        (_("Timestamps"), {
+            "fields": ("created_at", "updated_at")
+        }),
+    )
+

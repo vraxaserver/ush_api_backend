@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from accounts.serializers import UserMinimalSerializer
 
-from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule
+from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule, Slide
 
 
 class CustomerProfileSerializer(serializers.ModelSerializer):
@@ -217,3 +217,24 @@ class TherapistSerializer(serializers.ModelSerializer):
             "is_available",
             "schedules",
         ]
+
+
+class SlideSerializer(serializers.ModelSerializer):
+    """Serializer for slideshow slides (public view) with translations."""
+
+    class Meta:
+        model = Slide
+        fields = [
+            "id",
+            "image",
+            "title",
+            "title_en",
+            "title_ar",
+            "description",
+            "description_en",
+            "description_ar",
+            "link",
+            "order",
+        ]
+
+

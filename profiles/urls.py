@@ -12,6 +12,7 @@ from .views import (
     EmployeeProfileAdminViewSet,
     EmployeeProfileView,
     EmployeeScheduleViewSet,
+    SlideListView,
     TherapistDetailView,
     TherapistListView,
 )
@@ -45,4 +46,6 @@ urlpatterns = [
         TherapistDetailView.as_view(),
         name="therapist-detail",
     ),
+    # Public slideshow endpoint
+    path("slides/", SlideListView.as_view(), name="slide-list"),
 ]

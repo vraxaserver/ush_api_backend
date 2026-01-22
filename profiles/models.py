@@ -251,3 +251,59 @@ class EmployeeSchedule(models.Model):
 
     def __str__(self):
         return f"{self.employee.user.get_full_name()} - {self.get_day_of_week_display()}"
+
+
+class Slide(models.Model):
+    """
+    Slideshow slide for landing page.
+
+    Stores image, title, description, and link for each slide.
+    Supports multi-language for title and description (EN/AR).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    image = models.ImageField(
+        _("image"),
+        upload_to="slides/",
+        null=True,
+        blank=True,
+        help_text=_("Slide image"),
+    )
+    title = models.CharField(
+        _("title"),
+        max_length=255,
+        blank=True,
+    )
+    description = models.TextField(
+        _("description"),
+        blank=True,
+        max_length=500,
+    )
+    link = models.URLField(
+        _("link"),
+        max_length=500,
+        blank=True,
+        help_text=_("URL to navigate to when slide is clicked"),
+    )
+    order = models.PositiveIntegerField(
+        _("order"),
+        default=0,
+        help_text=_("Display order (lower numbers appear first)"),
+    )
+    is_active = models.BooleanField(
+        _("is active"),
+        default=True,
+        help_text=_("Only active slides are displayed"),
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("slide")
+        verbose_name_plural = _("slides")
+        ordering = ["order", "-created_at"]
+
+    def __str__(self):
+        return self.title or f"Slide {self.order}"

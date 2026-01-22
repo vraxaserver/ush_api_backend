@@ -19,7 +19,7 @@ from accounts.permissions import (
     IsOwnerOrAdmin,
 )
 
-from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule
+from .models import CustomerProfile, EmployeeProfile, EmployeeSchedule, Slide
 from .serializers import (
     CustomerProfileSerializer,
     CustomerProfileUpdateSerializer,
@@ -28,6 +28,7 @@ from .serializers import (
     EmployeeProfileSerializer,
     EmployeeProfileUpdateSerializer,
     EmployeeScheduleSerializer,
+    SlideSerializer,
     TherapistSerializer,
 )
 
@@ -315,3 +316,23 @@ class TherapistDetailView(generics.RetrieveAPIView):
             role=EmployeeRole.THERAPIST,
             user__is_active=True,
         ).select_related("user").prefetch_related("schedules")
+
+
+# ============================================================================
+# Public Slideshow Views
+# ============================================================================
+
+
+class SlideListView(generics.ListAPIView):
+    """
+    List active slides for landing page slideshow (public endpoint).
+
+    GET /api/v1/profiles/slides/
+    """
+
+    serializer_class = SlideSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        """Return active slides ordered by order field."""
+        return Slide.objects.filter(is_active=True)
