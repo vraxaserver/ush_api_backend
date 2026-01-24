@@ -3,10 +3,54 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
 from .models import Booking, ServiceArrangement, TimeSlot
+from spacenter.models import SpaCenter, Service
+
+
+def get_branch_manager_spa_center(user):
+    """
+    Get the spa center managed by this user if they are a branch manager.
+    Returns None if user is a superuser or has no assigned spa center.
+    """
+    if user.is_superuser:
+        return None
+    if hasattr(user, 'managed_spa_center'):
+        return getattr(user, 'managed_spa_center', None)
+    return None
+
+
+class BranchManagerPermissionMixin:
+    """
+    Mixin that grants branch managers permission to view/add/change models.
+    Branch managers are identified by having a managed_spa_center.
+    """
+
+    def has_module_permission(self, request):
+        """Allow branch managers to see the app in admin."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        """Allow branch managers to view objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        """Allow branch managers to add objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        """Allow branch managers to change objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_change_permission(request, obj)
 
 
 @admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(admin.ModelAdmin):
+class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     """Admin for ServiceArrangement model."""
 
     list_display = [
@@ -69,9 +113,28 @@ class ServiceArrangementAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_queryset(self, request):
+        """Filter service arrangements by branch manager's spa center."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(spa_center=spa_center)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit spa center and service choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "spa_center":
+                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
+            elif db_field.name == "service":
+                # Only show services offered at this spa center
+                kwargs["queryset"] = spa_center.services.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(TimeSlot)
-class TimeSlotAdmin(admin.ModelAdmin):
+class TimeSlotAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     """Admin for TimeSlot model."""
 
     list_display = [
@@ -119,9 +182,25 @@ class TimeSlotAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_queryset(self, request):
+        """Filter time slots by branch manager's spa center."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(arrangement__spa_center=spa_center)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit arrangement choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "arrangement":
+                kwargs["queryset"] = ServiceArrangement.objects.filter(spa_center=spa_center)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(Booking)
-class BookingAdmin(admin.ModelAdmin):
+class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     """Admin for Booking model."""
 
     list_display = [
@@ -227,7 +306,8 @@ class BookingAdmin(admin.ModelAdmin):
         return obj.get_status_display()
 
     def get_queryset(self, request):
-        return (
+        """Filter bookings by branch manager's spa center."""
+        qs = (
             super()
             .get_queryset(request)
             .select_related(
@@ -239,3 +319,17 @@ class BookingAdmin(admin.ModelAdmin):
             )
             .prefetch_related("add_on_services")
         )
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(spa_center=spa_center)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "spa_center":
+                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
+            elif db_field.name == "service_arrangement":
+                kwargs["queryset"] = ServiceArrangement.objects.filter(spa_center=spa_center)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

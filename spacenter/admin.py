@@ -28,6 +28,49 @@ from .models import (
 from .filters import CountryFilter, CityFilter, TherapistCityFilter, TherapistCountryFilter, TherapistSpaCenterFilter
 
 
+def get_branch_manager_spa_center(user):
+    """
+    Get the spa center managed by this user if they are a branch manager.
+    Returns None if user is a superuser or has no assigned spa center.
+    """
+    if user.is_superuser:
+        return None
+    if hasattr(user, 'managed_spa_center'):
+        return getattr(user, 'managed_spa_center', None)
+    return None
+
+
+class BranchManagerPermissionMixin:
+    """
+    Mixin that grants branch managers permission to view/add/change models.
+    Branch managers are identified by having a managed_spa_center.
+    """
+
+    def has_module_permission(self, request):
+        """Allow branch managers to see the app in admin."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        """Allow branch managers to view objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        """Allow branch managers to add objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        """Allow branch managers to change objects."""
+        if get_branch_manager_spa_center(request.user):
+            return True
+        return super().has_change_permission(request, obj)
+
+
 @admin.register(Country)
 class CountryAdmin(TranslationAdmin):
     """Admin for Country model with translation support."""
@@ -172,7 +215,7 @@ class ServiceImageInline(admin.TabularInline):
 
 
 @admin.register(Service)
-class ServiceAdmin(TranslationAdmin):
+class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for Service model with translation support."""
 
     list_display = [
@@ -191,8 +234,8 @@ class ServiceAdmin(TranslationAdmin):
         "addon_count",
         "image_count",
     ]
-    list_filter = [CountryFilter, CityFilter, "is_active", "is_home_service", "specialty"]
-    search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
+    list_filter = [CountryFilter, CityFilter, "is_active", "is_home_service", "specialty", ]
+    search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
     autocomplete_fields = ["specialty", "country", "city"]
@@ -258,6 +301,25 @@ class ServiceAdmin(TranslationAdmin):
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
+    def get_queryset(self, request):
+        """Filter services by branch manager's spa center location."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            # Filter services by the spa center's country and city
+            return qs.filter(country=spa_center.country, city=spa_center.city)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit country/city choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "country":
+                kwargs["queryset"] = Country.objects.filter(id=spa_center.country_id)
+            elif db_field.name == "city":
+                kwargs["queryset"] = City.objects.filter(id=spa_center.city_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(ServiceImage)
 class ServiceImageAdmin(admin.ModelAdmin):
@@ -286,7 +348,7 @@ class SpaCenterOperatingHoursInline(admin.TabularInline):
 
 
 @admin.register(SpaCenter)
-class SpaCenterAdmin(TranslationAdmin):
+class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for SpaCenter model with translation support."""
 
     list_display = [
@@ -356,6 +418,28 @@ class SpaCenterAdmin(TranslationAdmin):
                     pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+    def get_queryset(self, request):
+        """Branch managers can only see their own spa center."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(id=spa_center.id)
+        return qs
+
+    def has_add_permission(self, request):
+        """Branch managers cannot add new spa centers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return False
+        return super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete spa centers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 @admin.register(SpaCenterOperatingHours)
 class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
@@ -373,7 +457,7 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
 
 
 @admin.register(TherapistProfile)
-class TherapistProfileAdmin(TranslationAdmin):
+class TherapistProfileAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for TherapistProfile model with translation support."""
 
     list_display = [
@@ -434,6 +518,22 @@ class TherapistProfileAdmin(TranslationAdmin):
             names += f" (+{obj.specialties.count() - 3} more)"
         return names or "-"
     specialty_list.short_description = "Specialties"
+
+    def get_queryset(self, request):
+        """Filter therapists by branch manager's spa center."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(spa_center=spa_center)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit spa center choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "spa_center":
+                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # =============================================================================
