@@ -32,9 +32,19 @@ from promotions.models import Voucher, VoucherUsage
 class BranchManagerAdminSite(AdminSite):
     """Custom admin site for branch managers only."""
     
-    site_header = _("Branch Manager Portal")
     site_title = _("Branch Manager Portal")
     index_title = _("Welcome to the Branch Manager Portal")
+    
+    def each_context(self, request):
+        """Add spa center name to the context for dynamic header."""
+        context = super().each_context(request)
+        user = request.user
+        if user.is_authenticated and hasattr(user, 'managed_spa_center') and user.managed_spa_center:
+            spa_center = user.managed_spa_center
+            context['site_header'] = f"{spa_center.name} - Branch Manager Portal"
+        else:
+            context['site_header'] = _("Branch Manager Portal")
+        return context
     
     def has_permission(self, request):
         """
@@ -477,7 +487,6 @@ class ManagerBookingAdmin(admin.ModelAdmin):
     list_display = [
         "booking_number",
         "customer",
-        "spa_center",
         "get_service_name",
         "get_booking_date",
         "get_booking_time",
@@ -522,7 +531,6 @@ class ManagerBookingAdmin(admin.ModelAdmin):
             _("Service Details"),
             {
                 "fields": (
-                    "spa_center",
                     "service_arrangement",
                     "time_slot",
                     "therapist",
