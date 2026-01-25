@@ -22,6 +22,7 @@ from .models import (
     TherapistProfile,
 )
 from bookings.models import Booking, ServiceArrangement, TimeSlot
+from promotions.models import Voucher, VoucherUsage
 
 
 # =============================================================================
@@ -728,6 +729,247 @@ class ManagerSpaProductAdmin(admin.ModelAdmin):
 
 
 # =============================================================================
+# Voucher Admin for Branch Manager Portal
+# =============================================================================
+
+class ManagerVoucherUsageInline(admin.TabularInline):
+    """Inline for voucher usage history."""
+
+    model = VoucherUsage
+    extra = 0
+    readonly_fields = [
+        "user",
+        "order_reference",
+        "order_type",
+        "original_amount",
+        "discount_amount",
+        "final_amount",
+        "used_at",
+    ]
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class ManagerVoucherAdmin(admin.ModelAdmin):
+    """Voucher admin for branch manager portal - view only."""
+
+    list_display = [
+        "code",
+        "name",
+        "discount_display",
+        "applicable_to",
+        "status_display",
+        "usage_display",
+        "valid_period_display",
+        "is_valid_now",
+    ]
+    list_filter = [
+        "status",
+        "discount_type",
+        "applicable_to",
+        "first_time_only",
+        "valid_from",
+        "valid_until",
+    ]
+    search_fields = ["code", "name", "description"]
+    ordering = ["-created_at"]
+    readonly_fields = [
+        "code",
+        "name",
+        "description",
+        "discount_type",
+        "discount_value",
+        "max_discount_amount",
+        "applicable_to",
+        "specific_service_ids",
+        "specific_product_ids",
+        "specific_categories",
+        "country",
+        "city",
+        "minimum_purchase",
+        "max_uses",
+        "max_uses_per_user",
+        "current_uses",
+        "valid_from",
+        "valid_until",
+        "first_time_only",
+        "status",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
+    inlines = [ManagerVoucherUsageInline]
+
+    fieldsets = (
+        (None, {
+            "fields": ("code", "name", "description")
+        }),
+        ("Discount Configuration", {
+            "fields": (
+                "discount_type",
+                "discount_value",
+                "max_discount_amount",
+            )
+        }),
+        ("Applicability", {
+            "fields": (
+                "applicable_to",
+                "specific_service_ids",
+                "specific_product_ids",
+                "specific_categories",
+            )
+        }),
+        ("Location Restrictions", {
+            "fields": ("country", "city"),
+        }),
+        ("Usage Limits", {
+            "fields": (
+                "minimum_purchase",
+                "max_uses",
+                "max_uses_per_user",
+                "current_uses",
+                "first_time_only",
+            )
+        }),
+        ("Validity Period", {
+            "fields": ("valid_from", "valid_until")
+        }),
+        ("Status", {
+            "fields": ("status",)
+        }),
+        ("Metadata", {
+            "fields": ("created_by", "created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def discount_display(self, obj):
+        """Display discount value with type."""
+        if obj.discount_type == Voucher.DiscountType.PERCENTAGE:
+            text = f"{obj.discount_value}%"
+            if obj.max_discount_amount:
+                text += f" (max {obj.max_discount_amount})"
+        else:
+            text = f"{obj.discount_value} Fixed"
+        return text
+    discount_display.short_description = "Discount"
+
+    def status_display(self, obj):
+        """Display status with color coding."""
+        colors = {
+            "active": "green",
+            "inactive": "gray",
+            "expired": "red",
+            "exhausted": "orange",
+        }
+        color = colors.get(obj.status, "black")
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color,
+            obj.get_status_display()
+        )
+    status_display.short_description = "Status"
+
+    def usage_display(self, obj):
+        """Display usage count."""
+        if obj.max_uses:
+            return f"{obj.current_uses} / {obj.max_uses}"
+        return f"{obj.current_uses} / ∞"
+    usage_display.short_description = "Usage"
+
+    def valid_period_display(self, obj):
+        """Display validity period."""
+        return f"{obj.valid_from.strftime('%Y-%m-%d')} to {obj.valid_until.strftime('%Y-%m-%d')}"
+    valid_period_display.short_description = "Valid Period"
+
+    def is_valid_now(self, obj):
+        """Display if voucher is currently valid."""
+        if obj.is_valid:
+            return format_html('<span style="color: green;">✓ Valid</span>')
+        return format_html('<span style="color: red;">✗ Invalid</span>')
+    is_valid_now.short_description = "Valid Now"
+
+    def get_queryset(self, request):
+        """Filter vouchers by branch manager's spa center location."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            # Show vouchers that apply to this location (or have no location restriction)
+            from django.db.models import Q
+            return qs.filter(
+                Q(country__isnull=True) | Q(country=spa_center.country),
+                Q(city__isnull=True) | Q(city=spa_center.city),
+            )
+        return qs.none()
+
+    def has_add_permission(self, request):
+        """Branch managers cannot add vouchers."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Branch managers cannot change vouchers."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete vouchers."""
+        return False
+
+
+class ManagerVoucherUsageAdmin(admin.ModelAdmin):
+    """VoucherUsage admin for branch manager portal - view only."""
+
+    list_display = [
+        "voucher",
+        "user",
+        "order_reference",
+        "order_type",
+        "original_amount",
+        "discount_amount",
+        "final_amount",
+        "used_at",
+    ]
+    list_filter = ["order_type", "used_at"]
+    search_fields = ["voucher__code", "user__email", "order_reference"]
+    ordering = ["-used_at"]
+    readonly_fields = [
+        "voucher",
+        "user",
+        "order_reference",
+        "order_type",
+        "original_amount",
+        "discount_amount",
+        "final_amount",
+        "used_at",
+    ]
+
+    def get_queryset(self, request):
+        """Filter voucher usages by branch manager's spa center location."""
+        qs = super().get_queryset(request).select_related("voucher", "user")
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            from django.db.models import Q
+            return qs.filter(
+                Q(voucher__country__isnull=True) | Q(voucher__country=spa_center.country),
+                Q(voucher__city__isnull=True) | Q(voucher__city=spa_center.city),
+            )
+        return qs.none()
+
+    def has_add_permission(self, request):
+        """Branch managers cannot add voucher usages."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Branch managers cannot change voucher usages."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete voucher usages."""
+        return False
+
+
+# =============================================================================
 # Register models with the branch manager admin site
 # =============================================================================
 
@@ -738,3 +980,5 @@ manager_admin_site.register(ServiceArrangement, ManagerServiceArrangementAdmin)
 manager_admin_site.register(TimeSlot, ManagerTimeSlotAdmin)
 manager_admin_site.register(Booking, ManagerBookingAdmin)
 manager_admin_site.register(SpaProduct, ManagerSpaProductAdmin)
+manager_admin_site.register(Voucher, ManagerVoucherAdmin)
+manager_admin_site.register(VoucherUsage, ManagerVoucherUsageAdmin)
