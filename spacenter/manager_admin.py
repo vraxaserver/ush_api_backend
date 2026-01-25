@@ -243,7 +243,6 @@ class ManagerTherapistProfileAdmin(TranslationAdmin):
     
     list_display = [
         "therapist_name",
-        "spa_center",
         "years_of_experience",
         "is_available",
         "specialty_list",
@@ -308,7 +307,6 @@ class ManagerServiceArrangementAdmin(admin.ModelAdmin):
 
     list_display = [
         "arrangement_label",
-        "spa_center",
         "service",
         "room_no",
         "arrangement_type",
@@ -633,8 +631,6 @@ class ManagerSpaProductAdmin(admin.ModelAdmin):
 
     list_display = [
         "product",
-        "country",
-        "city",
         "currency",
         "price",
         "discounted_price",
