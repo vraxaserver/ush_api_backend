@@ -5,6 +5,7 @@ Separate admin site restricted to branch managers only.
 Accessible at /manager URL.
 """
 
+from spacenter.filters import ServiceArrangementServiceFilter
 from django.contrib import admin
 from django.contrib.admin import AdminSite
 from django.db.models import Sum
@@ -307,6 +308,7 @@ class ManagerServiceArrangementAdmin(admin.ModelAdmin):
     list_filter = [
         "is_active",
         "arrangement_type",
+        ServiceArrangementServiceFilter
         
     ]
     search_fields = [

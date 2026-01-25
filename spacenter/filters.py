@@ -34,3 +34,7 @@ class ServiceSpaCenterFilter(AutocompleteFilter):
     @property
     def parameter_name(self):
         return 'spa_centers__id__exact'
+
+class ServiceArrangementServiceFilter(AutocompleteFilter):
+    title = 'Service' # display title
+    field_name = 'service' # name of the foreign key field
