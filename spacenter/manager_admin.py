@@ -307,7 +307,7 @@ class ManagerServiceArrangementAdmin(admin.ModelAdmin):
     list_filter = [
         "is_active",
         "arrangement_type",
-        "service",
+        
     ]
     search_fields = [
         "arrangement_label",
@@ -392,7 +392,7 @@ class ManagerTimeSlotAdmin(admin.ModelAdmin):
     """TimeSlot admin for branch manager portal."""
 
     list_display = [
-        "id",
+        
         "arrangement",
         "date",
         "start_time",
@@ -401,7 +401,7 @@ class ManagerTimeSlotAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         "date",
-        "arrangement__service",
+        
     ]
     search_fields = [
         "arrangement__arrangement_label",
@@ -484,7 +484,7 @@ class ManagerBookingAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         "status",
-        "service_arrangement__service",
+        
         "created_at",
     ]
     search_fields = [
