@@ -216,8 +216,6 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     ]
     list_filter = [
         "status",
-        "spa_center",
-        "service_arrangement__service",
         "created_at",
     ]
     search_fields = [

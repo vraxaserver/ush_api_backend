@@ -76,7 +76,7 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
         "is_available",
         "created_at",
     ]
-    list_filter = ["role", "department", "branch", "is_available", "created_at"]
+    list_filter = ["role", "department", "is_available", "created_at"]
     search_fields = [
         "user__email",
         "user__first_name",
