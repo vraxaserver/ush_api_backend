@@ -66,8 +66,8 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     list_filter = [
         "is_active",
         "arrangement_type",
-        "spa_center",
-        "service",
+        
+        
     ]
     search_fields = [
         "arrangement_label",
@@ -138,7 +138,6 @@ class TimeSlotAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     """Admin for TimeSlot model."""
 
     list_display = [
-        "id",
         "arrangement",
         "date",
         "start_time",
@@ -147,8 +146,7 @@ class TimeSlotAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     ]
     list_filter = [
         "date",
-        "arrangement__spa_center",
-        "arrangement__service",
+        
     ]
     search_fields = [
         "arrangement__arrangement_label",

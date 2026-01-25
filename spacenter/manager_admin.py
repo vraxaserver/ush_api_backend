@@ -361,6 +361,18 @@ class ManagerServiceArrangementAdmin(admin.ModelAdmin):
             return qs.filter(spa_center=spa_center)
         return qs.none()
 
+    def has_add_permission(self, request):
+        """Branch managers cannot add service arrangements."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Branch managers cannot change service arrangements."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete service arrangements."""
+        return False
+
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Limit spa center and service choices for branch managers."""
         spa_center = get_branch_manager_spa_center(request.user)
@@ -430,6 +442,18 @@ class ManagerTimeSlotAdmin(admin.ModelAdmin):
         if spa_center:
             return qs.filter(arrangement__spa_center=spa_center)
         return qs.none()
+
+    def has_add_permission(self, request):
+        """Branch managers cannot add time slots."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Branch managers cannot change time slots."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete time slots."""
+        return False
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Limit arrangement choices for branch managers."""
@@ -565,6 +589,18 @@ class ManagerBookingAdmin(admin.ModelAdmin):
         if spa_center:
             return qs.filter(spa_center=spa_center)
         return qs.none()
+
+    def has_add_permission(self, request):
+        """Branch managers cannot add bookings."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Branch managers cannot change bookings."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Branch managers cannot delete bookings."""
+        return False
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Limit choices for branch managers."""
