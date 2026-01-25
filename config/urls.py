@@ -20,6 +20,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from spacenter.manager_admin import manager_admin_site
+
 
 # Dummy view for email confirmation (handled via our custom verification flow)
 def email_confirm_redirect(request, key):
@@ -32,10 +34,16 @@ def email_confirm_redirect(request, key):
         "instruction": "Please use the /api/v1/auth/verify/confirm/ endpoint with your verification code."
     })
 
+admin.site.site_title = "USH Spa Center Admin"
+admin.site.site_header = "USH Spa Center Admin"
+admin.site.index_title = "USH Spa Center Admin"
 
 urlpatterns = [
     # Django Admin
     path("admin/", admin.site.urls),
+    
+    # Branch Manager Portal
+    path("manager/", manager_admin_site.urls),
     
     # Allauth URLs (required for dj-rest-auth compatibility)
     # This provides the account_confirm_email URL that allauth/dj-rest-auth expects
