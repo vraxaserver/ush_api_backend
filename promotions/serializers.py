@@ -437,19 +437,41 @@ class GiftCardRedeemSerializer(serializers.Serializer):
 
 
 class GiftCardTransferSerializer(serializers.Serializer):
-    """Serializer for transferring a gift card."""
+    """
+    Serializer for transferring a gift card.
+    
+    Accepts email and/or phone number to identify recipient.
+    If recipient doesn't exist, creates a new customer account.
+    """
 
     code = serializers.CharField(max_length=50)
-    new_owner_email = serializers.EmailField()
+    recipient_email = serializers.EmailField(required=False, allow_blank=True)
+    recipient_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    recipient_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    message = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        """Validate gift card and new owner."""
+        """Validate gift card and find or create recipient."""
+        import secrets
+        import string
         from django.contrib.auth import get_user_model
+        from phonenumber_field.phonenumber import PhoneNumber
+        
         User = get_user_model()
 
         code = attrs.get("code")
-        new_owner_email = attrs.get("new_owner_email")
+        recipient_email = attrs.get("recipient_email", "").strip()
+        recipient_phone = attrs.get("recipient_phone", "").strip()
+        recipient_name = attrs.get("recipient_name", "").strip()
 
+        # Require at least one of email or phone
+        if not recipient_email and not recipient_phone:
+            raise serializers.ValidationError({
+                "recipient_email": "At least one of recipient_email or recipient_phone is required.",
+                "recipient_phone": "At least one of recipient_email or recipient_phone is required.",
+            })
+
+        # Validate gift card
         try:
             gift_card = GiftCard.objects.get(code__iexact=code)
         except GiftCard.DoesNotExist:
@@ -469,17 +491,71 @@ class GiftCardTransferSerializer(serializers.Serializer):
         else:
             raise serializers.ValidationError({"code": "Authentication required."})
 
-        # Find new owner
-        try:
-            new_owner = User.objects.get(email__iexact=new_owner_email)
-        except User.DoesNotExist:
-            raise serializers.ValidationError({"new_owner_email": "User not found."})
+        # Find existing user by email or phone
+        new_owner = None
+        is_new_user = False
+        generated_password = None
 
+        if recipient_email:
+            try:
+                new_owner = User.objects.get(email__iexact=recipient_email)
+            except User.DoesNotExist:
+                pass
+
+        if not new_owner and recipient_phone:
+            try:
+                # Try parsing the phone number
+                phone_obj = PhoneNumber.from_string(recipient_phone)
+                new_owner = User.objects.get(phone_number=phone_obj)
+            except (User.DoesNotExist, Exception):
+                pass
+
+        # If no user found, create a new customer
+        if not new_owner:
+            # Generate random password
+            alphabet = string.ascii_letters + string.digits
+            generated_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+
+            # Determine first name from recipient_name or default
+            name_parts = recipient_name.split() if recipient_name else []
+            first_name = name_parts[0] if name_parts else "Customer"
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
+            # Create user with email or phone
+            user_data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "user_type": "customer",
+                "is_active": True,
+            }
+
+            if recipient_email:
+                user_data["email"] = recipient_email
+            if recipient_phone:
+                try:
+                    phone_obj = PhoneNumber.from_string(recipient_phone)
+                    user_data["phone_number"] = phone_obj
+                except Exception:
+                    user_data["phone_number"] = recipient_phone
+
+            new_owner = User.objects.create_user(
+                password=generated_password,
+                **user_data
+            )
+            is_new_user = True
+
+        # Cannot transfer to yourself
         if new_owner == request.user:
-            raise serializers.ValidationError({"new_owner_email": "Cannot transfer to yourself."})
+            raise serializers.ValidationError({
+                "recipient_email": "Cannot transfer to yourself.",
+                "recipient_phone": "Cannot transfer to yourself.",
+            })
 
         attrs["gift_card"] = gift_card
         attrs["new_owner"] = new_owner
+        attrs["is_new_user"] = is_new_user
+        attrs["generated_password"] = generated_password
+        attrs["recipient_name"] = recipient_name
         return attrs
 
 

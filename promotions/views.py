@@ -167,6 +167,60 @@ class VoucherUsageViewSet(viewsets.ReadOnlyModelViewSet):
         return VoucherUsage.objects.filter(user=self.request.user)
 
 
+class MyVouchersListView(APIView):
+    """
+    List all valid vouchers for the current authenticated user.
+    
+    Returns vouchers that:
+    - Are currently active
+    - Are within their validity period
+    - Have not exceeded total usage limits
+    - The user has not exceeded their per-user usage limit
+    
+    Supports pagination with query params:
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 10, max: 100)
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get all valid vouchers for the current user with pagination."""
+        from django.utils import timezone
+        from rest_framework.pagination import PageNumberPagination
+
+        now = timezone.now()
+        user = request.user
+
+        # Get vouchers that are valid (active, within date range, not exhausted)
+        vouchers = Voucher.objects.filter(
+            status=Voucher.Status.ACTIVE,
+            valid_from__lte=now,
+            valid_until__gte=now,
+        ).exclude(
+            # Exclude vouchers where max_uses is set and current_uses >= max_uses
+            max_uses__isnull=False,
+            current_uses__gte=models.F("max_uses"),
+        )
+
+        # Filter out vouchers where the user has reached their per-user limit
+        valid_vouchers = []
+        for voucher in vouchers:
+            user_uses = voucher.usages.filter(user=user).count()
+            if user_uses < voucher.max_uses_per_user:
+                valid_vouchers.append(voucher)
+
+        # Apply pagination
+        paginator = PageNumberPagination()
+        paginator.page_size = 10
+        paginator.page_size_query_param = "page_size"
+        paginator.max_page_size = 100
+
+        paginated_vouchers = paginator.paginate_queryset(valid_vouchers, request)
+        serializer = VoucherSerializer(paginated_vouchers, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+
 # =============================================================================
 # Gift Card Views
 # =============================================================================
@@ -314,7 +368,13 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         
         Request body:
         - code: Gift card code
-        - new_owner_email: Email of new owner
+        - recipient_email: (optional) Email of recipient
+        - recipient_phone: (optional) Phone number of recipient
+        - recipient_name: (optional) Name of recipient
+        - message: (optional) Custom message for recipient
+        
+        At least one of recipient_email or recipient_phone is required.
+        If user doesn't exist, a new customer account will be created.
         
         Returns updated gift card details.
         """
@@ -326,7 +386,12 @@ class GiftCardViewSet(viewsets.ModelViewSet):
 
         gift_card = serializer.validated_data["gift_card"]
         new_owner = serializer.validated_data["new_owner"]
+        is_new_user = serializer.validated_data.get("is_new_user", False)
+        generated_password = serializer.validated_data.get("generated_password")
+        recipient_name = serializer.validated_data.get("recipient_name", "")
+        message = serializer.validated_data.get("message", "")
 
+        # Transfer ownership
         success, error = gift_card.transfer_to(new_owner)
         if not success:
             return Response(
@@ -334,9 +399,54 @@ class GiftCardViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Update recipient fields on gift card
+        update_fields = []
+        if recipient_name:
+            gift_card.recipient_name = recipient_name
+            update_fields.append("recipient_name")
+        if message:
+            gift_card.recipient_message = message
+            update_fields.append("recipient_message")
+        if update_fields:
+            gift_card.save(update_fields=update_fields)
+
+        # Send notification to new users
+        if is_new_user and generated_password:
+            from .tasks import send_gift_card_welcome_email, send_gift_card_welcome_sms
+
+            # Send email notification
+            if new_owner.email:
+                send_gift_card_welcome_email.delay(
+                    email=new_owner.email,
+                    first_name=new_owner.first_name,
+                    password=generated_password,
+                    gift_card_code=gift_card.code,
+                    gift_card_amount=str(gift_card.current_balance),
+                    gift_card_currency=gift_card.currency,
+                    sender_name=request.user.get_full_name() or str(request.user),
+                    message=message,
+                )
+
+            # Send SMS notification
+            if new_owner.phone_number:
+                send_gift_card_welcome_sms.delay(
+                    phone_number=str(new_owner.phone_number),
+                    first_name=new_owner.first_name,
+                    password=generated_password,
+                    gift_card_amount=str(gift_card.current_balance),
+                    gift_card_currency=gift_card.currency,
+                )
+
+        # Build response message
+        recipient_identifier = new_owner.email or str(new_owner.phone_number) or str(new_owner.id)
+        response_message = f"Gift card transferred to {recipient_identifier}"
+        if is_new_user:
+            response_message += " (new account created)"
+
         return Response({
             "success": True,
-            "message": f"Gift card transferred to {new_owner.email}",
+            "message": response_message,
+            "is_new_user": is_new_user,
             "gift_card": GiftCardSerializer(gift_card).data,
         })
 

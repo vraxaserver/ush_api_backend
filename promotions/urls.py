@@ -10,6 +10,7 @@ from .views import (
     GiftCardTemplateViewSet,
     GiftCardTransactionViewSet,
     GiftCardViewSet,
+    MyVouchersListView,
     VoucherUsageViewSet,
     VoucherViewSet,
 )
@@ -25,5 +26,6 @@ router.register(r"gift-card-transactions", GiftCardTransactionViewSet, basename=
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("list-my-vouchers/", MyVouchersListView.as_view(), name="list-my-vouchers"),
     path("apply-discounts/", ApplyDiscountsView.as_view(), name="apply-discounts"),
 ]
