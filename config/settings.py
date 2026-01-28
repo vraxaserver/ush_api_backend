@@ -102,6 +102,8 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_TRUSTED_ORIGINS = [
     "http://api.spaush.com",
     "https://api.spaush.com",
+    "http://ushapi.charlicoder.com",
+    "https://ushapi.charlicoder.com",
 ]
 
 # If admin uses cookies cross-site (rare), keep defaults; otherwise:

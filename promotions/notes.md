@@ -18,4 +18,11 @@
 
 
 
+# Gift Cards
+
+List gift cards:
+    - GET /api/v1/promotions/gift-card-templates/
+
+
+
 
