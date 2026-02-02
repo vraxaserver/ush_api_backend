@@ -70,6 +70,24 @@ class VoucherValidateSerializer(serializers.Serializer):
         required=False,
         help_text="Order amount to validate minimum purchase",
     )
+    service_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        help_text="List of service UUIDs to check applicability",
+    )
+    product_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        help_text="List of product UUIDs to check applicability",
+    )
+    category_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="List of category names to check applicability",
+    )
 
     def validate_code(self, value):
         """Validate voucher code exists and is valid."""
@@ -90,10 +108,93 @@ class VoucherValidateSerializer(serializers.Serializer):
 
         return value
 
+    def _validate_applicability(self, voucher, service_ids, product_ids, category_ids):
+        """
+        Validate that the voucher is applicable to the given items.
+        Returns (is_applicable, error_message).
+        
+        Rules:
+        - applicable_to = "all": Always valid, no restrictions
+        - applicable_to = "services": Valid for all services (requires service_ids, rejects product_ids)
+        - applicable_to = "products": Valid for all products (requires product_ids, rejects service_ids)
+        - applicable_to = "specific": Must match specific service_ids or product_ids defined in voucher
+        """
+        applicable_to = voucher.applicable_to
+
+        # If voucher applies to all, it's always applicable
+        if applicable_to == Voucher.ApplicableTo.ALL:
+            return True, None
+
+        # If voucher is for services only - valid for ALL services
+        if applicable_to == Voucher.ApplicableTo.SERVICES:
+            if product_ids:
+                return False, "This voucher is only applicable to services, not products."
+            if not service_ids:
+                return False, "This voucher is only applicable to services. Please provide service_ids."
+            return True, None
+
+        # If voucher is for products only - valid for ALL products
+        if applicable_to == Voucher.ApplicableTo.PRODUCTS:
+            if service_ids:
+                return False, "This voucher is only applicable to products, not services."
+            if not product_ids:
+                return False, "This voucher is only applicable to products. Please provide product_ids."
+            return True, None
+
+        # If voucher is for specific items, validate against specific IDs
+        if applicable_to == Voucher.ApplicableTo.SPECIFIC:
+            # Parse the voucher's specific IDs
+            voucher_service_ids = [
+                s.strip() for s in voucher.specific_service_ids.split(",") if s.strip()
+            ]
+            voucher_product_ids = [
+                p.strip() for p in voucher.specific_product_ids.split(",") if p.strip()
+            ]
+            voucher_categories = [
+                c.strip().lower() for c in voucher.specific_categories.split(",") if c.strip()
+            ]
+
+            # Must provide at least one of service_ids or product_ids
+            if not service_ids and not product_ids and not category_ids:
+                return False, "This voucher requires specific service_ids, product_ids, or category_ids."
+
+            items_applicable = False
+
+            # Check if any provided service matches the voucher's specific list
+            if service_ids and voucher_service_ids:
+                for service_id in service_ids:
+                    if str(service_id) in voucher_service_ids:
+                        items_applicable = True
+                        break
+
+            # Check if any provided product matches the voucher's specific list
+            if product_ids and voucher_product_ids:
+                for product_id in product_ids:
+                    if str(product_id) in voucher_product_ids:
+                        items_applicable = True
+                        break
+
+            # Check if any provided category matches
+            if category_ids and voucher_categories:
+                for category in category_ids:
+                    if category.lower() in voucher_categories:
+                        items_applicable = True
+                        break
+
+            if not items_applicable:
+                return False, "This voucher is not applicable to the specified items. The provided IDs do not match."
+
+            return True, None
+
+        return True, None
+
     def validate(self, attrs):
-        """Full validation including amount check."""
+        """Full validation including amount and applicability check."""
         code = attrs.get("code")
         amount = attrs.get("amount")
+        service_ids = attrs.get("service_ids", [])
+        product_ids = attrs.get("product_ids", [])
+        category_ids = attrs.get("category_ids", [])
 
         voucher = Voucher.objects.get(code__iexact=code)
 
@@ -101,6 +202,13 @@ class VoucherValidateSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 "amount": f"Minimum purchase of {voucher.minimum_purchase} required."
             })
+
+        # Always check applicability for non-ALL vouchers
+        is_applicable, error = self._validate_applicability(
+            voucher, service_ids, product_ids, category_ids
+        )
+        if not is_applicable:
+            raise serializers.ValidationError({"code": error})
 
         # Check user-specific limits if user is authenticated
         request = self.context.get("request")
@@ -120,16 +228,125 @@ class VoucherApplySerializer(serializers.Serializer):
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     order_reference = serializers.CharField(max_length=100, required=False, default="")
     order_type = serializers.CharField(max_length=50, required=False, default="")
+    service_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        help_text="List of service UUIDs to check applicability",
+    )
+    product_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        help_text="List of product UUIDs to check applicability",
+    )
+    category_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="List of category names to check applicability",
+    )
+
+    def _validate_applicability(self, voucher, service_ids, product_ids, category_ids):
+        """
+        Validate that the voucher is applicable to the given items.
+        Returns (is_applicable, error_message).
+        """
+        applicable_to = voucher.applicable_to
+
+        # If voucher applies to all, it's always applicable
+        if applicable_to == Voucher.ApplicableTo.ALL:
+            return True, None
+
+        # If voucher is for services only, check that only services are provided
+        if applicable_to == Voucher.ApplicableTo.SERVICES:
+            if product_ids:
+                return False, "This voucher is only applicable to services."
+            if not service_ids:
+                return False, "This voucher requires services to be specified."
+            return True, None
+
+        # If voucher is for products only, check that only products are provided
+        if applicable_to == Voucher.ApplicableTo.PRODUCTS:
+            if service_ids:
+                return False, "This voucher is only applicable to products."
+            if not product_ids:
+                return False, "This voucher requires products to be specified."
+            return True, None
+
+        # If voucher is for specific items, validate against specific IDs/categories
+        if applicable_to == Voucher.ApplicableTo.SPECIFIC:
+            # Parse the voucher's specific IDs
+            voucher_service_ids = [
+                s.strip() for s in voucher.specific_service_ids.split(",") if s.strip()
+            ]
+            voucher_product_ids = [
+                p.strip() for p in voucher.specific_product_ids.split(",") if p.strip()
+            ]
+            voucher_categories = [
+                c.strip().lower() for c in voucher.specific_categories.split(",") if c.strip()
+            ]
+
+            items_applicable = False
+
+            # Check if any provided service is in the voucher's specific list
+            if service_ids and voucher_service_ids:
+                for service_id in service_ids:
+                    if str(service_id) in voucher_service_ids:
+                        items_applicable = True
+                        break
+
+            # Check if any provided product is in the voucher's specific list
+            if product_ids and voucher_product_ids:
+                for product_id in product_ids:
+                    if str(product_id) in voucher_product_ids:
+                        items_applicable = True
+                        break
+
+            # Check if any provided category matches
+            if category_ids and voucher_categories:
+                for category in category_ids:
+                    if category.lower() in voucher_categories:
+                        items_applicable = True
+                        break
+
+            if not items_applicable:
+                return False, "This voucher is not applicable to the specified items."
+
+            return True, None
+
+        return True, None
 
     def validate(self, attrs):
         """Validate voucher can be applied."""
         code = attrs.get("code")
         amount = attrs.get("amount")
+        service_ids = attrs.get("service_ids", [])
+        product_ids = attrs.get("product_ids", [])
+        category_ids = attrs.get("category_ids", [])
 
         try:
             voucher = Voucher.objects.get(code__iexact=code)
         except Voucher.DoesNotExist:
             raise serializers.ValidationError({"code": "Invalid voucher code."})
+
+        # Check if voucher is valid
+        if not voucher.is_valid:
+            if voucher.status == Voucher.Status.EXPIRED:
+                raise serializers.ValidationError({"code": "This voucher has expired."})
+            elif voucher.status == Voucher.Status.EXHAUSTED:
+                raise serializers.ValidationError({"code": "This voucher has been fully used."})
+            elif voucher.status == Voucher.Status.INACTIVE:
+                raise serializers.ValidationError({"code": "This voucher is not active."})
+            else:
+                raise serializers.ValidationError({"code": "This voucher is not valid."})
+
+        # Always check applicability for non-ALL vouchers
+        is_applicable, error = self._validate_applicability(
+            voucher, service_ids, product_ids, category_ids
+        )
+        if not is_applicable:
+            raise serializers.ValidationError({"code": error})
 
         request = self.context.get("request")
         if request and request.user.is_authenticated:
@@ -249,6 +466,8 @@ class GiftCardSerializer(serializers.ModelSerializer):
             "applicable_to_products",
             "is_transferable",
             "recipient_name",
+            "recipient_email",
+            "recipient_phone",
             "recipient_message",
             "purchased_at",
             "activated_at",
@@ -276,13 +495,10 @@ class GiftCardDetailSerializer(GiftCardSerializer):
 
 
 class GiftCardPurchaseSerializer(serializers.Serializer):
-    """Serializer for purchasing a gift card."""
+    """Serializer for purchasing a gift card. Only template_id is required."""
 
     template_id = serializers.UUIDField()
-    recipient_email = serializers.EmailField(required=False, allow_blank=True)
-    recipient_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
     recipient_message = serializers.CharField(required=False, allow_blank=True)
-    payment_reference = serializers.CharField(max_length=100, required=False, default="")
 
     def validate_template_id(self, value):
         """Validate template exists and is active."""
@@ -293,7 +509,7 @@ class GiftCardPurchaseSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        """Create a new gift card."""
+        """Create a new gift card with owner as recipient."""
         from datetime import timedelta
 
         template = GiftCardTemplate.objects.get(id=validated_data["template_id"])
@@ -303,6 +519,17 @@ class GiftCardPurchaseSerializer(serializers.Serializer):
         now = timezone.now()
         valid_until = now + timedelta(days=template.validity_days)
 
+        # Set recipient info from owner user
+        recipient_name = ""
+        recipient_email = ""
+        recipient_phone = ""
+        if user:
+            recipient_name = user.get_full_name() or user.username
+            recipient_email = user.email or ""
+            recipient_phone = getattr(user, "phone_number", "") or ""
+            if hasattr(recipient_phone, "as_e164"):
+                recipient_phone = recipient_phone.as_e164
+
         gift_card = GiftCard.objects.create(
             template=template,
             initial_amount=template.amount,
@@ -310,8 +537,9 @@ class GiftCardPurchaseSerializer(serializers.Serializer):
             currency=template.currency,
             purchased_by=user,
             owner=user,
-            recipient_email=validated_data.get("recipient_email", ""),
-            recipient_name=validated_data.get("recipient_name", ""),
+            recipient_email=recipient_email,
+            recipient_name=recipient_name,
+            recipient_phone=str(recipient_phone) if recipient_phone else "",
             recipient_message=validated_data.get("recipient_message", ""),
             country=template.country,
             applicable_to_services=template.applicable_to_services,
@@ -319,7 +547,6 @@ class GiftCardPurchaseSerializer(serializers.Serializer):
             valid_from=now,
             valid_until=valid_until,
             status=GiftCard.Status.ACTIVE,
-            payment_reference=validated_data.get("payment_reference", ""),
             purchased_at=now,
             activated_at=now,
         )
@@ -337,15 +564,21 @@ class GiftCardPurchaseSerializer(serializers.Serializer):
 
 
 class GiftCardValidateSerializer(serializers.Serializer):
-    """Serializer for validating a gift card."""
+    """Serializer for validating a gift card with applicability checks."""
 
     code = serializers.CharField(max_length=50)
     pin = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    is_for_service = serializers.BooleanField(required=False, default=False)
+    is_for_product = serializers.BooleanField(required=False, default=False)
+    country_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate(self, attrs):
-        """Validate gift card code and PIN."""
+        """Validate gift card code, PIN, and applicability."""
         code = attrs.get("code")
         pin = attrs.get("pin", "")
+        is_for_service = attrs.get("is_for_service", False)
+        is_for_product = attrs.get("is_for_product", False)
+        country_id = attrs.get("country_id")
 
         try:
             gift_card = GiftCard.objects.get(code__iexact=code)
@@ -365,18 +598,40 @@ class GiftCardValidateSerializer(serializers.Serializer):
             else:
                 raise serializers.ValidationError({"code": "This gift card is not valid."})
 
+        # Check applicability for services
+        if is_for_service and not gift_card.applicable_to_services:
+            raise serializers.ValidationError({
+                "code": "This gift card is not applicable to services."
+            })
+
+        # Check applicability for products
+        if is_for_product and not gift_card.applicable_to_products:
+            raise serializers.ValidationError({
+                "code": "This gift card is not applicable to products."
+            })
+
+        # Check country restriction
+        if country_id and gift_card.country_id:
+            if str(gift_card.country_id) != str(country_id):
+                raise serializers.ValidationError({
+                    "code": f"This gift card is only valid in {gift_card.country.name if gift_card.country else 'a specific country'}."
+                })
+
         attrs["gift_card"] = gift_card
         return attrs
 
 
 class GiftCardRedeemSerializer(serializers.Serializer):
-    """Serializer for redeeming a gift card."""
+    """Serializer for redeeming a gift card with applicability checks."""
 
     code = serializers.CharField(max_length=50)
     pin = serializers.CharField(max_length=10, required=False, allow_blank=True)
     amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     order_reference = serializers.CharField(max_length=100, required=False, default="")
     order_type = serializers.CharField(max_length=50, required=False, default="")
+    is_for_service = serializers.BooleanField(required=False, default=False)
+    is_for_product = serializers.BooleanField(required=False, default=False)
+    country_id = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_amount(self, value):
         """Validate amount is positive."""
@@ -385,10 +640,13 @@ class GiftCardRedeemSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
-        """Validate gift card and amount."""
+        """Validate gift card, amount, and applicability."""
         code = attrs.get("code")
         pin = attrs.get("pin", "")
         amount = attrs.get("amount")
+        is_for_service = attrs.get("is_for_service", False)
+        is_for_product = attrs.get("is_for_product", False)
+        country_id = attrs.get("country_id")
 
         try:
             gift_card = GiftCard.objects.get(code__iexact=code)
@@ -405,6 +663,25 @@ class GiftCardRedeemSerializer(serializers.Serializer):
             raise serializers.ValidationError({
                 "amount": f"Insufficient balance. Available: {gift_card.current_balance}"
             })
+
+        # Check applicability for services
+        if is_for_service and not gift_card.applicable_to_services:
+            raise serializers.ValidationError({
+                "code": "This gift card is not applicable to services."
+            })
+
+        # Check applicability for products
+        if is_for_product and not gift_card.applicable_to_products:
+            raise serializers.ValidationError({
+                "code": "This gift card is not applicable to products."
+            })
+
+        # Check country restriction
+        if country_id and gift_card.country_id:
+            if str(gift_card.country_id) != str(country_id):
+                raise serializers.ValidationError({
+                    "code": f"This gift card is only valid in {gift_card.country.name if gift_card.country else 'a specific country'}."
+                })
 
         attrs["gift_card"] = gift_card
         return attrs
@@ -440,56 +717,51 @@ class GiftCardTransferSerializer(serializers.Serializer):
     """
     Serializer for transferring a gift card.
     
-    Accepts email and/or phone number to identify recipient.
+    Requires gift_card_id and either recipient_email or recipient_phone.
     If recipient doesn't exist, creates a new customer account.
     """
 
-    code = serializers.CharField(max_length=50)
+    gift_card_id = serializers.UUIDField()
     recipient_email = serializers.EmailField(required=False, allow_blank=True)
     recipient_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
-    recipient_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
-    message = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         """Validate gift card and find or create recipient."""
         import secrets
         import string
         from django.contrib.auth import get_user_model
-        from phonenumber_field.phonenumber import PhoneNumber
         
         User = get_user_model()
 
-        code = attrs.get("code")
+        gift_card_id = attrs.get("gift_card_id")
         recipient_email = attrs.get("recipient_email", "").strip()
         recipient_phone = attrs.get("recipient_phone", "").strip()
-        recipient_name = attrs.get("recipient_name", "").strip()
 
         # Require at least one of email or phone
         if not recipient_email and not recipient_phone:
             raise serializers.ValidationError({
                 "recipient_email": "At least one of recipient_email or recipient_phone is required.",
-                "recipient_phone": "At least one of recipient_email or recipient_phone is required.",
             })
 
         # Validate gift card
         try:
-            gift_card = GiftCard.objects.get(code__iexact=code)
+            gift_card = GiftCard.objects.get(id=gift_card_id)
         except GiftCard.DoesNotExist:
-            raise serializers.ValidationError({"code": "Invalid gift card code."})
+            raise serializers.ValidationError({"gift_card_id": "Invalid gift card ID."})
 
         if not gift_card.is_transferable:
-            raise serializers.ValidationError({"code": "This gift card cannot be transferred."})
+            raise serializers.ValidationError({"gift_card_id": "This gift card cannot be transferred."})
 
         if not gift_card.is_valid:
-            raise serializers.ValidationError({"code": "Cannot transfer an invalid gift card."})
+            raise serializers.ValidationError({"gift_card_id": "Cannot transfer an invalid gift card."})
 
         # Verify current owner
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             if gift_card.owner and gift_card.owner != request.user:
-                raise serializers.ValidationError({"code": "You are not the owner of this gift card."})
+                raise serializers.ValidationError({"gift_card_id": "You are not the owner of this gift card."})
         else:
-            raise serializers.ValidationError({"code": "Authentication required."})
+            raise serializers.ValidationError({"gift_card_id": "Authentication required."})
 
         # Find existing user by email or phone
         new_owner = None
@@ -503,12 +775,16 @@ class GiftCardTransferSerializer(serializers.Serializer):
                 pass
 
         if not new_owner and recipient_phone:
+            # Try to find user by phone number
             try:
-                # Try parsing the phone number
+                from phonenumber_field.phonenumber import PhoneNumber
                 phone_obj = PhoneNumber.from_string(recipient_phone)
                 new_owner = User.objects.get(phone_number=phone_obj)
-            except (User.DoesNotExist, Exception):
-                pass
+            except Exception:
+                try:
+                    new_owner = User.objects.get(phone_number=recipient_phone)
+                except User.DoesNotExist:
+                    pass
 
         # If no user found, create a new customer
         if not new_owner:
@@ -516,15 +792,9 @@ class GiftCardTransferSerializer(serializers.Serializer):
             alphabet = string.ascii_letters + string.digits
             generated_password = ''.join(secrets.choice(alphabet) for _ in range(12))
 
-            # Determine first name from recipient_name or default
-            name_parts = recipient_name.split() if recipient_name else []
-            first_name = name_parts[0] if name_parts else "Customer"
-            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
-
-            # Create user with email or phone
             user_data = {
-                "first_name": first_name,
-                "last_name": last_name,
+                "first_name": "Customer",
+                "last_name": "",
                 "user_type": "customer",
                 "is_active": True,
             }
@@ -533,6 +803,7 @@ class GiftCardTransferSerializer(serializers.Serializer):
                 user_data["email"] = recipient_email
             if recipient_phone:
                 try:
+                    from phonenumber_field.phonenumber import PhoneNumber
                     phone_obj = PhoneNumber.from_string(recipient_phone)
                     user_data["phone_number"] = phone_obj
                 except Exception:
@@ -548,15 +819,59 @@ class GiftCardTransferSerializer(serializers.Serializer):
         if new_owner == request.user:
             raise serializers.ValidationError({
                 "recipient_email": "Cannot transfer to yourself.",
-                "recipient_phone": "Cannot transfer to yourself.",
             })
 
         attrs["gift_card"] = gift_card
         attrs["new_owner"] = new_owner
         attrs["is_new_user"] = is_new_user
         attrs["generated_password"] = generated_password
-        attrs["recipient_name"] = recipient_name
+        attrs["recipient_email"] = recipient_email
+        attrs["recipient_phone"] = recipient_phone
         return attrs
+
+    def create(self, validated_data):
+        """Transfer the gift card to new owner and update recipient info."""
+        gift_card = validated_data["gift_card"]
+        new_owner = validated_data["new_owner"]
+        is_new_user = validated_data["is_new_user"]
+        generated_password = validated_data.get("generated_password")
+        request = self.context.get("request")
+        old_owner = gift_card.owner
+
+        # Transfer ownership
+        gift_card.owner = new_owner
+        
+        # Update recipient info from new owner
+        gift_card.recipient_name = new_owner.get_full_name() or new_owner.username
+        gift_card.recipient_email = new_owner.email or ""
+        recipient_phone = getattr(new_owner, "phone_number", "") or ""
+        if hasattr(recipient_phone, "as_e164"):
+            recipient_phone = recipient_phone.as_e164
+        gift_card.recipient_phone = str(recipient_phone) if recipient_phone else ""
+        gift_card.save()
+
+        # Create transfer transaction
+        GiftCardTransaction.objects.create(
+            gift_card=gift_card,
+            transaction_type=GiftCardTransaction.TransactionType.TRANSFER,
+            amount=0,
+            balance_after=gift_card.current_balance,
+            user=request.user if request else None,
+            notes=f"Transferred from {old_owner.email if old_owner else 'Unknown'} to {new_owner.email or new_owner.username}",
+        )
+
+        # Send notification to new user if they were just created
+        if is_new_user and generated_password:
+            # TODO: Send email or SMS with login credentials
+            pass
+
+        return {
+            "gift_card": gift_card,
+            "new_owner": new_owner,
+            "is_new_user": is_new_user,
+            "generated_password": generated_password if is_new_user else None,
+        }
+
 
 
 class GiftCardTransactionSerializer(serializers.ModelSerializer):

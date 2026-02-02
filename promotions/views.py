@@ -100,22 +100,46 @@ class VoucherViewSet(viewsets.ReadOnlyModelViewSet):
         Request body:
         - code: Voucher code
         - amount: (optional) Order amount to check minimum purchase
+        - service_ids: (optional) List of service UUIDs to check applicability
+        - product_ids: (optional) List of product UUIDs to check applicability
+        - category_ids: (optional) List of category names to check applicability
         
-        Returns voucher details if valid.
+        Returns voucher details with status and message.
         """
         serializer = VoucherValidateSerializer(
             data=request.data,
             context={"request": request},
         )
-        serializer.is_valid(raise_exception=True)
+        
+        if not serializer.is_valid():
+            # Return error response with status and message
+            errors = serializer.errors
+            error_message = ""
+            if "code" in errors:
+                error_message = errors["code"][0] if isinstance(errors["code"], list) else str(errors["code"])
+            elif "amount" in errors:
+                error_message = errors["amount"][0] if isinstance(errors["amount"], list) else str(errors["amount"])
+            else:
+                error_message = "Invalid voucher request."
+            
+            return Response({
+                "status": "error",
+                "message": error_message,
+                "errors": errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         voucher = serializer.validated_data["voucher"]
         amount = serializer.validated_data.get("amount")
 
-        response_data = VoucherSerializer(voucher).data
+        response_data = {
+            "status": "success",
+            "message": "Voucher is valid.",
+            "voucher": VoucherSerializer(voucher).data,
+        }
+        
         if amount:
-            response_data["calculated_discount"] = voucher.calculate_discount(amount)
-            response_data["final_amount"] = amount - voucher.calculate_discount(amount)
+            response_data["calculated_discount"] = str(voucher.calculate_discount(amount))
+            response_data["final_amount"] = str(amount - voucher.calculate_discount(amount))
 
         return Response(response_data)
 
@@ -129,18 +153,39 @@ class VoucherViewSet(viewsets.ReadOnlyModelViewSet):
         - amount: Order amount
         - order_reference: (optional) Order/booking reference
         - order_type: (optional) Type of order
+        - service_ids: (optional) List of service UUIDs to check applicability
+        - product_ids: (optional) List of product UUIDs to check applicability
+        - category_ids: (optional) List of category names to check applicability
         
-        Creates a usage record and returns discount details.
+        Returns status and message with discount details.
         """
         serializer = VoucherApplySerializer(
             data=request.data,
             context={"request": request},
         )
-        serializer.is_valid(raise_exception=True)
+        
+        if not serializer.is_valid():
+            # Return error response with status and message
+            errors = serializer.errors
+            error_message = ""
+            if "code" in errors:
+                error_message = errors["code"][0] if isinstance(errors["code"], list) else str(errors["code"])
+            elif "amount" in errors:
+                error_message = errors["amount"][0] if isinstance(errors["amount"], list) else str(errors["amount"])
+            else:
+                error_message = "Invalid voucher request."
+            
+            return Response({
+                "status": "error",
+                "message": error_message,
+                "errors": errors,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         usage = serializer.save()
 
         return Response({
-            "success": True,
+            "status": "success",
+            "message": "Voucher applied successfully.",
             "voucher_code": usage.voucher.code,
             "original_amount": str(usage.original_amount),
             "discount_amount": str(usage.discount_amount),
@@ -289,6 +334,34 @@ class GiftCardViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=False, methods=["post"])
+    def buy(self, request):
+        """
+        Buy/purchase a new gift card.
+        
+        Request body:
+        - template_id: UUID of the gift card template
+        - recipient_message: (optional) Personal message
+        
+        The authenticated user becomes both the purchaser and owner.
+        Recipient info is automatically set from the owner's profile.
+        """
+        serializer = GiftCardPurchaseSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        gift_card = serializer.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Gift card purchased successfully.",
+                "gift_card": GiftCardSerializer(gift_card).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny])
     def validate(self, request):
         """
@@ -297,6 +370,9 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         Request body:
         - code: Gift card code
         - pin: (optional) Security PIN
+        - is_for_service: (optional) True if using for a service
+        - is_for_product: (optional) True if using for a product
+        - country_id: (optional) UUID of country to check restriction
         
         Returns gift card details if valid.
         """
@@ -343,6 +419,9 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         - amount: Amount to redeem
         - order_reference: (optional) Order/booking reference
         - order_type: (optional) Type of order
+        - is_for_service: (optional) True if redeeming for a service
+        - is_for_product: (optional) True if redeeming for a product
+        - country_id: (optional) UUID of country to check restriction
         
         Returns redemption details.
         """
@@ -367,14 +446,13 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         Transfer gift card to another user.
         
         Request body:
-        - code: Gift card code
+        - gift_card_id: UUID of the gift card
         - recipient_email: (optional) Email of recipient
         - recipient_phone: (optional) Phone number of recipient
-        - recipient_name: (optional) Name of recipient
-        - message: (optional) Custom message for recipient
         
         At least one of recipient_email or recipient_phone is required.
-        If user doesn't exist, a new customer account will be created.
+        If user doesn't exist, a new customer account will be created
+        and login details will be sent via email/SMS.
         
         Returns updated gift card details.
         """
@@ -382,69 +460,60 @@ class GiftCardViewSet(viewsets.ModelViewSet):
             data=request.data,
             context={"request": request},
         )
-        serializer.is_valid(raise_exception=True)
-
-        gift_card = serializer.validated_data["gift_card"]
-        new_owner = serializer.validated_data["new_owner"]
-        is_new_user = serializer.validated_data.get("is_new_user", False)
-        generated_password = serializer.validated_data.get("generated_password")
-        recipient_name = serializer.validated_data.get("recipient_name", "")
-        message = serializer.validated_data.get("message", "")
-
-        # Transfer ownership
-        success, error = gift_card.transfer_to(new_owner)
-        if not success:
+        
+        if not serializer.is_valid():
+            errors = serializer.errors
+            error_message = next(iter(errors.values()))[0] if errors else "Invalid request."
             return Response(
-                {"error": error},
+                {"status": "error", "message": str(error_message), "errors": errors},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Update recipient fields on gift card
-        update_fields = []
-        if recipient_name:
-            gift_card.recipient_name = recipient_name
-            update_fields.append("recipient_name")
-        if message:
-            gift_card.recipient_message = message
-            update_fields.append("recipient_message")
-        if update_fields:
-            gift_card.save(update_fields=update_fields)
+        result = serializer.save()
+        gift_card = result["gift_card"]
+        new_owner = result["new_owner"]
+        is_new_user = result["is_new_user"]
+        generated_password = result.get("generated_password")
 
         # Send notification to new users
         if is_new_user and generated_password:
-            from .tasks import send_gift_card_welcome_email, send_gift_card_welcome_sms
+            try:
+                from .tasks import send_gift_card_welcome_email, send_gift_card_welcome_sms
 
-            # Send email notification
-            if new_owner.email:
-                send_gift_card_welcome_email.delay(
-                    email=new_owner.email,
-                    first_name=new_owner.first_name,
-                    password=generated_password,
-                    gift_card_code=gift_card.code,
-                    gift_card_amount=str(gift_card.current_balance),
-                    gift_card_currency=gift_card.currency,
-                    sender_name=request.user.get_full_name() or str(request.user),
-                    message=message,
-                )
+                # Send email notification
+                if new_owner.email:
+                    send_gift_card_welcome_email.delay(
+                        email=new_owner.email,
+                        first_name=new_owner.first_name,
+                        password=generated_password,
+                        gift_card_code=gift_card.code,
+                        gift_card_amount=str(gift_card.current_balance),
+                        gift_card_currency=gift_card.currency,
+                        sender_name=request.user.get_full_name() or str(request.user),
+                        message="",
+                    )
 
-            # Send SMS notification
-            if new_owner.phone_number:
-                send_gift_card_welcome_sms.delay(
-                    phone_number=str(new_owner.phone_number),
-                    first_name=new_owner.first_name,
-                    password=generated_password,
-                    gift_card_amount=str(gift_card.current_balance),
-                    gift_card_currency=gift_card.currency,
-                )
+                # Send SMS notification
+                if hasattr(new_owner, 'phone_number') and new_owner.phone_number:
+                    send_gift_card_welcome_sms.delay(
+                        phone_number=str(new_owner.phone_number),
+                        first_name=new_owner.first_name,
+                        password=generated_password,
+                        gift_card_amount=str(gift_card.current_balance),
+                        gift_card_currency=gift_card.currency,
+                    )
+            except ImportError:
+                # Tasks module not available, skip notifications
+                pass
 
         # Build response message
-        recipient_identifier = new_owner.email or str(new_owner.phone_number) or str(new_owner.id)
+        recipient_identifier = new_owner.email or str(getattr(new_owner, 'phone_number', '')) or str(new_owner.id)
         response_message = f"Gift card transferred to {recipient_identifier}"
         if is_new_user:
             response_message += " (new account created)"
 
         return Response({
-            "success": True,
+            "status": "success",
             "message": response_message,
             "is_new_user": is_new_user,
             "gift_card": GiftCardSerializer(gift_card).data,

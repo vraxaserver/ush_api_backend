@@ -524,6 +524,12 @@ class GiftCard(models.Model):
         blank=True,
         help_text=_("Personal message from purchaser"),
     )
+    recipient_phone = models.CharField(
+        _("recipient phone"),
+        max_length=20,
+        blank=True,
+        help_text=_("Phone number of recipient"),
+    )
     
     # Current owner (can be transferred)
     owner = models.ForeignKey(
