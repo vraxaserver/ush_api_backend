@@ -425,3 +425,45 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=["status", "updated_at"])
         
         return Response(BookingSerializer(booking).data)
+
+    @action(detail=True, methods=["post"], url_path="update-payment-status")
+    def update_payment_status(self, request, id=None):
+        """
+        Update booking status based on payment result.
+        
+        POST /api/v1/bookings/{id}/update-payment-status/
+        
+        Request body:
+            {
+                "payment_success": true  // or false
+            }
+        
+        If payment_success is true, status changes from "requested" to "payment_success".
+        If payment_success is false, status changes from "requested" to "payment_pending".
+        """
+        booking = self.get_object()
+        
+        # Check if booking is in "requested" status
+        if booking.status != Booking.BookingStatus.REQUESTED:
+            return Response(
+                {"error": f"Cannot update payment status for booking with status '{booking.status}'. Only 'requested' bookings can be updated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get payment_success from request data
+        payment_success = request.data.get("payment_success")
+        if payment_success is None:
+            return Response(
+                {"error": "The 'payment_success' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Update status based on payment result
+        if payment_success:
+            booking.status = Booking.BookingStatus.PAYMENT_SUCCESS
+        else:
+            booking.status = Booking.BookingStatus.PAYMENT_PENDING
+        
+        booking.save(update_fields=["status", "updated_at"])
+        
+        return Response(BookingSerializer(booking).data)
