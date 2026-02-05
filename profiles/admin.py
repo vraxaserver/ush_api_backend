@@ -5,6 +5,7 @@ Customizes Django admin for profile management.
 """
 
 from django.contrib import admin
+from django.db import models
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TranslationAdmin
 
@@ -124,12 +125,24 @@ class EmployeeProfileAdmin(admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        """Optimize queryset with select_related."""
-        return (
-            super()
-            .get_queryset(request)
-            .select_related("user", "manager", "manager__user")
-        )
+        """Optimize queryset and filter for managers."""
+        qs = super().get_queryset(request).select_related("user", "manager", "manager__user")
+        
+        # Superusers see everything
+        if request.user.is_superuser:
+            return qs
+            
+        # Branch Managers see employees in their branch
+        if hasattr(request.user, 'managed_spa_center') and request.user.managed_spa_center:
+            spa_center = request.user.managed_spa_center
+            # Filter by branch name matching spa center name
+            # Also include employees who report to this manager directly
+            return qs.filter(
+                models.Q(branch__iexact=spa_center.name) | 
+                models.Q(manager__user=request.user)
+            )
+            
+        return qs
 
 
 @admin.register(EmployeeSchedule)
