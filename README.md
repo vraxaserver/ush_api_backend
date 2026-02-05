@@ -32,6 +32,11 @@ A comprehensive Django REST Framework microservice for spa center management wit
 - **Vouchers**: Discount codes (percentage/fixed)
 - **Gift Cards**: Prepaid balance cards with transfer support
 
+### 💳 Payments
+- **Stripe Integration**: Full payment processing via Stripe
+- **PaymentSheet Support**: React Native mobile payment UI
+- **Webhook Handling**: Automatic payment status updates
+
 ### 🌐 Multi-language Support
 - English (EN) and Arabic (AR) translations
 - Translatable fields for all content
@@ -44,6 +49,7 @@ A comprehensive Django REST Framework microservice for spa center management wit
 - **Authentication**: djangorestframework-simplejwt, dj-rest-auth, django-allauth
 - **Database**: PostgreSQL
 - **Async Tasks**: Celery + Redis
+- **Payments**: Stripe
 - **SMS**: Twilio
 - **Translations**: django-modeltranslation
 - **API Docs**: drf-spectacular (Swagger/ReDoc)
@@ -439,6 +445,34 @@ Query parameters:
 
 ---
 
+### Payments (`/api/v1/payments/`)
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/payment-sheet/` | Create PaymentSheet params for React Native | Yes |
+| POST | `/webhook/` | Stripe webhook handler | No |
+
+**Create Payment Sheet Request:**
+```json
+{
+    "amount": 1000,
+    "currency": "usd",
+    "booking_id": 123
+}
+```
+
+**Response:**
+```json
+{
+    "paymentIntent": "pi_xxx_secret_xxx",
+    "customerSessionClientSecret": "cuss_xxx",
+    "customer": "cus_xxx",
+    "publishableKey": "pk_test_xxx"
+}
+```
+
+---
+
 ## Data Models
 
 ### Accounts App
@@ -468,6 +502,10 @@ Query parameters:
 - **GiftCardTemplate**: Gift card denominations
 - **GiftCard**: Individual gift cards
 - **GiftCardTransaction**: Transaction history
+
+### Payments App
+- **StripeCustomer**: Links users to Stripe customer IDs
+- **Payment**: Payment transactions with status tracking
 
 ---
 
@@ -503,6 +541,9 @@ Query parameters:
 | `TWILIO_AUTH_TOKEN` | Twilio auth token | Optional |
 | `TWILIO_PHONE_NUMBER` | Twilio phone number | Optional |
 | `CORS_ALLOW_ALL_ORIGINS` | Allow all CORS | `True` |
+| `STRIPE_SECRET_KEY` | Stripe secret key | Required |
+| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | Required |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | Required |
 
 ### JWT Configuration
 
@@ -559,6 +600,12 @@ auth_service/
 │   ├── admin.py               # Admin configuration
 │   └── management/commands/
 │       └── seed_promotions.py
+├── payments/                   # Stripe payment integration
+│   ├── models.py              # StripeCustomer, Payment
+│   ├── serializers.py         # Payment serializers
+│   ├── views.py               # PaymentSheet, Webhook views
+│   ├── urls.py                # Payment URLs
+│   └── admin.py               # Admin configuration
 ├── templates/                  # Email templates
 ├── locale/                     # Translations (en, ar)
 ├── requirements.txt           # Python dependencies

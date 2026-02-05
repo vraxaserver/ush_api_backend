@@ -151,6 +151,7 @@ LOCAL_APPS = [
     "spacenter",
     "promotions",
     "bookings",
+    "payments",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -459,6 +460,13 @@ CELERY_TIMEZONE = TIME_ZONE
 VERIFICATION_CODE_LENGTH = 6
 VERIFICATION_CODE_EXPIRY_MINUTES = 10
 MAX_VERIFICATION_ATTEMPTS = 5
+
+# ============================================================================
+# Stripe Configuration
+# ============================================================================
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
+STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY", default="")
+STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 
 # ============================================================================
 # Logging Configuration
