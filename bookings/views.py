@@ -426,22 +426,46 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         return Response(BookingSerializer(booking).data)
 
-    @action(detail=True, methods=["post"], url_path="update-payment-status")
-    def update_payment_status(self, request, id=None):
+    @action(detail=False, methods=["post"], url_path="update-payment-status")
+    def update_payment_status(self, request):
         """
         Update booking status based on payment result.
         
-        POST /api/v1/bookings/{id}/update-payment-status/
+        POST /api/v1/bookings/update-payment-status/
         
         Request body:
             {
-                "payment_success": true  // or false
+                "booking_id": 123,
+                "payment_status": true  // or false
             }
         
-        If payment_success is true, status changes from "requested" to "payment_success".
-        If payment_success is false, status changes from "requested" to "payment_pending".
+        If payment_status is true, status changes from "requested" to "payment_success".
+        If payment_status is false, status changes from "requested" to "payment_pending".
         """
-        booking = self.get_object()
+        # Get booking_id from request data
+        booking_id = request.data.get("booking_id")
+        if booking_id is None:
+            return Response(
+                {"error": "The 'booking_id' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get payment_status from request data
+        payment_status = request.data.get("payment_status")
+        if payment_status is None:
+            return Response(
+                {"error": "The 'payment_status' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Get the booking
+        try:
+            booking = Booking.objects.get(id=booking_id, customer=request.user)
+        except Booking.DoesNotExist:
+            return Response(
+                {"error": "Booking not found or does not belong to you."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         
         # Check if booking is in "requested" status
         if booking.status != Booking.BookingStatus.REQUESTED:
@@ -450,16 +474,8 @@ class BookingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        # Get payment_success from request data
-        payment_success = request.data.get("payment_success")
-        if payment_success is None:
-            return Response(
-                {"error": "The 'payment_success' field is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        
         # Update status based on payment result
-        if payment_success:
+        if payment_status:
             booking.status = Booking.BookingStatus.PAYMENT_SUCCESS
         else:
             booking.status = Booking.BookingStatus.PAYMENT_PENDING
