@@ -65,6 +65,7 @@ class Payment(models.Model):
         related_name="payments",
         help_text="Optional booking this payment is for",
     )
+
     stripe_payment_intent_id = models.CharField(
         max_length=255,
         unique=True,

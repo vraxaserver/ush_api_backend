@@ -329,6 +329,188 @@ class Booking(models.Model):
         """
         # Convert start_time to datetime for calculation
         start_dt = datetime.combine(datetime.today(), start_time)
-        total_duration = service_duration + addon_duration + cleanup_duration
-        end_dt = start_dt + timedelta(minutes=total_duration)
-        return end_dt.time()
+        try:
+            total_duration = int(service_duration) + int(addon_duration) + int(cleanup_duration)
+            end_dt = start_dt + timedelta(minutes=total_duration)
+            return end_dt.time()
+        except (ValueError, TypeError):
+             return start_time 
+
+# =============================================================================
+# Product Order Models
+# =============================================================================
+
+def generate_order_number():
+    """Generate a unique order reference number."""
+    import random
+    import string
+    
+    date_part = datetime.now().strftime("%Y%m%d")
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"ORD-{date_part}-{random_part}"
+
+
+class ProductOrder(models.Model):
+    """
+    Product order for spa products.
+    """
+    
+    class OrderStatus(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        PROCESSING = "processing", _("Processing")
+        SHIPPED = "shipped", _("Shipped")
+        COMPLETED = "completed", _("Completed")
+        CANCELED = "canceled", _("Canceled")
+        REFUNDED = "refunded", _("Refunded")
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        PAID = "paid", _("Paid")
+        FAILED = "failed", _("Failed")
+        REFUNDED = "refunded", _("Refunded")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="product_orders",
+        verbose_name=_("user"),
+    )
+
+    order_number = models.CharField(
+        _("order number"),
+        max_length=25,
+        unique=True,
+        default=generate_order_number,
+        editable=False,
+    )
+
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=OrderStatus.choices,
+        default=OrderStatus.PENDING,
+    )
+
+    payment_status = models.CharField(
+        _("payment status"),
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
+
+    # Pricing
+    total_amount = models.DecimalField(
+        _("total amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Sum of item prices before discounts"),
+    )
+    
+    discount_amount = models.DecimalField(
+        _("discount amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Total discount applied (vouchers + other)"),
+    )
+    
+    final_amount = models.DecimalField(
+        _("final amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Final payable amount after discounts"),
+    )
+    
+    currency = models.CharField(
+        _("currency"),
+        max_length=3,
+        default="QAR",
+    )
+
+    # Promotions
+    vouchers = models.ManyToManyField(
+        "promotions.Voucher",
+        blank=True,
+        related_name="product_orders",
+        verbose_name=_("vouchers"),
+    )
+    
+    gift_cards = models.ManyToManyField(
+        "promotions.GiftCard",
+        blank=True,
+        related_name="product_orders",
+        verbose_name=_("gift cards"),
+    )
+
+    payment_method = models.CharField(
+        _("payment method"),
+        max_length=50,
+        blank=True,
+        help_text=_("Method used for payment (e.g., Credit Card, Cash)"),
+    )
+
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("product order")
+        verbose_name_plural = _("product orders")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.order_number} - {self.user.email}"
+
+
+class OrderItem(models.Model):
+    """
+    Individual item in a product order.
+    """
+    order = models.ForeignKey(
+        ProductOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name=_("order"),
+    )
+    
+    product = models.ForeignKey(
+        "spacenter.SpaProduct",
+        on_delete=models.PROTECT,
+        related_name="order_items",
+        verbose_name=_("product"),
+    )
+    
+    quantity = models.PositiveIntegerField(
+        _("quantity"),
+        default=1,
+        validators=[MinValueValidator(1)],
+    )
+    
+    unit_price = models.DecimalField(
+        _("unit price"),
+        max_digits=10,
+        decimal_places=2,
+        help_text=_("Price at time of purchase"),
+    )
+    
+    total_price = models.DecimalField(
+        _("total price"),
+        max_digits=10,
+        decimal_places=2,
+        help_text=_("Quantity * Unit Price"),
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.total_price:
+            self.total_price = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = _("order item")
+        verbose_name_plural = _("order items")
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.product.name} ({self.order.order_number})"

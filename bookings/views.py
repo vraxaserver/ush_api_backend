@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from django.db import transaction
 from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
@@ -18,7 +19,7 @@ from rest_framework.views import APIView
 
 from spacenter.models import Service, SpaCenter
 
-from .models import Booking, ServiceArrangement, TimeSlot
+from .models import Booking, ServiceArrangement, TimeSlot, ProductOrder, OrderItem
 from .serializers import (
     BookingCreateSerializer,
     BookingListSerializer,
@@ -26,6 +27,8 @@ from .serializers import (
     ServiceArrangementListSerializer,
     ServiceArrangementSerializer,
     TimeSlotSerializer,
+    ProductOrderSerializer,
+    CreateProductOrderSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -483,3 +486,167 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.save(update_fields=["status", "updated_at"])
         
         return Response(BookingSerializer(booking).data)
+
+
+# =============================================================================
+# Product Order Views
+# =============================================================================
+
+
+class ProductOrderViewSet(viewsets.ModelViewSet):
+    """
+    Manage Product Orders.
+    
+    Endpoints:
+    - POST /api/v1/bookings/orders/ : Create new order
+    - GET /api/v1/bookings/orders/ : List user's orders
+    - PATCH /api/v1/bookings/orders/{id}/ : Update order (e.g. status)
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, "employee_profile") or user.is_staff:
+             return ProductOrder.objects.all()
+        return ProductOrder.objects.filter(user=user)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CreateProductOrderSerializer
+        return ProductOrderSerializer
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        user = request.user
+        items_data = data["items"] # List of {product, quantity} objects from validation
+        payment_method = data["payment_method"]
+        
+        # Calculate totals
+        total_amount = sum(item["product"].current_price * item["quantity"] for item in items_data)
+        
+        # Apply Voucher
+        voucher_id = data.get("voucher_id")
+        voucher = None
+        discount_amount = 0
+        from promotions.models import Voucher, GiftCard
+        
+        if voucher_id:
+            try:
+                voucher = Voucher.objects.get(id=voucher_id)
+                is_valid, msg = voucher.can_be_used_by(user, total_amount)
+                if not is_valid:
+                    return Response({"error": f"Voucher invalid: {msg}"}, status=status.HTTP_400_BAD_REQUEST)
+                discount_amount = voucher.calculate_discount(total_amount)
+            except Voucher.DoesNotExist:
+                 return Response({"error": "Voucher not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Apply Gift Card (as payment/discount)
+        # Note: Logic similar to previous orders app
+        gift_card_id = data.get("gift_card_id")
+        gift_card = None
+        gift_card_amount = 0
+        
+        final_amount_pre_gc = max(0, total_amount - discount_amount)
+        
+        if gift_card_id and final_amount_pre_gc > 0:
+            try:
+                gift_card = GiftCard.objects.get(id=gift_card_id)
+                if not gift_card.is_valid:
+                    return Response({"error": "Gift card invalid."}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Redeem
+                success, redeemed, msg = gift_card.redeem(final_amount_pre_gc, user, order_reference="Product Order")
+                if not success:
+                     return Response({"error": f"Gift card error: {msg}"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                gift_card_amount = redeemed
+            except GiftCard.DoesNotExist:
+                 return Response({"error": "Gift card not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        final_amount = max(0, final_amount_pre_gc - gift_card_amount)
+        
+        payment_status = ProductOrder.PaymentStatus.PENDING
+        if final_amount == 0:
+            payment_status = ProductOrder.PaymentStatus.PAID
+
+        # Create Order
+        order = ProductOrder.objects.create(
+            user=user,
+            total_amount=total_amount,
+            discount_amount=discount_amount,
+            final_amount=final_amount,
+            payment_method=payment_method,
+            payment_status=payment_status,
+            status=ProductOrder.OrderStatus.PENDING if final_amount > 0 else ProductOrder.OrderStatus.PROCESSING
+        )
+        
+        if voucher:
+            order.vouchers.add(voucher)
+            # Record usage
+            from promotions.models import VoucherUsage
+            VoucherUsage.objects.create(
+                voucher=voucher,
+                user=user,
+                order_reference=str(order.id),
+                order_type="product_order",
+                original_amount=total_amount,
+                discount_amount=discount_amount,
+                final_amount=total_amount-discount_amount
+            )
+            
+        if gift_card:
+            order.gift_cards.add(gift_card)
+
+        # Create Items & Update Stock
+        for item in items_data:
+            product = item["product"]
+            quantity = item["quantity"]
+            unit_price = product.current_price
+            
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=unit_price * quantity
+            )
+            
+            # Deduct stock
+            product.quantity -= quantity
+            product.reserved_quantity = max(0, product.reserved_quantity - quantity)
+            product.save()
+
+        # Return full details
+        return Response(ProductOrderSerializer(order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch"])
+    def update_status(self, request, pk=None):
+        """
+        Update order status.
+        body: { "status": "completed" }
+        """
+        order = self.get_object()
+        new_status = request.data.get("status")
+        
+        if not new_status:
+            return Response({"error": "Status is required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if new_status not in ProductOrder.OrderStatus.values:
+             return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Permission check? Admin only? 
+        # For now assuming Staff/Admin or maybe system. 
+        # If user is updating, restrictive logic needed (e.g. only cancel pending).
+        if not (request.user.is_staff or hasattr(request.user, "employee_profile")):
+             if new_status == ProductOrder.OrderStatus.CANCELED and order.status == ProductOrder.OrderStatus.PENDING:
+                 pass # Allow user to cancel pending
+             else:
+                 return Response({"error": "Not authorized to set this status."}, status=status.HTTP_403_FORBIDDEN)
+
+        order.status = new_status
+        order.save()
+        return Response(ProductOrderSerializer(order).data)

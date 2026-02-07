@@ -9,6 +9,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     BookingViewSet,
+    ProductOrderViewSet,
     UpcomingBookingsView,
     PastBookingsView,
     ServiceArrangementListView,
@@ -18,6 +19,7 @@ from .views import (
 app_name = "bookings"
 
 router = DefaultRouter()
+router.register(r"orders", ProductOrderViewSet, basename="product-order")
 router.register(r"", BookingViewSet, basename="booking")
 
 urlpatterns = [

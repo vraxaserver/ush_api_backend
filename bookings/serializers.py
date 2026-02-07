@@ -17,7 +17,7 @@ from spacenter.serializers import (
     SpaCenterListSerializer,
 )
 
-from .models import Booking, ServiceArrangement, TimeSlot
+from .models import Booking, ServiceArrangement, TimeSlot, ProductOrder, OrderItem
 
 
 # =============================================================================
@@ -422,4 +422,138 @@ class BookingCreateSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         """Return full booking details after creation."""
-        return BookingSerializer(instance).data
+
+# =============================================================================
+# Product Order Serializers
+# =============================================================================
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Order Items.
+    """
+    product_name = serializers.CharField(source="product.product.name", read_only=True)
+    product_image = serializers.ImageField(source="product.product.image", read_only=True)
+    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            "id",
+            "product",
+            "product_name",
+            "product_image",
+            "quantity",
+            "unit_price",
+            "total_price",
+        ]
+
+
+class ProductOrderSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Product Order details.
+    """
+    items = OrderItemSerializer(many=True, read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
+    voucher_codes = serializers.SerializerMethodField()
+    gift_card_codes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductOrder
+        fields = [
+            "id",
+            "order_number",
+            "user",
+            "status",
+            "status_display",
+            "payment_status",
+            "payment_status_display",
+            "total_amount",
+            "discount_amount",
+            "final_amount",
+            "currency",
+            "payment_method",
+            "items",
+            "voucher_codes",
+            "gift_card_codes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_voucher_codes(self, obj):
+        return [v.code for v in obj.vouchers.all()]
+
+    def get_gift_card_codes(self, obj):
+        return [g.code for g in obj.gift_cards.all()]
+
+
+class CreateProductOrderSerializer(serializers.Serializer):
+    """
+    Serializer for creating a new product order.
+    Accepts:
+    - items: list of {product_id, quantity}
+    - voucher_id: optional
+    - gift_card_id: optional (single for now as per requirements)
+    - subtotal: optional (sum of item prices before discounts)
+    - total_amount: optional (final amount to be paid)
+    """
+    
+    items = serializers.ListField(
+        child=serializers.DictField(child=serializers.CharField()),
+        allow_empty=False
+    )
+    voucher_id = serializers.IntegerField(required=False, allow_null=True)
+    gift_card_id = serializers.IntegerField(required=False, allow_null=True)
+    payment_method = serializers.CharField(required=True)
+    subtotal = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False, 
+        allow_null=True,
+        help_text="Sum of item prices before discounts (optional, for client-side cross-check)"
+    )
+    total_amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False, 
+        allow_null=True,
+        help_text="Final payable amount (optional, for client-side cross-check)"
+    )
+    
+    # Note: user is taken from request.user
+    # Status is set to default (PENDING)
+    
+    def validate_items(self, value):
+        from spacenter.models import SpaProduct
+        validated_items = []
+        for item in value:
+            product_id = item.get("product_id")
+            quantity = item.get("quantity")
+            
+            if not product_id or not quantity:
+                raise serializers.ValidationError("Each item must have 'product_id' and 'quantity'.")
+            
+            try:
+                quantity = int(quantity)
+                if quantity < 1:
+                    raise serializers.ValidationError("Quantity must be at least 1.")
+            except ValueError:
+                raise serializers.ValidationError("Quantity must be an integer.")
+
+            try:
+                product = SpaProduct.objects.get(id=product_id)
+                if product.available_quantity < quantity:
+                    raise serializers.ValidationError(
+                        f"Not enough stock for {product.product.name}. Available: {product.available_quantity}"
+                    )
+                validated_items.append({"product": product, "quantity": quantity})
+            except SpaProduct.DoesNotExist:
+                raise serializers.ValidationError(f"Product with ID {product_id} not found.")
+        
+        return validated_items
+
+    def validate(self, attrs):
+        # Additional validations if needed
+        return attrs
