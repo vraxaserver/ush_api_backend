@@ -12,6 +12,16 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+import stripe
+
+# Set your secret key. Remember to switch to your live secret key in production.
+# See your keys here: https://dashboard.stripe.com/apikeys
+stripe.api_key = settings.STRIPE_SECRET_KEY
+STRIPE_PUBLISHABLE_KEY = settings.STRIPE_PUBLISHABLE_KEY
+
+
 from bookings.models import Booking
 
 from .models import Payment, StripeCustomer
@@ -24,6 +34,87 @@ logger = logging.getLogger(__name__)
 
 # Initialize Stripe with secret key
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+
+class StripePaymentViewSet(viewsets.ViewSet):
+    """
+    A simple ViewSet for handling Stripe payments.
+    """
+    
+    def list(self, request):
+        return Response({"message": "List of stripe payments"})
+
+    def create(self, request):
+        return Response({"message": "Create a stripe payment"})
+
+    def retrieve(self, request, pk=None):
+        return Response({"message": f"Retrieve stripe payment {pk}"})
+
+    @action(detail=False, methods=['post'], url_path='payment-sheet')
+    def payment_sheet(self, request):
+        try:
+            body = request.data
+            
+            # Required: amount (smallest unit), currency
+            try:
+                amount = int(round(float(body.get('amount', 0))))
+            except (ValueError, TypeError):
+                amount = 0
+                
+            currency = str(body.get('currency', 'aed')).lower()
+            
+            if amount <= 0:
+                return Response(
+                    {"error": "Invalid amount"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Optional booking metadata
+            metadata = {}
+            meta_keys = [
+                "serviceId", "date", "start_time", "timeSlot", "arrangement_type",
+                "branchId", "therapistId", "customer_message", "specialRequests",
+                "voucherCode", "giftCardCode",
+            ]
+            for key in meta_keys:
+                val = body.get(key)
+                if val is not None and val != "":
+                    metadata[key] = str(val)
+
+            # 1. Create Customer
+            customer = stripe.Customer.create()
+
+            # 2. Create Ephemeral Key
+            # apiVersion is required for ephemeral key creation
+            ephemeral_key = stripe.EphemeralKey.create(
+                customer=customer.id,
+                stripe_version="2025-04-30.basil" 
+            )
+
+            # 3. Create PaymentIntent
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount,
+                currency=currency,
+                customer=customer.id,
+                automatic_payment_methods={'enabled': True},
+                metadata=metadata if metadata else None,
+            )
+
+            # 4. Return data for client
+            return Response({
+                'paymentIntent': payment_intent.client_secret,
+                'ephemeralKey': ephemeral_key.secret,
+                'customer': customer.id,
+                'publishableKey': STRIPE_PUBLISHABLE_KEY,
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'])
+    def webhook(self, request):
+        return Response({"message": "Stripe webhook received"}, status=status.HTTP_200_OK)
+
 
 
 class CreatePaymentSheetView(APIView):
