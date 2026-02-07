@@ -120,8 +120,8 @@ class Command(BaseSeedCommand):
             city_services = list(Service.objects.filter(city=city))
 
             for i in range(num_branches):
-                prefix = random.choice(BRANCH_PREFIXES)
-                suffix = random.choice(BRANCH_SUFFIXES)
+                prefix = BRANCH_PREFIXES[i % len(BRANCH_PREFIXES)]
+                suffix = BRANCH_SUFFIXES[i % len(BRANCH_SUFFIXES)]
                 branch_name = f"{prefix} {city.name} {suffix}"
 
                 # Create branch manager

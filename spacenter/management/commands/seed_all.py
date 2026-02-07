@@ -36,12 +36,19 @@ class Command(BaseCommand):
             help="Clear all existing data before seeding",
         )
 
+    def print_header(self, message):
+        self.stdout.write("\n" + "-" * 40)
+        self.stdout.write(message)
+        self.stdout.write("-" * 40)
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.MIGRATE_HEADING(
             "\n" + "=" * 60 +
             "\n🚀 SEEDING SPA CENTER APPLICATION DATA" +
             "\n" + "=" * 60
         ))
+
+        clear_flag = ["--clear"] if options["clear"] else []
 
         if options["clear"]:
             # Use the robust clean_all_data command instead of individual clear flags
@@ -68,25 +75,40 @@ class Command(BaseCommand):
         self.stdout.write("-" * 40)
         call_command("seed_branches")
 
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 5/8: Seeding Therapists")
-        self.stdout.write("-" * 40)
-        call_command("seed_therapists")
+        self.print_header("Step 1/9: Seeding Locations (Countries & Cities)")
+        call_command("seed_locations", *clear_flag)
 
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 6/8: Seeding Products")
-        self.stdout.write("-" * 40)
-        call_command("seed_products")
+        self.print_header("Step 2/9: Seeding Specialties")
+        call_command("seed_specialties", *clear_flag)
 
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 7/8: Seeding Customers")
-        self.stdout.write("-" * 40)
-        call_command("seed_customers")
+        self.print_header("Step 3/9: Seeding Services")
+        call_command("seed_services", *clear_flag)
 
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 8/8: Seeding Bookings")
-        self.stdout.write("-" * 40)
-        call_command("seed_bookings")
+        self.print_header("Step 4/9: Seeding Spa Centers & Branch Managers")
+        call_command("seed_branches", *clear_flag)
+
+        self.print_header("Step 5/9: Seeding Therapists")
+        call_command("seed_therapists", *clear_flag)
+
+        # Step 6: Products
+        self.print_header("Step 6/9: Seeding Products")
+        call_command("seed_products", *clear_flag)
+
+        # Step 7: Promotions
+        self.print_header("Step 7/9: Seeding Promotions")
+        call_command("seed_promotions", *clear_flag)
+
+        # Step 8: Customers
+        self.print_header("Step 8/9: Seeding Customers")
+        call_command("seed_customers", *clear_flag)
+
+        # Step 9: Bookings
+        self.print_header("Step 9/9: Seeding Bookings")
+        call_command("seed_bookings", *clear_flag)
+
+        self.stdout.write(self.style.SUCCESS("\n============================================================"))
+        self.stdout.write(self.style.SUCCESS("✅ ALL SEED DATA CREATED SUCCESSFULLY!"))
+        self.stdout.write(self.style.SUCCESS("============================================================"))
 
         # Print final summary
         self.print_summary()
