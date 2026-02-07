@@ -17,6 +17,7 @@ from .models import (
     Country,
     ProductCategory,
     Service,
+    ServiceArrangement,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
@@ -347,6 +348,23 @@ class SpaCenterOperatingHoursInline(admin.TabularInline):
     max_num = 7
 
 
+class ServiceArrangementInline(admin.TabularInline):
+    """Inline for service arrangements at a spa center with pricing."""
+
+    model = ServiceArrangement
+    extra = 1
+    fields = [
+        "service",
+        "arrangement_type",
+        "room_no",
+        "arrangement_label",
+        "base_price",
+        "discount_price",
+        "cleanup_duration",
+        "is_active",
+    ]
+    autocomplete_fields = ["service"]
+
 @admin.register(SpaCenter)
 class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for SpaCenter model with translation support."""
@@ -368,7 +386,7 @@ class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     filter_horizontal = ["services"]
     raw_id_fields = ["branch_manager"]
     autocomplete_fields = ["country", "city"]
-    inlines = [SpaCenterOperatingHoursInline]
+    inlines = [SpaCenterOperatingHoursInline, ServiceArrangementInline]
     ordering = ["sort_order", "country", "name"]
     list_editable = ["sort_order", "is_active", "on_service"]
 
@@ -454,6 +472,74 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
     ]
     list_filter = ["spa_center", "day_of_week", "is_closed"]
     ordering = ["spa_center", "day_of_week"]
+
+
+@admin.register(ServiceArrangement)
+class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+    """Admin for ServiceArrangement model with pricing support."""
+
+    list_display = [
+        "spa_center",
+        "service",
+        "arrangement_type",
+        "room_no",
+        "base_price",
+        "discount_price",
+        "current_price_display",
+        "cleanup_duration",
+        "is_active",
+    ]
+    list_filter = ["spa_center", "arrangement_type", "is_active"]
+    search_fields = ["room_no", "arrangement_label", "service__name", "spa_center__name"]
+    autocomplete_fields = ["spa_center", "service"]
+    ordering = ["spa_center", "service", "room_no"]
+    list_editable = ["is_active"]
+
+    fieldsets = (
+        (None, {
+            "fields": ("spa_center", "service")
+        }),
+        ("Room Details", {
+            "fields": ("arrangement_type", "room_no", "arrangement_label", "cleanup_duration")
+        }),
+        ("Pricing", {
+            "fields": ("base_price", "discount_price")
+        }),
+        ("Status", {
+            "fields": ("is_active",)
+        }),
+    )
+
+    def current_price_display(self, obj):
+        if obj.has_discount:
+            return format_html(
+                '<span style="text-decoration: line-through; color: #999;">{}</span> '
+                '<span style="color: green; font-weight: bold;">{}</span> '
+                '<span style="color: red;">(-{}%)</span>',
+                obj.base_price,
+                obj.current_price,
+                obj.discount_percentage
+            )
+        return obj.base_price
+    current_price_display.short_description = "Current Price"
+
+    def get_queryset(self, request):
+        """Branch managers can only see arrangements for their spa center."""
+        qs = super().get_queryset(request)
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            return qs.filter(spa_center=spa_center)
+        return qs
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Restrict spa_center and service choices for branch managers."""
+        spa_center = get_branch_manager_spa_center(request.user)
+        if spa_center:
+            if db_field.name == "spa_center":
+                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
+            elif db_field.name == "service":
+                kwargs["queryset"] = spa_center.services.filter(is_active=True)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(TherapistProfile)

@@ -16,13 +16,14 @@ from spacenter.models import (
     City,
     Country,
     Service,
+    ServiceArrangement,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
     Specialty,
     TherapistProfile,
 )
-from bookings.models import Booking, ServiceArrangement
+from bookings.models import Booking
 
 
 class Command(BaseCommand):
@@ -36,8 +37,6 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        clear_flag = ["--clear"] if options["clear"] else []
-
         self.stdout.write(self.style.MIGRATE_HEADING(
             "\n" + "=" * 60 +
             "\n🚀 SEEDING SPA CENTER APPLICATION DATA" +
@@ -45,48 +44,49 @@ class Command(BaseCommand):
         ))
 
         if options["clear"]:
-            self.stdout.write(self.style.WARNING("\n⚠️ Clearing all existing data...\n"))
+            # Use the robust clean_all_data command instead of individual clear flags
+            call_command("clean_all_data")
 
-        # Run seed commands in order
+        # Run seed commands in order (without clearing individually as we cleaned globally)
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 1/5: Seeding Locations (Countries & Cities)")
+        self.stdout.write("Step 1/8: Seeding Locations (Countries & Cities)")
         self.stdout.write("-" * 40)
-        call_command("seed_locations", *clear_flag)
-
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 2/5: Seeding Specialties")
-        self.stdout.write("-" * 40)
-        call_command("seed_specialties", *clear_flag)
+        call_command("seed_locations")
 
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 3/5: Seeding Services")
+        self.stdout.write("Step 2/8: Seeding Specialties")
         self.stdout.write("-" * 40)
-        call_command("seed_services", *clear_flag)
+        call_command("seed_specialties")
 
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 4/5: Seeding Spa Centers & Branch Managers")
+        self.stdout.write("Step 3/8: Seeding Services")
         self.stdout.write("-" * 40)
-        call_command("seed_branches", *clear_flag)
+        call_command("seed_services")
 
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 5/5: Seeding Therapists")
+        self.stdout.write("Step 4/8: Seeding Spa Centers & Branch Managers")
         self.stdout.write("-" * 40)
-        call_command("seed_therapists", *clear_flag)
+        call_command("seed_branches")
 
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 6/5: Seeding Products")
+        self.stdout.write("Step 5/8: Seeding Therapists")
         self.stdout.write("-" * 40)
-        call_command("seed_products", *clear_flag)
+        call_command("seed_therapists")
 
         self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 7/7: Seeding Customers")
+        self.stdout.write("Step 6/8: Seeding Products")
         self.stdout.write("-" * 40)
-        call_command("seed_customers", *clear_flag)
+        call_command("seed_products")
+
+        self.stdout.write("\n" + "-" * 40)
+        self.stdout.write("Step 7/8: Seeding Customers")
+        self.stdout.write("-" * 40)
+        call_command("seed_customers")
 
         self.stdout.write("\n" + "-" * 40)
         self.stdout.write("Step 8/8: Seeding Bookings")
         self.stdout.write("-" * 40)
-        call_command("seed_bookings", *clear_flag)
+        call_command("seed_bookings")
 
         # Print final summary
         self.print_summary()

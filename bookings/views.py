@@ -17,9 +17,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from spacenter.models import Service, SpaCenter
+from spacenter.models import Service, SpaCenter, ServiceArrangement
 
-from .models import Booking, ServiceArrangement, TimeSlot, ProductOrder, OrderItem
+from .models import Booking, TimeSlot, ProductOrder, OrderItem
 from .serializers import (
     BookingCreateSerializer,
     BookingListSerializer,

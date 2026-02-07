@@ -17,8 +17,8 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from bookings.models import Booking, ServiceArrangement, TimeSlot
-from spacenter.models import AddOnService, Service, SpaCenter, TherapistProfile
+from bookings.models import Booking, TimeSlot
+from spacenter.models import AddOnService, Service, ServiceArrangement, SpaCenter, TherapistProfile
 
 User = get_user_model()
 
@@ -145,6 +145,8 @@ class Command(DjangoBaseCommand):
                             "arrangement_type": config["type"],
                             "arrangement_label": f"{label} - {service.name[:20]}",
                             "cleanup_duration": config["cleanup"],
+                            "base_price": service.base_price,
+                            "discount_price": service.discount_price,
                             "is_active": True,
                         },
                     )

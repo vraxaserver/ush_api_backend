@@ -15,13 +15,14 @@ from modeltranslation.admin import TranslationAdmin
 
 from .models import (
     Service,
+    ServiceArrangement,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
     SpaProduct,
     TherapistProfile,
 )
-from bookings.models import Booking, ServiceArrangement, TimeSlot
+from bookings.models import Booking, TimeSlot
 from promotions.models import Voucher, VoucherUsage
 
 

@@ -5,9 +5,11 @@ Serializers for spa centers, services, specialties, and therapist management.
 Supports multi-language (English, Arabic) output.
 """
 
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import serializers
 
 from accounts.models import EmployeeRole, UserType
@@ -287,11 +289,28 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def get_branches(self, obj):
-        """Get list of branches offering this service."""
-        return [
-            {"id": str(b.id), "name": b.name}
-            for b in obj.spa_centers.filter(is_active=True)[:5]
-        ]
+        """Get list of branches offering this service with availability."""
+        from bookings.utils import calculate_service_availability
+
+        # Default availability for next 30 days
+        today = timezone.now().date()
+        date_to = today + timedelta(days=30)
+
+        branches_data = []
+        # Filter active spa centers that offer this service
+        for spa_center in obj.spa_centers.filter(is_active=True):
+            availability = calculate_service_availability(
+                obj, spa_center, today, date_to
+            )
+            
+            branches_data.append({
+                "id": str(spa_center.id),
+                "name": spa_center.name,
+                "arrangements": availability["arrangements"],
+                "timeslots_availability": availability["timeslots_availability"]
+            })
+            
+        return branches_data
 
     def validate(self, attrs): 
         """Validate city belongs to country."""

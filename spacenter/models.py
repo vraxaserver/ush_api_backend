@@ -919,3 +919,141 @@ class SpaProduct(models.Model):
             return "low_stock"
         return "in_stock"
 
+
+# =============================================================================
+# Service Arrangement Model
+# =============================================================================
+
+class ServiceArrangement(models.Model):
+    """
+    Room/arrangement configuration for services at a spa center.
+
+    Defines how many rooms/setups are available for each service at each branch.
+    Each arrangement type can have its own pricing.
+    Example: Branch A has 3 rooms for Thai Massage, 2 for Facial, etc.
+    """
+
+    class ArrangementType(models.TextChoices):
+        SINGLE_ROOM = "single_room", _("Single Room")
+        COUPLE_ROOM = "couple_room", _("Couple Room")
+        GROUP_ROOM = "group_room", _("Group Room")
+        OPEN_AREA = "open_area", _("Open Area")
+        VIP_SUITE = "vip_suite", _("VIP Suite")
+        OUTDOOR_ARRANGEMENT = "outdoor_arrangement", _("Outdoor Arrangement")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    spa_center = models.ForeignKey(
+        SpaCenter,
+        on_delete=models.CASCADE,
+        related_name="service_arrangements",
+        verbose_name=_("spa center"),
+    )
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name="arrangements",
+        verbose_name=_("service"),
+    )
+
+    # Room identification
+    room_no = models.CharField(
+        _("room number"),
+        max_length=100,
+        help_text=_("Room label for this arrangement"),
+    )
+
+    arrangement_type = models.CharField(
+        _("arrangement type"),
+        max_length=25,
+        choices=ArrangementType.choices,
+        default=ArrangementType.SINGLE_ROOM,
+    )
+
+    arrangement_label = models.CharField(
+        _("arrangement label"),
+        max_length=100,
+        help_text=_("Display label for this arrangement"),
+    )
+
+    # Cleanup time after each session (in minutes)
+    cleanup_duration = models.PositiveIntegerField(
+        _("cleanup duration (minutes)"),
+        default=15,
+        help_text=_("Time needed to clean/prepare room after service"),
+    )
+
+    # Per-arrangement pricing
+    base_price = models.DecimalField(
+        _("base price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text=_("Base price for this arrangement type"),
+    )
+    discount_price = models.DecimalField(
+        _("discount price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text=_("Discounted price if applicable"),
+    )
+
+    is_active = models.BooleanField(_("active"), default=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("service arrangement")
+        verbose_name_plural = _("service arrangements")
+        unique_together = ["spa_center", "service", "room_no"]
+        ordering = ["spa_center", "service", "room_no"]
+        indexes = [
+            models.Index(fields=["spa_center", "service", "is_active"]),
+            models.Index(fields=["service", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.spa_center.name} - {self.service.name} ({self.arrangement_label})"
+
+    def clean(self):
+        """Validate that service is offered at this spa center and discount is valid."""
+        if self.service_id and self.spa_center_id:
+            if not self.spa_center.services.filter(id=self.service_id).exists():
+                raise ValidationError({
+                    "service": _("This service is not offered at the selected spa center.")
+                })
+        
+        if self.discount_price and self.base_price:
+            if self.discount_price >= self.base_price:
+                raise ValidationError({
+                    "discount_price": _("Discount price must be less than base price.")
+                })
+
+    @property
+    def total_service_duration(self):
+        """Total duration including service + cleanup time."""
+        return self.service.duration_minutes + self.cleanup_duration
+
+    @property
+    def current_price(self):
+        """Get the current price (discount price if available, otherwise base price)."""
+        if self.discount_price:
+            return self.discount_price
+        return self.base_price
+
+    @property
+    def has_discount(self):
+        """Check if arrangement has an active discount."""
+        return self.discount_price is not None and self.discount_price < self.base_price
+
+    @property
+    def discount_percentage(self):
+        """Calculate discount percentage."""
+        if self.has_discount:
+            discount = ((self.base_price - self.discount_price) / self.base_price) * 100
+            return round(discount, 0)
+        return 0
+

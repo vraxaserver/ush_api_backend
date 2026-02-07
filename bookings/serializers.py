@@ -16,8 +16,9 @@ from spacenter.serializers import (
     ServiceListSerializer,
     SpaCenterListSerializer,
 )
+from spacenter.models import ServiceArrangement
 
-from .models import Booking, ServiceArrangement, TimeSlot, ProductOrder, OrderItem
+from .models import Booking, TimeSlot, ProductOrder, OrderItem
 
 
 # =============================================================================

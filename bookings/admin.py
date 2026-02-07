@@ -2,8 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from .models import Booking, ServiceArrangement, TimeSlot
-from spacenter.models import SpaCenter, Service
+from .models import Booking, TimeSlot
+from spacenter.models import SpaCenter, Service, ServiceArrangement
 
 
 def get_branch_manager_spa_center(user):
@@ -49,88 +49,7 @@ class BranchManagerPermissionMixin:
         return super().has_change_permission(request, obj)
 
 
-@admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
-    """Admin for ServiceArrangement model."""
 
-    list_display = [
-        "arrangement_label",
-        "spa_center",
-        "service",
-        "room_no",
-        "arrangement_type",
-        "cleanup_duration",
-        "is_active",
-        "created_at",
-    ]
-    list_filter = [
-        "is_active",
-        "arrangement_type",
-        
-        
-    ]
-    search_fields = [
-        "arrangement_label",
-        "room_no",
-        "spa_center__name",
-        "service__name",
-    ]
-    ordering = ["spa_center", "service", "room_no"]
-    readonly_fields = ["id", "created_at", "updated_at"]
-
-    fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "spa_center",
-                    "service",
-                    "room_no",
-                    "arrangement_label",
-                    "arrangement_type",
-                )
-            },
-        ),
-        (
-            _("Settings"),
-            {
-                "fields": (
-                    "cleanup_duration",
-                    "is_active",
-                )
-            },
-        ),
-        (
-            _("Metadata"),
-            {
-                "fields": (
-                    "id",
-                    "created_at",
-                    "updated_at",
-                ),
-                "classes": ["collapse"],
-            },
-        ),
-    )
-
-    def get_queryset(self, request):
-        """Filter service arrangements by branch manager's spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(spa_center=spa_center)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit spa center and service choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "spa_center":
-                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
-            elif db_field.name == "service":
-                # Only show services offered at this spa center
-                kwargs["queryset"] = spa_center.services.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(TimeSlot)

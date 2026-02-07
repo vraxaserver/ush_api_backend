@@ -8,8 +8,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from spacenter.models import SpaCenter, Service, AddOnService, TherapistProfile
-from bookings.models import ServiceArrangement, Booking, TimeSlot
+from spacenter.models import SpaCenter, Service, AddOnService, TherapistProfile, ServiceArrangement
+from bookings.models import Booking, TimeSlot
 from bookings.serializers import BookingCreateSerializer
 from rest_framework.test import APIRequestFactory
 
