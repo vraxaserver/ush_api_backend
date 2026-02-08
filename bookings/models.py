@@ -166,11 +166,43 @@ class Booking(models.Model):
     )
 
     # Pricing
+    subtotal = models.DecimalField(
+        _("subtotal"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Sum of service prices before discounts"),
+    )
+    
+    discount_amount = models.DecimalField(
+        _("discount amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Total discount applied (vouchers + other)"),
+    )
+    
     total_price = models.DecimalField(
         _("total price"),
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
+        help_text=_("Final payable amount after discounts"),
+    )
+
+    # Promotions
+    vouchers = models.ManyToManyField(
+        "promotions.Voucher",
+        blank=True,
+        related_name="bookings",
+        verbose_name=_("vouchers"),
+    )
+    
+    gift_cards = models.ManyToManyField(
+        "promotions.GiftCard",
+        blank=True,
+        related_name="bookings",
+        verbose_name=_("gift cards"),
     )
 
     # Customer message/notes
