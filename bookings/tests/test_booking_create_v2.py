@@ -102,7 +102,7 @@ class BookingCreateV2Tests(APITestCase):
             "spa_center": str(self.spa_center.id),
             "date": tomorrow.isoformat(),
             "start_time": "11:00:00",
-            "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
+            "service_arrangement_id": str(self.arrangement.id),
             "voucher_ids": ["SAVE20"],
         }
         response = self.client.post(self.url, data)
@@ -137,7 +137,7 @@ class BookingCreateV2Tests(APITestCase):
             "spa_center": str(self.spa_center.id),
             "date": tomorrow.isoformat(),
             "start_time": "12:00:00",
-            "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
+            "service_arrangement_id": str(self.arrangement.id),
             "gift_card_ids": [str(gift_card.id)],
         }
         response = self.client.post(self.url, data)
@@ -182,7 +182,7 @@ class BookingCreateV2Tests(APITestCase):
             "spa_center": str(self.spa_center.id),
             "date": tomorrow.isoformat(),
             "start_time": "14:00:00",
-            "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
+            "service_arrangement_id": str(self.arrangement.id),
             "voucher_ids": ["PROMO20"],
             "gift_card_ids": [str(gift_card.id)],
         }
@@ -212,6 +212,19 @@ class BookingCreateV2Tests(APITestCase):
             "date": tomorrow.isoformat(),
             "start_time": "15:00:00",
             "service_arrangement_id": str(self.arrangement.id),
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("service_arrangement_id", response.data)
+
+    def test_missing_arrangement_id(self):
+        """Test error when arrangement ID is missing."""
+        tomorrow = date.today() + timedelta(days=1)
+        data = {
+            "service": str(self.service.id),
+            "spa_center": str(self.spa_center.id),
+            "date": tomorrow.isoformat(),
+            "start_time": "16:00:00",
         }
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

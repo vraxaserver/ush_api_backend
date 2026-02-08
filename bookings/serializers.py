@@ -238,7 +238,7 @@ class BookingCreateSerializer(serializers.Serializer):
     """
     
     # Arrangement options
-    service_arrangement_id = serializers.UUIDField(required=False, allow_null=True)
+    service_arrangement_id = serializers.UUIDField(required=True)
     arrangement_type = serializers.ChoiceField(choices=ServiceArrangement.ArrangementType.choices, required=False)
     
     # Core details
@@ -345,35 +345,18 @@ class BookingCreateSerializer(serializers.Serializer):
         selected_arrangement = None
         
         arr_id = attrs.get("service_arrangement_id")
-        arr_type = attrs.get("arrangement_type")
         
-        if arr_id:
-            # Direct ID provided
-            try:
-                selected_arrangement = ServiceArrangement.objects.get(
-                    id=arr_id, 
-                    service=service, 
-                    spa_center=spa_center,
-                    is_active=True
-                )
-            except ServiceArrangement.DoesNotExist:
-                raise serializers.ValidationError({
-                    "service_arrangement_id": "Arrangement not found or does not match service/spa center."
-                })
-        elif arr_type:
-            # Fallback to type search
-            arrangements = ServiceArrangement.objects.filter(
-                service=service,
+        try:
+            selected_arrangement = ServiceArrangement.objects.get(
+                id=arr_id, 
+                service=service, 
                 spa_center=spa_center,
-                arrangement_type=arr_type,
                 is_active=True
             )
-            if not arrangements.exists():
-                raise serializers.ValidationError({
-                    "arrangement_type": "No arrangements of this type available."
-                })
-        else:
-             raise serializers.ValidationError("Either service_arrangement_id or arrangement_type is required.")
+        except ServiceArrangement.DoesNotExist:
+            raise serializers.ValidationError({
+                "service_arrangement_id": "Arrangement not found or does not match service/spa center."
+            })
 
         # Check spa center operating hours
         opening_time = spa_center.default_opening_time
@@ -391,55 +374,25 @@ class BookingCreateSerializer(serializers.Serializer):
         # 2. Check Availability
         final_end_time = None
         
-        # If specific arrangement selected, check it
-        if selected_arrangement:
-            cleanup_duration = selected_arrangement.cleanup_duration
-            end_time = Booking.calculate_end_time(
-                start_time, service_duration, addon_duration, cleanup_duration
-            )
-            
-            if end_time > closing_time:
-                 raise serializers.ValidationError({"start_time": "Booking exceeds closing time."})
+        cleanup_duration = selected_arrangement.cleanup_duration
+        end_time = Booking.calculate_end_time(
+            start_time, service_duration, addon_duration, cleanup_duration
+        )
+        
+        if end_time > closing_time:
+             raise serializers.ValidationError({"start_time": "Booking exceeds closing time."})
 
-            overlapping = TimeSlot.objects.filter(
-                arrangement=selected_arrangement,
-                date=date,
-                start_time__lt=end_time,
-                end_time__gt=start_time,
-            ).exists()
-            
-            if overlapping:
-                raise serializers.ValidationError({"start_time": "Selected arrangement is booked for this time."})
-            
-            final_end_time = end_time
-            
-        else:
-            # Find any available from the filter list (logic from before)
-            for arrangement in arrangements:
-                cleanup_duration = arrangement.cleanup_duration
-                end_time = Booking.calculate_end_time(
-                    start_time, service_duration, addon_duration, cleanup_duration
-                )
-
-                if end_time > closing_time:
-                    continue 
-
-                overlapping = TimeSlot.objects.filter(
-                    arrangement=arrangement,
-                    date=date,
-                    start_time__lt=end_time,
-                    end_time__gt=start_time,
-                ).exists()
-
-                if not overlapping:
-                    selected_arrangement = arrangement
-                    final_end_time = end_time
-                    break
-            
-            if not selected_arrangement:
-                raise serializers.ValidationError({
-                    "start_time": "No available arrangements found for this time slot."
-                })
+        overlapping = TimeSlot.objects.filter(
+            arrangement=selected_arrangement,
+            date=date,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        ).exists()
+        
+        if overlapping:
+            raise serializers.ValidationError({"start_time": "Selected arrangement is booked for this time."})
+        
+        final_end_time = end_time
 
         # Store calculated values
         attrs["service_arrangement"] = selected_arrangement
