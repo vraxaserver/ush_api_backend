@@ -534,9 +534,9 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         from promotions.models import Voucher, GiftCard, VoucherUsage, GiftCardTransaction
         from decimal import Decimal
         
-        # Validate and collect vouchers
+        # Validate and collect vouchers - track individual discounts
         valid_vouchers = []
-        discount_amount = Decimal("0.00")
+        voucher_discounts = []  # Track individual discount amounts
         
         for voucher_id in voucher_ids:
             try:
@@ -546,23 +546,24 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
                 if not is_valid:
                     return Response({"error": f"Voucher '{voucher.code}' invalid: {msg}"}, status=status.HTTP_400_BAD_REQUEST)
                 
+                voucher_discount_value = voucher.calculate_discount(subtotal)
                 valid_vouchers.append(voucher)
-                discount_amount += voucher.calculate_discount(subtotal)
+                voucher_discounts.append((voucher, voucher_discount_value))
             except Voucher.DoesNotExist:
                 return Response({"error": f"Voucher with ID '{voucher_id}' not found."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Use client-provided discount if available
-        if data.get("discount") is not None:
-            discount_amount = data["discount"]
+        # discount_amount = voucher_discount = sum of all discount_applied from vouchers
+        voucher_discount = sum(d for _, d in voucher_discounts)
+        discount_amount = voucher_discount  # These are always equal
         
-        # Calculate amount after voucher discounts
-        price_after_discount = max(Decimal("0"), subtotal - discount_amount)
+        # price_after_voucher_discount = subtotal - voucher_discount
+        price_after_voucher_discount = max(Decimal("0"), subtotal - voucher_discount)
         
-        # Validate and redeem gift cards
+        # Validate gift cards and PRE-CALCULATE how much can be redeemed
         valid_gift_cards = []
-        gift_card_transactions = []
-        gift_card_total_deducted = Decimal("0.00")
-        remaining_to_pay = price_after_discount
+        gift_card_redemption_plan = []  # List of (gift_card, amount_to_redeem)
+        gift_card_amount_used = Decimal("0.00")
+        remaining_to_pay = price_after_voucher_discount
         
         for gc_id in gift_card_ids:
             if remaining_to_pay <= 0:
@@ -572,24 +573,29 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
                 if not gift_card.is_valid:
                     return Response({"error": f"Gift card '{gift_card.code}' is not valid."}, status=status.HTTP_400_BAD_REQUEST)
                 
-                valid_gift_cards.append(gift_card)
+                # Calculate how much to redeem from this gift card
+                amount_to_redeem = min(gift_card.current_balance, remaining_to_pay)
+                if amount_to_redeem > 0:
+                    valid_gift_cards.append(gift_card)
+                    gift_card_redemption_plan.append((gift_card, amount_to_redeem))
+                    gift_card_amount_used += amount_to_redeem
+                    remaining_to_pay -= amount_to_redeem
+                    
             except (GiftCard.DoesNotExist, Exception):
                 return Response({"error": f"Gift card '{gc_id}' not found."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Use client-provided total_amount if available, else calculate
-        final_amount = data.get("total_amount")
-        if final_amount is None:
-            final_amount = max(Decimal("0"), price_after_discount - gift_card_total_deducted)
+        # final_amount = price_after_voucher_discount - gift_card_amount_used
+        final_amount = max(Decimal("0"), price_after_voucher_discount - gift_card_amount_used)
         
         payment_status = ProductOrder.PaymentStatus.PENDING
         if final_amount == 0:
             payment_status = ProductOrder.PaymentStatus.PAID
 
-        # Create Order
+        # Create Order with correct values
         order = ProductOrder.objects.create(
             user=user,
             total_amount=subtotal,
-            discount_amount=discount_amount,
+            discount_amount=discount_amount,  # = voucher_discount = sum of discount_applied
             final_amount=final_amount,
             payment_method=payment_method,
             payment_status=payment_status,
@@ -599,15 +605,15 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         # Record voucher usages and link to order
         voucher_usage_records = []
         voucher_details = []
-        for v in valid_vouchers:
+        for v, v_discount in voucher_discounts:
             usage = VoucherUsage.objects.create(
                 voucher=v,
                 user=user,
                 order_reference=str(order.id),
                 order_type="product_order",
                 original_amount=subtotal,
-                discount_amount=v.calculate_discount(subtotal),
-                final_amount=price_after_discount
+                discount_amount=v_discount,
+                final_amount=price_after_voucher_discount
             )
             voucher_usage_records.append(usage)
             order.vouchers.add(v)
@@ -617,20 +623,16 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
                 "name": v.name,
                 "discount_type": v.discount_type,
                 "discount_value": str(v.discount_value),
-                "discount_applied": str(v.calculate_discount(subtotal)),
+                "discount_applied": str(v_discount),
             })
         
         if hasattr(order, 'voucher_usages'):
             order.voucher_usages.set(voucher_usage_records)
         
-        # Redeem gift cards and link transactions to order
-        remaining_to_pay = price_after_discount
+        # Redeem gift cards (using pre-calculated amounts) and link transactions
+        gift_card_transactions = []
         gift_card_details = []
-        for gc in valid_gift_cards:
-            if remaining_to_pay <= 0:
-                break
-            
-            amount_to_redeem = min(gc.current_balance, remaining_to_pay)
+        for gc, amount_to_redeem in gift_card_redemption_plan:
             success, redeemed_amount, error = gc.redeem(
                 amount=amount_to_redeem,
                 user=user,
@@ -638,8 +640,6 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
                 order_type="product_order"
             )
             if success:
-                remaining_to_pay -= redeemed_amount
-                gift_card_total_deducted += redeemed_amount
                 order.gift_cards.add(gc)
                 # Get the transaction that was just created
                 transaction = gc.transactions.order_by('-created_at').first()
@@ -654,14 +654,6 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         
         if hasattr(order, 'gift_card_transactions'):
             order.gift_card_transactions.set(gift_card_transactions)
-        
-        # Update final amount if gift cards were used
-        if gift_card_total_deducted > 0 and data.get("total_amount") is None:
-            order.final_amount = max(Decimal("0"), price_after_discount - gift_card_total_deducted)
-            if order.final_amount == 0:
-                order.payment_status = ProductOrder.PaymentStatus.PAID
-                order.status = ProductOrder.OrderStatus.PROCESSING
-            order.save(update_fields=["final_amount", "payment_status", "status"])
 
         # Create Items & Update Stock
         for item in items_data:
@@ -683,13 +675,14 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
             product.save()
 
         # Return response with calculated prices
+        # Ensure: discount_amount = voucher_discount = sum(discount_applied)
         order_data = ProductOrderSerializer(order).data
         order_data["calculated_prices"] = {
             "subtotal": str(subtotal),
-            "voucher_discount": str(discount_amount),
-            "price_after_voucher_discount": str(price_after_discount),
-            "gift_card_amount_used": str(gift_card_total_deducted),
-            "final_amount": str(order.final_amount),
+            "voucher_discount": str(voucher_discount),
+            "price_after_voucher_discount": str(price_after_voucher_discount),
+            "gift_card_amount_used": str(gift_card_amount_used),
+            "final_amount": str(final_amount),
         }
         order_data["applied_vouchers"] = voucher_details
         order_data["applied_gift_cards"] = gift_card_details
