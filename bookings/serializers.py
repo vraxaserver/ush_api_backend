@@ -149,6 +149,7 @@ class BookingListSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(
         source="service_arrangement.service.name", read_only=True
     )
+    service_image = serializers.SerializerMethodField()
     spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
     booking_date = serializers.DateField(source="time_slot.date", read_only=True)
     booking_time = serializers.TimeField(source="time_slot.start_time", read_only=True)
@@ -160,6 +161,7 @@ class BookingListSerializer(serializers.ModelSerializer):
             "id",
             "booking_number",
             "service_name",
+            "service_image",
             "spa_center_name",
             "booking_date",
             "booking_time",
@@ -168,6 +170,26 @@ class BookingListSerializer(serializers.ModelSerializer):
             "status",
             "created_at",
         ]
+
+    def get_service_image(self, obj):
+        """Get the primary image URL for the service."""
+        if obj.service_arrangement and obj.service_arrangement.service:
+            service = obj.service_arrangement.service
+            # Try to get primary image first
+            primary_image = service.images.filter(is_primary=True).first()
+            if primary_image and primary_image.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(primary_image.image.url)
+                return primary_image.image.url
+            # Fallback to first image if no primary
+            first_image = service.images.first()
+            if first_image and first_image.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(first_image.image.url)
+                return first_image.image.url
+        return None
 
 
 class BookingSerializer(serializers.ModelSerializer):
