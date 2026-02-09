@@ -225,9 +225,11 @@ class Command(DjangoBaseCommand):
                 )
                 
                 # Calculate price
-                total_price = service.current_price
+                subtotal = service.current_price
                 if selected_addons:
-                    total_price += sum(a.price for a in selected_addons)
+                    subtotal += sum(a.price for a in selected_addons)
+                total_price = subtotal  # No discount for seed data
+                discount_amount = Decimal("0.00")
                 
                 # Random customer
                 customer = random.choice(customers)
@@ -252,6 +254,8 @@ class Command(DjangoBaseCommand):
                     service_arrangement=arrangement,
                     time_slot=time_slot,
                     therapist=therapist,
+                    subtotal=subtotal,
+                    discount_amount=discount_amount,
                     total_price=total_price,
                     customer_message=random.choice([
                         "",

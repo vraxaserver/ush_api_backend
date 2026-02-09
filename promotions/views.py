@@ -186,6 +186,7 @@ class VoucherViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({
             "status": "success",
             "message": "Voucher applied successfully.",
+            "id": str(usage.id),
             "voucher_code": usage.voucher.code,
             "original_amount": str(usage.original_amount),
             "discount_amount": str(usage.discount_amount),

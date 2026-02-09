@@ -190,19 +190,19 @@ class Booking(models.Model):
         help_text=_("Final payable amount after discounts"),
     )
 
-    # Promotions
-    vouchers = models.ManyToManyField(
-        "promotions.Voucher",
+    # Promotions - link to usage/transaction records for traceability
+    voucher_usages = models.ManyToManyField(
+        "promotions.VoucherUsage",
         blank=True,
         related_name="bookings",
-        verbose_name=_("vouchers"),
+        verbose_name=_("voucher usages"),
     )
     
-    gift_cards = models.ManyToManyField(
-        "promotions.GiftCard",
+    gift_card_transactions = models.ManyToManyField(
+        "promotions.GiftCardTransaction",
         blank=True,
         related_name="bookings",
-        verbose_name=_("gift cards"),
+        verbose_name=_("gift card transactions"),
     )
 
     # Customer message/notes

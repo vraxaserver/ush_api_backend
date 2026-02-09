@@ -388,6 +388,7 @@ class VoucherUsageSerializer(serializers.ModelSerializer):
     """Serializer for VoucherUsage model."""
 
     voucher_code = serializers.CharField(source="voucher.code", read_only=True)
+    user_email = serializers.EmailField(source="user.email", read_only=True)
 
     class Meta:
         model = VoucherUsage
@@ -395,6 +396,8 @@ class VoucherUsageSerializer(serializers.ModelSerializer):
             "id",
             "voucher",
             "voucher_code",
+            "user",
+            "user_email",
             "order_reference",
             "order_type",
             "original_amount",

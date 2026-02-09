@@ -185,6 +185,8 @@ class BookingSerializer(serializers.ModelSerializer):
     service_name = serializers.CharField(
         source="service_arrangement.service.name", read_only=True
     )
+    voucher_usages_details = serializers.SerializerMethodField()
+    gift_card_transactions_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -203,7 +205,13 @@ class BookingSerializer(serializers.ModelSerializer):
             "therapist_name",
             "add_on_services",
             "add_on_services_details",
+            "subtotal",
+            "discount_amount",
             "total_price",
+            "voucher_usages",
+            "voucher_usages_details",
+            "gift_card_transactions",
+            "gift_card_transactions_details",
             "customer_message",
             "status",
             "created_at",
@@ -222,6 +230,38 @@ class BookingSerializer(serializers.ModelSerializer):
         if obj.therapist:
             return obj.therapist.user.get_full_name()
         return None
+
+    def get_voucher_usages_details(self, obj):
+        """Get detailed voucher usage information."""
+        usages = obj.voucher_usages.all()
+        return [
+            {
+                "id": str(usage.id),
+                "voucher_code": usage.voucher.code,
+                "voucher_name": usage.voucher.name,
+                "discount_type": usage.voucher.discount_type,
+                "original_amount": str(usage.original_amount),
+                "discount_amount": str(usage.discount_amount),
+                "final_amount": str(usage.final_amount),
+                "used_at": usage.used_at.isoformat() if usage.used_at else None,
+            }
+            for usage in usages
+        ]
+
+    def get_gift_card_transactions_details(self, obj):
+        """Get detailed gift card transaction information."""
+        transactions = obj.gift_card_transactions.all()
+        return [
+            {
+                "id": str(txn.id),
+                "gift_card_code": txn.gift_card.code,
+                "transaction_type": txn.transaction_type,
+                "amount": str(txn.amount),
+                "balance_after": str(txn.balance_after),
+                "created_at": txn.created_at.isoformat() if txn.created_at else None,
+            }
+            for txn in transactions
+        ]
 
 
 class BookingCreateSerializer(serializers.Serializer):
@@ -272,7 +312,22 @@ class BookingCreateSerializer(serializers.Serializer):
         decimal_places=2, 
         required=False, 
         allow_null=True,
-        help_text="Expected subtotal from client (optional)"
+        help_text="Sum of service prices before discounts"
+    )
+    discount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False, 
+        allow_null=True,
+        default=0,
+        help_text="Total discount amount (vouchers + other)"
+    )
+    total_price = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False, 
+        allow_null=True,
+        help_text="Final payable amount after discounts"    
     )
 
 
@@ -508,9 +563,9 @@ class BookingCreateSerializer(serializers.Serializer):
             end_time=validated_data["end_time"],
         )
         
-        # Financials from validation
-        subtotal = validated_data["calculated_subtotal"]
-        discount_amount = validated_data["calculated_discount"]
+        # Financials - use client-provided values if available, else calculated
+        subtotal = validated_data.get("subtotal") or validated_data["calculated_subtotal"]
+        discount_amount = validated_data.get("discount") if validated_data.get("discount") is not None else validated_data["calculated_discount"]
         
         # Apply Gift Cards
         valid_gift_cards = validated_data["valid_gift_cards"]
@@ -535,8 +590,11 @@ class BookingCreateSerializer(serializers.Serializer):
         for gc in valid_gift_cards:
             amount_to_use = gift_card_usage.get(gc.id, 0)
             gift_card_total_deducted += amount_to_use
-            
-        final_payable = max(0, price_after_discount - gift_card_total_deducted)
+        
+        # Use client-provided total_price if available, else calculate
+        final_payable = validated_data.get("total_price")
+        if final_payable is None:
+            final_payable = max(0, price_after_discount - gift_card_total_deducted)
         
         status_val = Booking.BookingStatus.REQUESTED
         if final_payable == 0:
@@ -560,39 +618,40 @@ class BookingCreateSerializer(serializers.Serializer):
         if addons:
             booking.add_on_services.set(addons)
             
+        # Record voucher usages and link to booking
         if validated_data["valid_vouchers"]:
-            booking.vouchers.set(validated_data["valid_vouchers"])
-            # Record usage
             from promotions.models import VoucherUsage
+            voucher_usage_records = []
             for v in validated_data["valid_vouchers"]:
-                # Simple logic: proportional or allocated discount? 
-                # For now just recording the usage.
-                # If multiple vouchers, splitting discount amount is complex. 
-                # Assuming single voucher is the norm, or just logging total discount if single.
-                # If multiple, simply logging without specific amount per voucher might be safer 
-                # unless we tracked it loop above.
-                # Let's just log it.
-                VoucherUsage.objects.create(
+                usage = VoucherUsage.objects.create(
                     voucher=v,
                     user=customer,
                     order_reference=str(booking.id),
                     order_type="service_booking",
                     original_amount=subtotal,
-                    discount_amount=discount_amount, # potentially inaccurate if multiple
+                    discount_amount=discount_amount,
                     final_amount=price_after_discount
                 )
+                voucher_usage_records.append(usage)
+            booking.voucher_usages.set(voucher_usage_records)
 
+        # Redeem gift cards and link transactions to booking
         if valid_gift_cards:
-            booking.gift_cards.set(valid_gift_cards)
-            # Redeem
+            gc_transaction_records = []
             for gc in valid_gift_cards:
                 amount = gift_card_usage.get(gc.id, 0)
-                gc.redeem(
+                success, redeemed_amount, error = gc.redeem(
                     amount=amount,
                     user=customer,
                     order_reference=str(booking.id),
                     order_type="service_booking"
                 )
+                if success:
+                    # Get the most recent transaction for this gift card (the one just created)
+                    transaction = gc.transactions.order_by('-created_at').first()
+                    if transaction:
+                        gc_transaction_records.append(transaction)
+            booking.gift_card_transactions.set(gc_transaction_records)
 
         return booking
 
