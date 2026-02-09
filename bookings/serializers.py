@@ -730,9 +730,10 @@ class CreateProductOrderSerializer(serializers.Serializer):
     Serializer for creating a new product order.
     Accepts:
     - items: list of {product_id, quantity}
-    - voucher_id: optional
-    - gift_card_id: optional (single for now as per requirements)
+    - voucher_ids: optional list of voucher IDs (UUIDs)
+    - gift_card_ids: optional list of gift card IDs (UUIDs)
     - subtotal: optional (sum of item prices before discounts)
+    - discount: optional (total discount amount)
     - total_amount: optional (final amount to be paid)
     """
     
@@ -740,8 +741,18 @@ class CreateProductOrderSerializer(serializers.Serializer):
         child=serializers.DictField(child=serializers.CharField()),
         allow_empty=False
     )
-    voucher_id = serializers.IntegerField(required=False, allow_null=True)
-    gift_card_id = serializers.IntegerField(required=False, allow_null=True)
+    voucher_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        help_text="List of voucher IDs (UUIDs) to apply"
+    )
+    gift_card_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="List of gift card IDs to use for payment"
+    )
     payment_method = serializers.CharField(required=True)
     subtotal = serializers.DecimalField(
         max_digits=10, 
@@ -749,6 +760,14 @@ class CreateProductOrderSerializer(serializers.Serializer):
         required=False, 
         allow_null=True,
         help_text="Sum of item prices before discounts (optional, for client-side cross-check)"
+    )
+    discount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        default=0,
+        help_text="Total discount amount (optional)"
     )
     total_amount = serializers.DecimalField(
         max_digits=10, 
