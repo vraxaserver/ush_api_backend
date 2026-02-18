@@ -161,6 +161,8 @@ class ServiceFilter(django_filters.FilterSet):
         lookup_expr="icontains",
     )
     is_home_service = django_filters.BooleanFilter()
+    is_for_male = django_filters.BooleanFilter()
+    is_for_female = django_filters.BooleanFilter()
     is_active = django_filters.BooleanFilter()
     currency = django_filters.CharFilter(lookup_expr="iexact")
     has_discount = django_filters.BooleanFilter(
@@ -195,6 +197,8 @@ class ServiceFilter(django_filters.FilterSet):
             "specialty",
             "specialty_name",
             "is_home_service",
+            "is_for_male",
+            "is_for_female",
             "is_active",
             "currency",
             "has_discount",
@@ -513,15 +517,23 @@ class ServiceViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         
+        
         # Apply filters
         queryset = self.filter_queryset(queryset)
         
+        context = {"request": request}
+        if not user.is_admin:
+            try:
+                context["spa_center"] = user.managed_spa_center
+            except SpaCenter.DoesNotExist:
+                pass
+
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = ServiceListSerializer(page, many=True, context={"request": request})
+            serializer = ServiceListSerializer(page, many=True, context=context)
             return self.get_paginated_response(serializer.data)
         
-        serializer = ServiceListSerializer(queryset, many=True, context={"request": request})
+        serializer = ServiceListSerializer(queryset, many=True, context=context)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminOrBranchManager])
@@ -692,6 +704,8 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         - search: Search by service name
         - category: Filter by category
         - is_home_service: Filter by home service flag
+        - is_for_male: Filter by male availability
+        - is_for_female: Filter by female availability
         - ordering: Sort results (e.g., 'price', '-price', 'name')
         """
         spa_center = self.get_object()
@@ -713,6 +727,15 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
             is_home = is_home_service.lower() in ("true", "1", "yes")
             services = services.filter(is_home_service=is_home)
         
+        # Apply gender filters
+        is_for_male = request.query_params.get("is_for_male")
+        if is_for_male is not None:
+            services = services.filter(is_for_male=is_for_male.lower() in ("true", "1", "yes"))
+        
+        is_for_female = request.query_params.get("is_for_female")
+        if is_for_female is not None:
+            services = services.filter(is_for_female=is_for_female.lower() in ("true", "1", "yes"))
+        
         # Apply ordering
         ordering = request.query_params.get("ordering", "name")
         valid_orderings = ["name", "-name", "price", "-price", "duration_minutes", "-duration_minutes", "sort_order"]
@@ -722,10 +745,18 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         # Paginate results
         page = self.paginate_queryset(services)
         if page is not None:
-            serializer = ServiceListSerializer(page, many=True, context={"request": request})
+            serializer = ServiceListSerializer(
+                page, 
+                many=True, 
+                context={"request": request, "spa_center": spa_center}
+            )
             return self.get_paginated_response(serializer.data)
         
-        serializer = ServiceListSerializer(services, many=True, context={"request": request})
+        serializer = ServiceListSerializer(
+            services, 
+            many=True, 
+            context={"request": request, "spa_center": spa_center}
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])

@@ -254,7 +254,7 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
             "fields": ("duration_minutes", "currency", "base_price", "discount_price")
         }),
         ("Home Service", {
-            "fields": ("is_home_service", "price_for_home_service")
+            "fields": ("is_home_service", "price_for_home_service", 'is_for_male', 'is_for_female')
         }),
         ("Add-on Services", {
             "fields": ("add_on_services",),

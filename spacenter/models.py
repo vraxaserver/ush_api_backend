@@ -260,6 +260,16 @@ class Service(models.Model):
         help_text=_("Leave blank to use base price for home service"),
     )
     
+    # Gender targeting
+    is_for_male = models.BooleanField(
+        _("for male"),
+        default=False,
+    )
+    is_for_female = models.BooleanField(
+        _("for female"),
+        default=True,
+    )
+    
     # Additional info
     ideal_for = models.CharField(
         _("ideal for"),

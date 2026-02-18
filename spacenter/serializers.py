@@ -274,6 +274,8 @@ class ServiceSerializer(serializers.ModelSerializer):
             "is_home_service",
             "price_for_home_service",
             "home_service_price",
+            "is_for_male",
+            "is_for_female",
             "ideal_for",
             "ideal_for_en",
             "ideal_for_ar",
@@ -376,6 +378,8 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             "discount_price",
             "is_home_service",
             "price_for_home_service",
+            "is_for_male",
+            "is_for_female",
             "ideal_for",
             "ideal_for_en",
             "ideal_for_ar",
@@ -469,6 +473,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
     )
     has_discount = serializers.BooleanField(read_only=True)
     discount_percentage = serializers.IntegerField(read_only=True)
+    branches = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -493,10 +498,13 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "discount_percentage",
             "is_home_service",
             "home_service_price",
+            "is_for_male",
+            "is_for_female",
             "ideal_for",
             "primary_image",
             "add_on_services",
             "addon_count",
+            "branches",
         ]
 
     def get_primary_image(self, obj):
@@ -517,6 +525,19 @@ class ServiceListSerializer(serializers.ModelSerializer):
     def get_addon_count(self, obj):
         """Get count of add-on services."""
         return obj.add_on_services.filter(is_active=True).count()
+
+    def get_branches(self, obj):
+        """Get list of spa centers (branches) offering this service."""
+        # If specific spa center context is provided (e.g., from branch services view),
+        # return only that branch.
+        context_spa_center = self.context.get("spa_center")
+        if context_spa_center:
+            return [{"id": str(context_spa_center.id), "name": context_spa_center.name}]
+
+        return [
+            {"id": str(sc.id), "name": sc.name}
+            for sc in obj.spa_centers.filter(is_active=True)
+        ]
 
 
 # =============================================================================
