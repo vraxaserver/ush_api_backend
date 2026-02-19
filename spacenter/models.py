@@ -244,6 +244,28 @@ class Service(models.Model):
         validators=[MinValueValidator(0)],
         help_text=_("Leave blank if no discount"),
     )
+
+    # Extra minutes
+    extra_minutes = models.CharField(
+        _("extra minutes"),
+        max_length=10,
+        choices=[
+            ("15", _("15 minutes")),
+            ("30", _("30 minutes")),
+            ("45", _("45 minutes")),
+            ("60", _("60 minutes")),
+        ],
+        default="0",
+    )
+    price_for_extra_minutes = models.DecimalField(
+        _("price for extra minutes"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text=_("Leave blank to use base price for extra minutes"),
+    )
     
     # Home service
     is_home_service = models.BooleanField(
