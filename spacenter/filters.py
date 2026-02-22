@@ -12,15 +12,10 @@ class CityFilter(AutocompleteFilter):
     field_name = 'city' # name of the foreign key field
 
 
-class ServiceSpaCenterFilter(AutocompleteFilter):
-    """Filter services by spa center (M2M relationship)."""
+class SpaCenterFilter(AutocompleteFilter):
+    """Filter by spa center (FK relationship)."""
     title = 'Spa Center'
-    field_name = 'spa_centers'
-    rel_model = None  # Will be auto-detected
-    
-    @property
-    def parameter_name(self):
-        return 'spa_centers__id__exact'
+    field_name = 'spa_center'
 
 class ServiceArrangementServiceFilter(AutocompleteFilter):
     title = 'Service' # display title

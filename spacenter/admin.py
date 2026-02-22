@@ -25,7 +25,7 @@ from .models import (
     Specialty
 )
 
-from .filters import CountryFilter, CityFilter
+from .filters import CountryFilter, CityFilter, SpaCenterFilter
 
 
 def get_branch_manager_spa_center(user):
@@ -231,7 +231,7 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
         "addon_count",
         "image_count",
     ]
-    list_filter = [CountryFilter, CityFilter, "is_active", "is_home_service", "specialty", ]
+    list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_home_service", "is_for_male", "is_for_female", "specialty"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
