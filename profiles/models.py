@@ -109,7 +109,7 @@ class EmployeeProfile(models.Model):
         _("role"),
         max_length=30,
         choices=EmployeeRole.choices,
-        default=EmployeeRole.THERAPIST,
+        default=EmployeeRole.BRANCH_MANAGER,
         db_index=True,
     )
     employee_id = models.CharField(

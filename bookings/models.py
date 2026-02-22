@@ -146,17 +146,7 @@ class Booking(models.Model):
         related_name="booking",
         verbose_name=_("time slot"),
     )
-
-    # Therapist assignment (optional)
-    therapist = models.ForeignKey(
-        "spacenter.TherapistProfile",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="bookings",
-        verbose_name=_("therapist"),
-    )
-
+    
     # Add-on services - ManyToMany for multiple add-ons
     add_on_services = models.ManyToManyField(
         "spacenter.AddOnService",

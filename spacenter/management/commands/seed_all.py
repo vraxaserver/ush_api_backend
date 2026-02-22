@@ -1,180 +1,106 @@
 """
-Seed All Data.
-
-Master command that runs all seed commands in the correct order.
+Master seed command – runs all seed commands in dependency order.
 
 Usage:
-    python manage.py seed_all
-    python manage.py seed_all --clear
+    python manage.py seed_all           # Seed everything (additive)
+    python manage.py seed_all --clear   # Clear + re-seed everything
 """
 
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
-from spacenter.models import (
-    City,
-    Country,
-    Service,
-    ServiceArrangement,
-    ServiceImage,
-    SpaCenter,
-    SpaCenterOperatingHours,
-    Specialty,
-    TherapistProfile,
-)
-from bookings.models import Booking
+
+# Ordered list of (app_label.command_name, display_label)
+SEED_COMMANDS = [
+    ("seed_users", "👤 Users (accounts)"),
+    ("seed_spacenter", "🏢 Spa Centers, Services & Products (spacenter)"),
+    ("seed_profiles", "📋 Profiles & Schedules (profiles)"),
+    ("seed_slides", "🖼️  Slides (profiles)"),
+    ("seed_promotions", "🎁 Promotions – Vouchers & Gift Cards"),
+    ("seed_bookings", "📅 Bookings & Product Orders"),
+    ("seed_payments", "💳 Payments"),
+]
 
 
 class Command(BaseCommand):
-    help = "Seed all demo data for the spa center application"
+    help = "Run all seed commands in dependency order"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--clear",
             action="store_true",
-            help="Clear all existing data before seeding",
+            help="Clear existing data before seeding (passed to each sub-command)",
+        )
+        parser.add_argument(
+            "--only",
+            type=str,
+            help="Run only a specific seed command (e.g., --only seed_users)",
+        )
+        parser.add_argument(
+            "--skip",
+            type=str,
+            nargs="+",
+            help="Skip specific seed commands (e.g., --skip seed_payments seed_bookings)",
         )
 
-    def print_header(self, message):
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write(message)
-        self.stdout.write("-" * 40)
-
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING(
-            "\n" + "=" * 60 +
-            "\n🚀 SEEDING SPA CENTER APPLICATION DATA" +
-            "\n" + "=" * 60
-        ))
+        clear = options["clear"]
+        only = options.get("only")
+        skip = set(options.get("skip") or [])
 
-        clear_flag = ["--clear"] if options["clear"] else []
+        self.stdout.write(
+            self.style.HTTP_INFO(
+                "\n" + "=" * 60
+                + "\n   USH SPA – Database Seeder"
+                + "\n" + "=" * 60
+            )
+        )
 
-        if options["clear"]:
-            # Use the robust clean_all_data command instead of individual clear flags
-            call_command("clean_all_data")
-
-        # Run seed commands in order (without clearing individually as we cleaned globally)
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 1/8: Seeding Locations (Countries & Cities)")
-        self.stdout.write("-" * 40)
-        call_command("seed_locations")
-
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 2/8: Seeding Specialties")
-        self.stdout.write("-" * 40)
-        call_command("seed_specialties")
-
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 3/8: Seeding Services")
-        self.stdout.write("-" * 40)
-        call_command("seed_services")
-
-        self.stdout.write("\n" + "-" * 40)
-        self.stdout.write("Step 4/8: Seeding Spa Centers & Branch Managers")
-        self.stdout.write("-" * 40)
-        call_command("seed_branches")
-
-        self.print_header("Step 1/9: Seeding Locations (Countries & Cities)")
-        call_command("seed_locations", *clear_flag)
-
-        self.print_header("Step 2/9: Seeding Specialties")
-        call_command("seed_specialties", *clear_flag)
-
-        self.print_header("Step 3/9: Seeding Services")
-        call_command("seed_services", *clear_flag)
-
-        self.print_header("Step 4/9: Seeding Spa Centers & Branch Managers")
-        call_command("seed_branches", *clear_flag)
-
-        self.print_header("Step 5/9: Seeding Therapists")
-        call_command("seed_therapists", *clear_flag)
-
-        # Step 6: Products
-        self.print_header("Step 6/9: Seeding Products")
-        call_command("seed_products", *clear_flag)
-
-        # Step 7: Promotions
-        self.print_header("Step 7/9: Seeding Promotions")
-        call_command("seed_promotions", *clear_flag)
-
-        # Step 8: Customers
-        self.print_header("Step 8/9: Seeding Customers")
-        call_command("seed_customers", *clear_flag)
-
-        # Step 9: Bookings
-        self.print_header("Step 9/9: Seeding Bookings")
-        call_command("seed_bookings", *clear_flag)
-
-        self.stdout.write(self.style.SUCCESS("\n============================================================"))
-        self.stdout.write(self.style.SUCCESS("✅ ALL SEED DATA CREATED SUCCESSFULLY!"))
-        self.stdout.write(self.style.SUCCESS("============================================================"))
-
-        # Print final summary
-        self.print_summary()
-
-    def print_summary(self):
-        """Print final summary of all seeded data."""
-        self.stdout.write("\n" + "=" * 60)
-        self.stdout.write("📊 FINAL SEED DATA SUMMARY")
-        self.stdout.write("=" * 60)
-
-        self.stdout.write(f"\n  🌍 Countries:        {Country.objects.count()}")
-        self.stdout.write(f"  🏙️ Cities:           {City.objects.count()}")
-        self.stdout.write(f"  ⭐ Specialties:      {Specialty.objects.count()}")
-
-        total_services = Service.objects.count()
-        home_services = Service.objects.filter(is_home_service=True).count()
-        discounted = Service.objects.filter(discount_price__isnull=False).count()
-        self.stdout.write(f"  💆 Services:         {total_services}")
-        self.stdout.write(f"      - Home Services: {home_services}")
-        self.stdout.write(f"      - Discounted:    {discounted}")
-
-        self.stdout.write(f"  🏢 Spa Centers:      {SpaCenter.objects.count()}")
-        self.stdout.write(f"  💪 Therapists:       {TherapistProfile.objects.count()}")
-        self.stdout.write(f"  🖼️ Service Images:   {ServiceImage.objects.count()}")
-        self.stdout.write(f"  🏠 Arrangements:     {ServiceArrangement.objects.count()}")
-        self.stdout.write(f"  📅 Bookings:         {Booking.objects.count()}")
-
-        # Per-city breakdown
-        self.stdout.write("\n📍 Per-City Breakdown:")
-        for city in City.objects.select_related("country").all()[:10]:
-            branches = SpaCenter.objects.filter(city=city).count()
-            services = Service.objects.filter(city=city).count()
-            home = Service.objects.filter(city=city, is_home_service=True).count()
+        if clear:
             self.stdout.write(
-                f"  {city.name} ({city.country.code}): "
-                f"{branches} branches, {services} services ({home} home)"
+                self.style.WARNING("\n⚠️  Running in CLEAR mode – existing data will be deleted!\n")
             )
 
-        if City.objects.count() > 10:
-            self.stdout.write(f"  ... and {City.objects.count() - 10} more cities")
+        commands_to_run = SEED_COMMANDS
+        if only:
+            commands_to_run = [(cmd, label) for cmd, label in SEED_COMMANDS if cmd == only]
+            if not commands_to_run:
+                self.stdout.write(
+                    self.style.ERROR(f"Unknown command: {only}")
+                )
+                self.stdout.write(
+                    "Available commands: "
+                    + ", ".join(cmd for cmd, _ in SEED_COMMANDS)
+                )
+                return
 
-        self.stdout.write("\n" + "=" * 60)
-        self.stdout.write("📝 DEMO LOGIN CREDENTIALS")
-        self.stdout.write("=" * 60)
-        self.stdout.write("\n  Branch Manager:")
-        self.stdout.write("    Email:    manager.dubai.0@demo.spa.com")
-        self.stdout.write("    Password: Demo@123")
-        self.stdout.write("\n  Therapist:")
-        self.stdout.write("    Email:    therapist.1@demo.spa.com")
-        self.stdout.write("    Password: Demo@123")
-        self.stdout.write("\n  Customer:")
-        self.stdout.write("    Email:    customer.1@demo.spa.com")
-        self.stdout.write("    Password: Demo@123")
-        self.stdout.write("    (VIP):    vip.customer@demo.spa.com")
+        for command_name, label in commands_to_run:
+            if command_name in skip:
+                self.stdout.write(f"\n⏭️  Skipping: {label}")
+                continue
 
-        self.stdout.write("\n" + "=" * 60)
-        self.stdout.write("🔗 API ENDPOINTS")
-        self.stdout.write("=" * 60)
-        self.stdout.write("\n  GET /api/v1/spa/services/?country=UAE")
-        self.stdout.write("  GET /api/v1/spa/services/?country=UAE&city_name=Dubai")
-        self.stdout.write("  GET /api/v1/spa/services/?country=SAU&is_home_service=true")
-        self.stdout.write("  GET /api/v1/spa/services/?has_discount=true")
-        self.stdout.write("  GET /api/v1/spa/branches/?country=QAT")
-        self.stdout.write("  GET /api/v1/spa/cities/by-country/UAE/")
-        self.stdout.write("  GET /api/v1/spa/therapists/?country=UAE")
+            self.stdout.write(
+                self.style.HTTP_INFO(f"\n{'─' * 50}\n{label}\n{'─' * 50}")
+            )
 
-        self.stdout.write("\n" + "=" * 60)
-        self.stdout.write(self.style.SUCCESS("✅ ALL SEED DATA CREATED SUCCESSFULLY!"))
-        self.stdout.write("=" * 60 + "\n")
+            try:
+                cmd_args = []
+                if clear:
+                    cmd_args.append("--clear")
+
+                call_command(command_name, *cmd_args, stdout=self.stdout)
+
+            except Exception as e:
+                self.stdout.write(
+                    self.style.ERROR(f"\n❌ Error in {command_name}: {e}")
+                )
+                raise
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "\n" + "=" * 60
+                + "\n   ✅ All seeding complete!"
+                + "\n" + "=" * 60
+                + "\n"
+            )
+        )

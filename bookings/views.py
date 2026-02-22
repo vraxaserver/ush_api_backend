@@ -347,8 +347,7 @@ class BookingViewSet(viewsets.ModelViewSet):
             "spa_center",
             "service_arrangement__service",
             "service_arrangement__spa_center",
-            "time_slot",
-            "therapist__employee_profile__user",
+            "time_slot"
         ).prefetch_related("add_on_services")
 
     def perform_create(self, serializer):

@@ -1,7 +1,7 @@
 """
 Spa Center Models.
 
-Models for managing spa centers/branches, services, specialties, and therapist assignments.
+Models for managing spa centers/branches, services, specialties.
 Supports multi-language (English, Arabic) via django-modeltranslation.
 """
 
@@ -90,10 +90,180 @@ class City(models.Model):
         return f"{self.name}, {self.country.name}"
 
 
-class Specialty(models.Model):
+
+class SpaCenter(models.Model):
     """
-    Specialty model for therapist specializations.
+    Spa Center / Branch model.
     
+    Represents a physical spa location with its details and operating hours.
+    Translatable fields: name, description, address
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Basic Information
+    name = models.CharField(_("branch name"), max_length=200)
+    slug = models.SlugField(_("slug"), max_length=200, unique=True)
+    description = models.TextField(_("description"), blank=True)
+    image = models.ImageField(
+        _("image"),
+        upload_to="spacenters/",
+        null=True,
+        blank=True,
+    )
+    
+    # Location
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="spa_centers",
+        verbose_name=_("country"),
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="spa_centers",
+        verbose_name=_("city"),
+    )
+    address = models.CharField(_("address"), max_length=500)
+    postal_code = models.CharField(_("postal code"), max_length=20, blank=True)
+    latitude = models.DecimalField(
+        _("latitude"),
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    longitude = models.DecimalField(
+        _("longitude"),
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+    
+    # Contact Information
+    phone = models.CharField(_("phone"), max_length=20, blank=True)
+    email = models.EmailField(_("email"), blank=True)
+    website = models.URLField(_("website"), blank=True)
+    
+    # Operating Hours (default times)
+    default_opening_time = models.TimeField(
+        _("default opening time"),
+        default="09:00",
+    )
+    default_closing_time = models.TimeField(
+        _("default closing time"),
+        default="21:00",
+    )
+    
+    # Status
+    is_active = models.BooleanField(_("active"), default=True)
+    on_service = models.BooleanField(
+        _("on service"),
+        default=True,
+        help_text=_("Is currently operational"),
+    )
+    
+    # Management
+    branch_manager = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managed_spa_center",
+        verbose_name=_("branch manager"),
+        limit_choices_to={"user_type": "employee"},
+    )
+    
+    sort_order = models.PositiveIntegerField(_("sort order"), default=0)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("spa center")
+        verbose_name_plural = _("spa centers")
+        ordering = ["sort_order", "country", "name"]
+
+    def __str__(self):
+        return f"{self.name} - {self.city.name}, {self.country.name}"
+
+    def clean(self):
+        """Validate that city belongs to selected country."""
+        if self.city_id and self.country_id:
+            if self.city.country_id != self.country_id:
+                raise ValidationError(
+                    {"city": _("Selected city must belong to the selected country.")}
+                )
+
+    @property
+    def location(self):
+        """Return location as dict."""
+        if self.latitude and self.longitude:
+            return {
+                "lat": float(self.latitude),
+                "lon": float(self.longitude),
+            }
+        return None
+
+    @property
+    def full_address(self):
+        """Return formatted full address."""
+        parts = [
+            self.address,
+            self.city.name if self.city else "",
+            self.city.state if self.city and self.city.state else "",
+            self.postal_code,
+            self.country.name if self.country else "",
+        ]
+        return ", ".join(filter(bool, parts))
+
+
+class SpaCenterOperatingHours(models.Model):
+    """
+    Operating hours for specific days of the week.
+    
+    Allows customization of hours per day, overriding defaults.
+    """
+
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, _("Monday")
+        TUESDAY = 1, _("Tuesday")
+        WEDNESDAY = 2, _("Wednesday")
+        THURSDAY = 3, _("Thursday")
+        FRIDAY = 4, _("Friday")
+        SATURDAY = 5, _("Saturday")
+        SUNDAY = 6, _("Sunday")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    spa_center = models.ForeignKey(
+        SpaCenter,
+        on_delete=models.CASCADE,
+        related_name="operating_hours",
+    )
+    day_of_week = models.IntegerField(
+        _("day of week"),
+        choices=DayOfWeek.choices,
+    )
+    opening_time = models.TimeField(_("opening time"))
+    closing_time = models.TimeField(_("closing time"))
+    is_closed = models.BooleanField(_("closed"), default=False)
+
+    class Meta:
+        verbose_name = _("operating hours")
+        verbose_name_plural = _("operating hours")
+        unique_together = ["spa_center", "day_of_week"]
+        ordering = ["day_of_week"]
+
+    def __str__(self):
+        if self.is_closed:
+            return f"{self.spa_center.name} - {self.get_day_of_week_display()}: Closed"
+        return f"{self.spa_center.name} - {self.get_day_of_week_display()}: {self.opening_time} - {self.closing_time}"
+
+
+
+class Specialty(models.Model):
+    """    
     Dynamically added by admin (e.g., Swedish Massage, Deep Tissue, Aromatherapy).
     Translatable fields: name, description
     """
@@ -317,6 +487,14 @@ class Service(models.Model):
         verbose_name=_("add-on services"),
         help_text=_("Additional services that can be added to this service"),
     )
+
+    # Spa Center
+    spa_center = models.ForeignKey(
+        SpaCenter,
+        on_delete=models.CASCADE,
+        related_name="services",
+        verbose_name=_("spa center"),
+    )
     
     # Created by tracking
     created_by = models.ForeignKey(
@@ -442,261 +620,6 @@ class ServiceImage(models.Model):
                 is_primary=True,
             ).exclude(pk=self.pk).update(is_primary=False)
         super().save(*args, **kwargs)
-
-
-class SpaCenter(models.Model):
-    """
-    Spa Center / Branch model.
-    
-    Represents a physical spa location with its details and operating hours.
-    Translatable fields: name, description, address
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
-    # Basic Information
-    name = models.CharField(_("branch name"), max_length=200)
-    slug = models.SlugField(_("slug"), max_length=200, unique=True)
-    description = models.TextField(_("description"), blank=True)
-    image = models.ImageField(
-        _("image"),
-        upload_to="spacenters/",
-        null=True,
-        blank=True,
-    )
-    
-    # Location
-    country = models.ForeignKey(
-        Country,
-        on_delete=models.PROTECT,
-        related_name="spa_centers",
-        verbose_name=_("country"),
-    )
-    city = models.ForeignKey(
-        City,
-        on_delete=models.PROTECT,
-        related_name="spa_centers",
-        verbose_name=_("city"),
-    )
-    address = models.CharField(_("address"), max_length=500)
-    postal_code = models.CharField(_("postal code"), max_length=20, blank=True)
-    latitude = models.DecimalField(
-        _("latitude"),
-        max_digits=9,
-        decimal_places=6,
-        null=True,
-        blank=True,
-    )
-    longitude = models.DecimalField(
-        _("longitude"),
-        max_digits=9,
-        decimal_places=6,
-        null=True,
-        blank=True,
-    )
-    
-    # Contact Information
-    phone = models.CharField(_("phone"), max_length=20, blank=True)
-    email = models.EmailField(_("email"), blank=True)
-    website = models.URLField(_("website"), blank=True)
-    
-    # Operating Hours (default times)
-    default_opening_time = models.TimeField(
-        _("default opening time"),
-        default="09:00",
-    )
-    default_closing_time = models.TimeField(
-        _("default closing time"),
-        default="21:00",
-    )
-    
-    # Status
-    is_active = models.BooleanField(_("active"), default=True)
-    on_service = models.BooleanField(
-        _("on service"),
-        default=True,
-        help_text=_("Is currently operational"),
-    )
-    
-    # Management
-    branch_manager = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="managed_spa_center",
-        verbose_name=_("branch manager"),
-        limit_choices_to={"user_type": "employee"},
-    )
-    
-    # Services offered at this branch
-    services = models.ManyToManyField(
-        Service,
-        related_name="spa_centers",
-        blank=True,
-        verbose_name=_("services offered"),
-    )
-    
-    sort_order = models.PositiveIntegerField(_("sort order"), default=0)
-    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
-
-    class Meta:
-        verbose_name = _("spa center")
-        verbose_name_plural = _("spa centers")
-        ordering = ["sort_order", "country", "name"]
-
-    def __str__(self):
-        return f"{self.name} - {self.city.name}, {self.country.name}"
-
-    def clean(self):
-        """Validate that city belongs to selected country."""
-        if self.city_id and self.country_id:
-            if self.city.country_id != self.country_id:
-                raise ValidationError(
-                    {"city": _("Selected city must belong to the selected country.")}
-                )
-
-    @property
-    def location(self):
-        """Return location as dict."""
-        if self.latitude and self.longitude:
-            return {
-                "lat": float(self.latitude),
-                "lon": float(self.longitude),
-            }
-        return None
-
-    @property
-    def full_address(self):
-        """Return formatted full address."""
-        parts = [
-            self.address,
-            self.city.name if self.city else "",
-            self.city.state if self.city and self.city.state else "",
-            self.postal_code,
-            self.country.name if self.country else "",
-        ]
-        return ", ".join(filter(bool, parts))
-
-
-class SpaCenterOperatingHours(models.Model):
-    """
-    Operating hours for specific days of the week.
-    
-    Allows customization of hours per day, overriding defaults.
-    """
-
-    class DayOfWeek(models.IntegerChoices):
-        MONDAY = 0, _("Monday")
-        TUESDAY = 1, _("Tuesday")
-        WEDNESDAY = 2, _("Wednesday")
-        THURSDAY = 3, _("Thursday")
-        FRIDAY = 4, _("Friday")
-        SATURDAY = 5, _("Saturday")
-        SUNDAY = 6, _("Sunday")
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    spa_center = models.ForeignKey(
-        SpaCenter,
-        on_delete=models.CASCADE,
-        related_name="operating_hours",
-    )
-    day_of_week = models.IntegerField(
-        _("day of week"),
-        choices=DayOfWeek.choices,
-    )
-    opening_time = models.TimeField(_("opening time"))
-    closing_time = models.TimeField(_("closing time"))
-    is_closed = models.BooleanField(_("closed"), default=False)
-
-    class Meta:
-        verbose_name = _("operating hours")
-        verbose_name_plural = _("operating hours")
-        unique_together = ["spa_center", "day_of_week"]
-        ordering = ["day_of_week"]
-
-    def __str__(self):
-        if self.is_closed:
-            return f"{self.spa_center.name} - {self.get_day_of_week_display()}: Closed"
-        return f"{self.spa_center.name} - {self.get_day_of_week_display()}: {self.opening_time} - {self.closing_time}"
-
-
-class TherapistProfile(models.Model):
-    """
-    Extended profile for therapist employees.
-    
-    Links therapists to branches, specialties, and services they can perform.
-    Translatable fields: bio
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
-    # Link to employee profile
-    employee_profile = models.OneToOneField(
-        "profiles.EmployeeProfile",
-        on_delete=models.CASCADE,
-        related_name="therapist_profile",
-        verbose_name=_("employee profile"),
-    )
-    
-    # Branch assignment
-    spa_center = models.ForeignKey(
-        SpaCenter,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="therapists",
-        verbose_name=_("spa center"),
-    )
-    
-    # Specialties and services
-    specialties = models.ManyToManyField(
-        Specialty,
-        related_name="therapists",
-        blank=True,
-        verbose_name=_("specialties"),
-    )
-    services = models.ManyToManyField(
-        Service,
-        related_name="therapists",
-        blank=True,
-        verbose_name=_("services can perform"),
-    )
-    
-    # Additional info
-    years_of_experience = models.PositiveIntegerField(
-        _("years of experience"),
-        default=0,
-    )
-    bio = models.TextField(_("bio"), blank=True)
-    
-    # Availability
-    is_available = models.BooleanField(_("available"), default=True)
-    
-    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
-
-    class Meta:
-        verbose_name = _("therapist profile")
-        verbose_name_plural = _("therapist profiles")
-
-    def __str__(self):
-        user = self.employee_profile.user
-        return f"Therapist: {user.get_full_name()}"
-
-    @property
-    def user(self):
-        """Get the associated user."""
-        return self.employee_profile.user
-
-    @property
-    def country(self):
-        """Get the country from the spa center."""
-        if self.spa_center:
-            return self.spa_center.country
-        return None
-
 
 # =============================================================================
 # Product Models

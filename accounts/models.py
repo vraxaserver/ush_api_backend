@@ -30,7 +30,6 @@ class EmployeeRole(models.TextChoices):
 
     BRANCH_MANAGER = "branch_manager", _("Branch Manager")
     COUNTRY_MANAGER = "country_manager", _("Country Manager")
-    THERAPIST = "therapist", _("Therapist")
 
 
 class User(AbstractBaseUser, PermissionsMixin):

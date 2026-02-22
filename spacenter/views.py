@@ -1,7 +1,7 @@
 """
 Spa Center Views.
 
-Views for managing spa centers, services, specialties, and therapists.
+Views for managing spa centers, services, specialties.
 Includes filtering capabilities and multi-language support.
 Public endpoints for list/retrieve, authenticated for create/update/delete on services.
 """
@@ -27,8 +27,7 @@ from .models import (
     SpaCenter,
     SpaCenterOperatingHours,
     SpaProduct,
-    Specialty,
-    TherapistProfile,
+    Specialty
 )
 from .serializers import (
     AddOnServiceListSerializer,
@@ -49,8 +48,7 @@ from .serializers import (
     SpaProductDetailSerializer,
     SpaProductListSerializer,
     SpecialtyListSerializer,
-    SpecialtySerializer,
-    TherapistProfileSerializer,
+    SpecialtySerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -212,38 +210,6 @@ class ServiceFilter(django_filters.FilterSet):
             "spa_center",
         ]
 
-
-class TherapistFilter(django_filters.FilterSet):
-    """Filter for therapists."""
-
-    country = django_filters.CharFilter(
-        field_name="spa_center__country__code",
-        lookup_expr="iexact",
-        help_text="Filter by country code (e.g., UAE, SAU, QAT)",
-    )
-    city = django_filters.UUIDFilter(field_name="spa_center__city__id")
-    spa_center = django_filters.UUIDFilter(field_name="spa_center__id")
-    specialty = django_filters.UUIDFilter(field_name="specialties__id")
-    service = django_filters.UUIDFilter(field_name="services__id")
-    is_available = django_filters.BooleanFilter()
-    min_experience = django_filters.NumberFilter(
-        field_name="years_of_experience",
-        lookup_expr="gte",
-    )
-
-    class Meta:
-        model = TherapistProfile
-        fields = [
-            "country",
-            "city",
-            "spa_center",
-            "specialty",
-            "service",
-            "is_available",
-            "min_experience",
-        ]
-
-
 # =============================================================================
 # Country Views
 # =============================================================================
@@ -397,9 +363,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     ).prefetch_related(
         "images",
         "spa_centers",
-        "add_on_services",
-        "therapists__employee_profile__user",
-        "therapists__spa_center",
+        "add_on_services"
     )
 
     filterset_class = ServiceFilter
@@ -608,7 +572,6 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
     GET /api/v1/spa/branches/?city={id} - Filter by city
     GET /api/v1/spa/branches/?opens_after=09:00 - Filter by opening time
     GET /api/v1/spa/branches/{id}/ - Get branch details
-    GET /api/v1/spa/branches/{id}/therapists/ - Get therapists for branch
     GET /api/v1/spa/branches/{id}/services/ - Get services for branch
     """
 
@@ -639,59 +602,6 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             queryset = queryset.filter(is_active=True)
         return queryset
-
-    @action(detail=True, methods=["get"])
-    def therapists(self, request, pk=None):
-        """
-        Get therapists for a specific spa center with pagination.
-        
-        Query parameters:
-        - page: Page number (default: 1)
-        - page_size: Number of items per page (default: 10, max: 100)
-        - search: Search by therapist name
-        - specialty: Filter by specialty UUID
-        - gender: Filter by gender (M/F)
-        - ordering: Sort results (e.g., 'experience_years', '-experience_years')
-        """
-        spa_center = self.get_object()
-        therapists = TherapistProfile.objects.filter(
-            spa_center=spa_center,
-            is_available=True,
-        ).select_related("employee_profile__user").prefetch_related("specialties", "services")
-        
-        # Apply search filter
-        search = request.query_params.get("search")
-        if search:
-            therapists = therapists.filter(
-                employee_profile__user__first_name__icontains=search
-            ) | therapists.filter(
-                employee_profile__user__last_name__icontains=search
-            )
-        
-        # Apply specialty filter
-        specialty = request.query_params.get("specialty")
-        if specialty:
-            therapists = therapists.filter(specialties__id=specialty)
-        
-        # Apply gender filter
-        gender = request.query_params.get("gender")
-        if gender and gender.upper() in ["M", "F"]:
-            therapists = therapists.filter(employee_profile__user__gender=gender.upper())
-        
-        # Apply ordering
-        ordering = request.query_params.get("ordering", "-experience_years")
-        valid_orderings = ["experience_years", "-experience_years", "hourly_rate", "-hourly_rate"]
-        if ordering in valid_orderings:
-            therapists = therapists.order_by(ordering)
-        
-        # Paginate results
-        page = self.paginate_queryset(therapists)
-        if page is not None:
-            serializer = TherapistProfileSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        
-        serializer = TherapistProfileSerializer(therapists, many=True)
-        return Response(serializer.data)
 
     @action(detail=True, methods=["get"])
     def services(self, request, pk=None):
@@ -779,55 +689,6 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         
         serializer = SpaCenterDetailSerializer(spa_center, context={"request": request})
         return Response(serializer.data)
-
-
-# =============================================================================
-# Therapist Views
-# =============================================================================
-
-class TherapistViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for managing therapists.
-    
-    All endpoints are public.
-    
-    GET /api/v1/spa/therapists/ - List all available therapists
-    GET /api/v1/spa/therapists/?country={id} - Filter by country
-    GET /api/v1/spa/therapists/?city={id} - Filter by city
-    GET /api/v1/spa/therapists/?spa_center={id} - Filter by spa center
-    GET /api/v1/spa/therapists/?specialty={id} - Filter by specialty
-    GET /api/v1/spa/therapists/?service={id} - Filter by service
-    GET /api/v1/spa/therapists/{id}/ - Get therapist details
-    """
-
-    queryset = TherapistProfile.objects.select_related(
-        "employee_profile__user",
-        "spa_center__country",
-        "spa_center__city",
-    ).prefetch_related("specialties", "services")
-    permission_classes = [permissions.AllowAny]
-    filterset_class = TherapistFilter
-    filter_backends = [
-        django_filters.DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
-    search_fields = [
-        "employee_profile__user__first_name",
-        "employee_profile__user__last_name",
-    ]
-    ordering_fields = ["created_at", "years_of_experience"]
-    ordering = ["-created_at"]
-
-    def get_serializer_class(self):
-        return TherapistProfileSerializer
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        # Only show available therapists in list view
-        if self.action == "list":
-            queryset = queryset.filter(is_available=True)
-        return queryset.distinct()
 
 
 # =============================================================================

@@ -10,7 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from spacenter.models import AddOnService, Service, SpaCenter, TherapistProfile
+from spacenter.models import AddOnService, Service, SpaCenter
 from spacenter.serializers import (
     AddOnServiceListSerializer,
     ServiceListSerializer,
@@ -203,7 +203,6 @@ class BookingSerializer(serializers.ModelSerializer):
         source="add_on_services", many=True, read_only=True
     )
     time_slot_details = TimeSlotSerializer(source="time_slot", read_only=True)
-    therapist_name = serializers.SerializerMethodField()
     service_name = serializers.CharField(
         source="service_arrangement.service.name", read_only=True
     )
@@ -223,8 +222,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "service_name",
             "time_slot",
             "time_slot_details",
-            "therapist",
-            "therapist_name",
             "add_on_services",
             "add_on_services_details",
             "subtotal",
@@ -246,12 +243,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-
-    def get_therapist_name(self, obj):
-        """Get therapist full name if assigned."""
-        if obj.therapist:
-            return obj.therapist.user.get_full_name()
-        return None
 
     def get_voucher_usages_details(self, obj):
         """Get detailed voucher usage information."""
@@ -315,7 +306,6 @@ class BookingCreateSerializer(serializers.Serializer):
         required=False,
         default=list,
     )
-    therapist = serializers.UUIDField(required=False, allow_null=True)
     customer_message = serializers.CharField(required=False, allow_blank=True, default="")
     
     # Financials & Promotions
@@ -387,19 +377,6 @@ class BookingCreateSerializer(serializers.Serializer):
                 "One or more add-on services not found or not active."
             )
         return list(addons)
-
-    def validate_therapist(self, value):
-        """Validate that the therapist exists and is available."""
-        if not value:
-            return None
-        
-        try:
-            therapist = TherapistProfile.objects.get(id=value, is_available=True)
-            return therapist
-        except TherapistProfile.DoesNotExist:
-            raise serializers.ValidationError(
-                "Therapist not found or not available."
-            )
 
     def validate(self, attrs):
         """
@@ -628,7 +605,6 @@ class BookingCreateSerializer(serializers.Serializer):
             spa_center=validated_data["spa_center"],
             service_arrangement=arrangement,
             time_slot=time_slot,
-            therapist=validated_data.get("therapist"),
             subtotal=subtotal,
             discount_amount=discount_amount,
             total_price=final_payable,

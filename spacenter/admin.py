@@ -1,7 +1,7 @@
 """
 Spa Center Admin Configuration.
 
-Admin interface for managing spa centers, services, specialties, and therapists.
+Admin interface for managing spa centers, services, specialties
 Supports multi-language (English, Arabic) via django-modeltranslation.
 """
 
@@ -22,11 +22,10 @@ from .models import (
     SpaCenter,
     SpaCenterOperatingHours,
     SpaProduct,
-    Specialty,
-    TherapistProfile,
+    Specialty
 )
 
-from .filters import CountryFilter, CityFilter, TherapistCityFilter, TherapistCountryFilter, TherapistSpaCenterFilter
+from .filters import CountryFilter, CityFilter
 
 
 def get_branch_manager_spa_center(user):
@@ -124,7 +123,7 @@ class CityAdmin(TranslationAdmin):
 class SpecialtyAdmin(TranslationAdmin):
     """Admin for Specialty model with translation support."""
 
-    list_display = ["name", "is_active", "sort_order", "therapist_count", "service_count"]
+    list_display = ["name", "is_active", "sort_order", "service_count"]
     list_filter = ["is_active"]
     search_fields = ["name", "name_en", "name_ar", "description"]
     ordering = ["sort_order", "name"]
@@ -141,10 +140,6 @@ class SpecialtyAdmin(TranslationAdmin):
             "fields": ("is_active", "sort_order")
         }),
     )
-
-    def therapist_count(self, obj):
-        return obj.therapists.count()
-    therapist_count.short_description = "Therapists"
 
     def service_count(self, obj):
         return obj.services.count()
@@ -224,6 +219,7 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
         "specialty",
         "country",
         "city",
+        "spa_center",
         "duration_minutes",
         "currency",
         "base_price",
@@ -239,8 +235,8 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_home_service"]
-    autocomplete_fields = ["specialty", "country", "city"]
-    filter_horizontal = ["add_on_services"]
+    autocomplete_fields = ["specialty", "country", "city", "spa_center"]
+    
     inlines = [ServiceImageInline]
 
     fieldsets = (
@@ -248,7 +244,7 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
             "fields": ("name", "description", "specialty")
         }),
         ("Location", {
-            "fields": ("country", "city")
+            "fields": ("country", "city", "spa_center")
         }),
         ("Pricing & Duration", {
             "fields": ("duration_minutes", "currency", "base_price", "discount_price")
@@ -386,7 +382,6 @@ class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
     list_filter = [CountryFilter, CityFilter, "is_active", "on_service"]
     search_fields = ["name", "name_en", "name_ar", "address", "city__name"]
     prepopulated_fields = {"slug": ("name",)}
-    filter_horizontal = ["services"]
     raw_id_fields = ["branch_manager"]
     autocomplete_fields = ["country", "city"]
     inlines = [SpaCenterOperatingHoursInline, ServiceArrangementInline]
@@ -542,86 +537,6 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
                 kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
             elif db_field.name == "service":
                 kwargs["queryset"] = spa_center.services.filter(is_active=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-
-@admin.register(TherapistProfile)
-class TherapistProfileAdmin(BranchManagerPermissionMixin, TranslationAdmin):
-    """Admin for TherapistProfile model with translation support."""
-
-    list_display = [
-        "therapist_name",
-        "spa_center",
-        "country_display",
-        "city_display",
-        "years_of_experience",
-        "is_available",
-        "specialty_list",
-    ]
-    list_filter = [
-        
-        "is_available",
-        "specialties",
-    ]
-    search_fields = [
-        "employee_profile__user__first_name",
-        "employee_profile__user__last_name",
-        "employee_profile__user__email",
-    ]
-    filter_horizontal = ["specialties", "services"]
-    raw_id_fields = ["employee_profile", "spa_center"]
-    ordering = ["-created_at"]
-
-    fieldsets = (
-        (None, {
-            "fields": ("employee_profile", "spa_center")
-        }),
-        ("Skills", {
-            "fields": ("specialties", "services", "years_of_experience")
-        }),
-        ("Profile", {
-            "fields": ("bio", "is_available")
-        }),
-    )
-
-    def therapist_name(self, obj):
-        return obj.employee_profile.user.get_full_name()
-    therapist_name.short_description = "Name"
-
-    def country_display(self, obj):
-        if obj.spa_center and obj.spa_center.country:
-            return obj.spa_center.country.name
-        return "-"
-    country_display.short_description = "Country"
-
-    def city_display(self, obj):
-        if obj.spa_center and obj.spa_center.city:
-            return obj.spa_center.city.name
-        return "-"
-    city_display.short_description = "City"
-
-    def specialty_list(self, obj):
-        specialties = obj.specialties.all()[:3]
-        names = ", ".join([s.name for s in specialties])
-        if obj.specialties.count() > 3:
-            names += f" (+{obj.specialties.count() - 3} more)"
-        return names or "-"
-    specialty_list.short_description = "Specialties"
-
-    def get_queryset(self, request):
-        """Filter therapists by branch manager's spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(spa_center=spa_center)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit spa center choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "spa_center":
-                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 

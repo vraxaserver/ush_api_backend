@@ -16,8 +16,7 @@ from .views import (
     ServiceViewSet,
     SpaCenterViewSet,
     SpaProductViewSet,
-    SpecialtyViewSet,
-    TherapistViewSet,
+    SpecialtyViewSet
 )
 
 app_name = "spacenter"
@@ -29,7 +28,6 @@ router.register(r"specialties", SpecialtyViewSet, basename="specialty")
 router.register(r"add-on-services", AddOnServiceViewSet, basename="addon-service")
 router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"branches", SpaCenterViewSet, basename="spacenter")
-router.register(r"therapists", TherapistViewSet, basename="therapist")
 router.register(r"product-categories", ProductCategoryViewSet, basename="product-category")
 router.register(r"products", SpaProductViewSet, basename="product")
 

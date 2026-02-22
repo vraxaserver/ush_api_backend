@@ -16,7 +16,6 @@ from .models import (
     Service,
     SpaCenter,
     Specialty,
-    TherapistProfile,
 )
 
 
@@ -60,13 +59,6 @@ class SpaCenterTranslationOptions(TranslationOptions):
     """Translation options for SpaCenter model."""
     
     fields = ("name", "description", "address")
-
-
-@register(TherapistProfile)
-class TherapistProfileTranslationOptions(TranslationOptions):
-    """Translation options for TherapistProfile model."""
-    
-    fields = ("bio",)
 
 
 @register(ProductCategory)

@@ -281,8 +281,7 @@ class TherapistListView(generics.ListAPIView):
     def get_queryset(self):
         """Return available therapists."""
         queryset = EmployeeProfile.objects.filter(
-            role=EmployeeRole.THERAPIST,
-            is_available=True,
+            role=EmployeeRole.BRANCH_MANAGER,
             user__is_active=True,
         ).select_related("user").prefetch_related("schedules")
 
@@ -313,7 +312,7 @@ class TherapistDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         """Return available therapists."""
         return EmployeeProfile.objects.filter(
-            role=EmployeeRole.THERAPIST,
+            role=EmployeeRole.BRANCH_MANAGER,
             user__is_active=True,
         ).select_related("user").prefetch_related("schedules")
 

@@ -1,7 +1,7 @@
 """
 Spa Center Serializers.
 
-Serializers for spa centers, services, specialties, and therapist management.
+Serializers for spa centers, services, specialties management.
 Supports multi-language (English, Arabic) output.
 """
 
@@ -26,8 +26,7 @@ from .models import (
     SpaCenter,
     SpaCenterOperatingHours,
     SpaProduct,
-    Specialty,
-    TherapistProfile,
+    Specialty
 )
 
 User = get_user_model()
@@ -246,7 +245,6 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     branches = serializers.SerializerMethodField()
-    therapists = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -285,7 +283,6 @@ class ServiceSerializer(serializers.ModelSerializer):
             "add_on_services",
             "images",
             "branches",
-            "therapists",
             "is_active",
             "sort_order",
             "created_at",
@@ -326,23 +323,6 @@ class ServiceSerializer(serializers.ModelSerializer):
                 "city": "Selected city does not belong to the selected country."
             })
         return attrs
-    
-    def get_therapists(self, obj):
-        """
-        Return therapists who can perform this service.
-        By default: only available therapists.
-        Optionally, you can also restrict them to branches that offer this service.
-        """
-        qs = obj.therapists.select_related(
-            "employee_profile__user",
-            "spa_center",
-        ).filter(is_available=True)
-
-        # Optional (recommended): only therapists assigned to branches that offer this service
-        # This avoids showing therapists from other unrelated branches.
-        qs = qs.filter(spa_center__in=obj.spa_centers.filter(is_active=True))
-
-        return TherapistMiniSerializer(qs, many=True, context=self.context).data
 
 
 class ServiceCreateSerializer(serializers.ModelSerializer):
@@ -623,7 +603,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
     operating_hours = SpaCenterOperatingHoursSerializer(many=True, read_only=True)
     location = serializers.SerializerMethodField()
     branch_manager_name = serializers.SerializerMethodField()
-    therapist_count = serializers.SerializerMethodField()
     full_address = serializers.CharField(read_only=True)
 
     class Meta:
@@ -662,7 +641,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
             "services",
             "service_ids",
             "operating_hours",
-            "therapist_count",
             "sort_order",
             "created_at",
             "updated_at",
@@ -676,9 +654,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
         if obj.branch_manager:
             return obj.branch_manager.get_full_name()
         return None
-
-    def get_therapist_count(self, obj):
-        return obj.therapists.filter(is_available=True).count()
 
     def validate(self, attrs):
         """Validate city belongs to country."""
@@ -737,238 +712,6 @@ class SpaCenterCreateSerializer(serializers.ModelSerializer):
             })
         
         return attrs
-
-
-# =============================================================================
-# Therapist Serializers
-# =============================================================================
-
-class TherapistProfileSerializer(serializers.ModelSerializer):
-    """Serializer for therapist profile with translations."""
-
-    user_id = serializers.UUIDField(source="employee_profile.user.id", read_only=True)
-    full_name = serializers.CharField(
-        source="employee_profile.user.get_full_name",
-        read_only=True,
-    )
-    email = serializers.EmailField(source="employee_profile.user.email", read_only=True)
-    phone = serializers.CharField(
-        source="employee_profile.user.phone_number",
-        read_only=True,
-    )
-    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
-    country_name = serializers.SerializerMethodField()
-    city_name = serializers.SerializerMethodField()
-    specialties = SpecialtyListSerializer(many=True, read_only=True)
-    services = ServiceListSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = TherapistProfile
-        fields = [
-            "id",
-            "user_id",
-            "full_name",
-            "email",
-            "phone",
-            "spa_center",
-            "spa_center_name",
-            "country_name",
-            "city_name",
-            "specialties",
-            "services",
-            "years_of_experience",
-            "bio",
-            "bio_en",
-            "bio_ar",
-            "is_available",
-            "created_at",
-        ]
-        read_only_fields = ["id", "created_at"]
-
-    def get_country_name(self, obj):
-        if obj.spa_center and obj.spa_center.country:
-            return obj.spa_center.country.name
-        return None
-
-    def get_city_name(self, obj):
-        if obj.spa_center and obj.spa_center.city:
-            return obj.spa_center.city.name
-        return None
-
-
-class TherapistCreateSerializer(serializers.Serializer):
-    """
-    Serializer for creating a therapist by branch manager.
-    
-    Creates both User and TherapistProfile in one request.
-    """
-
-    # User fields
-    email = serializers.EmailField(required=True)
-    phone_number = serializers.CharField(required=False, allow_blank=True)
-    first_name = serializers.CharField(max_length=150, required=True)
-    last_name = serializers.CharField(max_length=150, required=True)
-    password = serializers.CharField(write_only=True, min_length=8)
-
-    # Therapist profile fields
-    specialty_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Specialty.objects.filter(is_active=True),
-        many=True,
-        required=False,
-    )
-    service_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Service.objects.filter(is_active=True),
-        many=True,
-        required=False,
-    )
-    years_of_experience = serializers.IntegerField(default=0, min_value=0)
-    bio = serializers.CharField(required=False, allow_blank=True)
-    bio_en = serializers.CharField(required=False, allow_blank=True)
-    bio_ar = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_email(self, value):
-        """Check email uniqueness."""
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value
-
-    def validate_phone_number(self, value):
-        """Check phone uniqueness if provided."""
-        if value and User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError("A user with this phone number already exists.")
-        return value
-
-    @transaction.atomic
-    def create(self, validated_data):
-        """Create user, employee profile, and therapist profile."""
-        request = self.context.get("request")
-        branch_manager = request.user
-        
-        try:
-            spa_center = branch_manager.managed_spa_center
-        except SpaCenter.DoesNotExist:
-            raise serializers.ValidationError(
-                "You must be assigned as a branch manager to create therapists."
-            )
-
-        specialty_ids = validated_data.pop("specialty_ids", [])
-        service_ids = validated_data.pop("service_ids", [])
-        years_of_experience = validated_data.pop("years_of_experience", 0)
-        bio = validated_data.pop("bio", "")
-        bio_en = validated_data.pop("bio_en", "")
-        bio_ar = validated_data.pop("bio_ar", "")
-        password = validated_data.pop("password")
-
-        user = User.objects.create_user(
-            email=validated_data["email"],
-            phone_number=validated_data.get("phone_number") or None,
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
-            password=password,
-            user_type=UserType.EMPLOYEE,
-            is_email_verified=True,
-        )
-
-        employee_profile, _ = EmployeeProfile.objects.get_or_create(
-            user=user,
-            defaults={
-                "role": EmployeeRole.THERAPIST,
-                "branch": spa_center.name,
-                "country": spa_center.country.name if spa_center.country else "",
-            },
-        )
-        employee_profile.role = EmployeeRole.THERAPIST
-        employee_profile.save()
-
-        therapist_profile = TherapistProfile.objects.create(
-            employee_profile=employee_profile,
-            spa_center=spa_center,
-            years_of_experience=years_of_experience,
-            bio=bio,
-            bio_en=bio_en or bio,
-            bio_ar=bio_ar,
-        )
-
-        if specialty_ids:
-            therapist_profile.specialties.set(specialty_ids)
-        if service_ids:
-            therapist_profile.services.set(service_ids)
-
-        return therapist_profile
-
-
-class TherapistUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for updating therapist profile."""
-
-    specialty_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Specialty.objects.filter(is_active=True),
-        many=True,
-        write_only=True,
-        required=False,
-    )
-    service_ids = serializers.PrimaryKeyRelatedField(
-        queryset=Service.objects.filter(is_active=True),
-        many=True,
-        write_only=True,
-        required=False,
-    )
-
-    class Meta:
-        model = TherapistProfile
-        fields = [
-            "spa_center",
-            "specialty_ids",
-            "service_ids",
-            "years_of_experience",
-            "bio",
-            "bio_en",
-            "bio_ar",
-            "is_available",
-        ]
-
-    def update(self, instance, validated_data):
-        specialty_ids = validated_data.pop("specialty_ids", None)
-        service_ids = validated_data.pop("service_ids", None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        if specialty_ids is not None:
-            instance.specialties.set(specialty_ids)
-        if service_ids is not None:
-            instance.services.set(service_ids)
-
-        return instance
-
-
-class TherapistMiniSerializer(serializers.ModelSerializer):
-    """
-    Lightweight therapist serializer for embedding inside service details.
-    """
-    user_id = serializers.UUIDField(source="employee_profile.user.id", read_only=True)
-    full_name = serializers.CharField(source="employee_profile.user.get_full_name", read_only=True)
-    email = serializers.EmailField(source="employee_profile.user.email", read_only=True)
-    phone = serializers.CharField(source="employee_profile.user.phone_number", read_only=True)
-    spa_center_id = serializers.UUIDField(source="spa_center.id", read_only=True, allow_null=True)
-    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
-
-    class Meta:
-        model = TherapistProfile
-        fields = [
-            "id",
-            "user_id",
-            "full_name",
-            "email",
-            "phone",
-            "spa_center_id",
-            "spa_center_name",
-            "years_of_experience",
-            "bio",
-            "bio_en",
-            "bio_ar",
-            "is_available",
-        ]
 
 
 # =============================================================================

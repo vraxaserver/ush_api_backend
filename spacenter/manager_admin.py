@@ -19,8 +19,7 @@ from .models import (
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
-    SpaProduct,
-    TherapistProfile,
+    SpaProduct
 )
 from bookings.models import Booking, TimeSlot
 from promotions.models import Voucher, VoucherUsage
@@ -110,7 +109,6 @@ class ManagerSpaCenterAdmin(TranslationAdmin):
     ]
     list_filter = ["is_active", "on_service"]
     search_fields = ["name", "name_en", "name_ar", "address", "city__name"]
-    filter_horizontal = ["services"]
     inlines = [ManagerSpaCenterOperatingHoursInline]
     
     fieldsets = (
@@ -232,70 +230,6 @@ class ManagerServiceAdmin(TranslationAdmin):
                 kwargs["queryset"] = Country.objects.filter(id=spa_center.country_id)
             elif db_field.name == "city":
                 kwargs["queryset"] = City.objects.filter(id=spa_center.city_id)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-
-# =============================================================================
-# TherapistProfile Admin for Branch Manager Portal
-# =============================================================================
-
-class ManagerTherapistProfileAdmin(TranslationAdmin):
-    """TherapistProfile admin for branch manager portal."""
-    
-    list_display = [
-        "therapist_name",
-        "years_of_experience",
-        "is_available",
-        "specialty_list",
-    ]
-    list_filter = ["is_available", "specialties"]
-    search_fields = [
-        "employee_profile__user__first_name",
-        "employee_profile__user__last_name",
-        "employee_profile__user__email",
-    ]
-    filter_horizontal = ["specialties", "services"]
-    raw_id_fields = ["employee_profile", "spa_center"]
-    ordering = ["-created_at"]
-
-    fieldsets = (
-        (None, {
-            "fields": ("employee_profile", "spa_center")
-        }),
-        ("Skills", {
-            "fields": ("specialties", "services", "years_of_experience")
-        }),
-        ("Profile", {
-            "fields": ("bio", "is_available")
-        }),
-    )
-
-    def therapist_name(self, obj):
-        return obj.employee_profile.user.get_full_name()
-    therapist_name.short_description = "Name"
-
-    def specialty_list(self, obj):
-        specialties = obj.specialties.all()[:3]
-        names = ", ".join([s.name for s in specialties])
-        if obj.specialties.count() > 3:
-            names += f" (+{obj.specialties.count() - 3} more)"
-        return names or "-"
-    specialty_list.short_description = "Specialties"
-
-    def get_queryset(self, request):
-        """Filter therapists by branch manager's spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(spa_center=spa_center)
-        return qs.none()
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit spa center choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "spa_center":
-                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -532,7 +466,6 @@ class ManagerBookingAdmin(admin.ModelAdmin):
                 "fields": (
                     "service_arrangement",
                     "time_slot",
-                    "therapist",
                     "add_on_services",
                 )
             },
@@ -590,8 +523,7 @@ class ManagerBookingAdmin(admin.ModelAdmin):
                 "customer",
                 "spa_center",
                 "service_arrangement__service",
-                "time_slot",
-                "therapist",
+                "time_slot"
             )
             .prefetch_related("add_on_services")
         )
@@ -980,7 +912,6 @@ class ManagerVoucherUsageAdmin(admin.ModelAdmin):
 
 manager_admin_site.register(SpaCenter, ManagerSpaCenterAdmin)
 manager_admin_site.register(Service, ManagerServiceAdmin)
-manager_admin_site.register(TherapistProfile, ManagerTherapistProfileAdmin)
 manager_admin_site.register(ServiceArrangement, ManagerServiceArrangementAdmin)
 manager_admin_site.register(TimeSlot, ManagerTimeSlotAdmin)
 manager_admin_site.register(Booking, ManagerBookingAdmin)
