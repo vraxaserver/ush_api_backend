@@ -362,7 +362,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         "specialty", "country", "city", "created_by"
     ).prefetch_related(
         "images",
-        "spa_centers",
+        "spa_center",
         "add_on_services"
     )
 

@@ -244,7 +244,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True,
     )
-    branches = serializers.SerializerMethodField()
+    spa_center = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -282,35 +282,31 @@ class ServiceSerializer(serializers.ModelSerializer):
             "benefits",
             "add_on_services",
             "images",
-            "branches",
+            "spa_center",
             "is_active",
             "sort_order",
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
 
-    def get_branches(self, obj):
+    def get_spa_center(self, obj):
         """Get list of branches offering this service with availability."""
         from bookings.utils import calculate_service_availability
 
         # Default availability for next 30 days
         today = timezone.now().date()
         date_to = today + timedelta(days=30)
-
-        branches_data = []
-        # Filter active spa centers that offer this service
-        for spa_center in obj.spa_centers.filter(is_active=True):
-            availability = calculate_service_availability(
-                obj, spa_center, today, date_to
-            )
-            
-            branches_data.append({
-                "id": str(spa_center.id),
-                "name": spa_center.name,
-                "arrangements": availability["arrangements"],
-                "timeslots_availability": availability["timeslots_availability"]
-            })
-            
+        
+        availability = calculate_service_availability(
+            obj, obj.spa_center, today, date_to
+        )
+        
+        branches_data = {
+            "id": str(obj.spa_center.id),
+            "name": obj.spa_center.name,
+            "arrangements": availability["arrangements"],
+            "timeslots_availability": availability["timeslots_availability"]
+        }
         return branches_data
 
     def validate(self, attrs): 
