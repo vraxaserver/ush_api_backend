@@ -14,6 +14,14 @@ from django.utils.translation import gettext_lazy as _
 from accounts.models import EmployeeRole
 
 
+class Gender(models.TextChoices):
+    """Gender choices."""
+
+    MALE = "male", _("Male")
+    FEMALE = "female", _("Female")
+    OTHER = "other", _("Other")
+
+
 class CustomerProfile(models.Model):
     """
     Extended profile for customer users.
@@ -59,6 +67,14 @@ class CustomerProfile(models.Model):
         max_length=10,
         default="en",
     )
+
+    gender = models.CharField(
+        _("gender"),
+        max_length=10,
+        choices=Gender.choices,
+        default=Gender.MALE,
+    )
+    dob = models.DateField(_("date of birth"), null=True, blank=True)
     notification_preferences = models.JSONField(
         _("notification preferences"),
         default=dict,

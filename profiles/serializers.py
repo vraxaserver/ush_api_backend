@@ -24,6 +24,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "user",
             "avatar",
             "bio",
+            "gender",
+            "dob",
             "address_line_1",
             "address_line_2",
             "city",
@@ -47,6 +49,8 @@ class CustomerProfileUpdateSerializer(serializers.ModelSerializer):
         fields = [
             "avatar",
             "bio",
+            "gender",
+            "dob",
             "address_line_1",
             "address_line_2",
             "city",

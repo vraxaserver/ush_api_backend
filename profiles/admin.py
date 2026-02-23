@@ -20,10 +20,12 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         "user",
         "city",
         "country",
+        "gender",
+        "dob",
         "preferred_language",
         "created_at",
     ]
-    list_filter = ["country", "preferred_language", "created_at"]
+    list_filter = ["country", "gender", "preferred_language", "created_at"]
     search_fields = ["user__email", "user__first_name", "user__last_name", "city"]
     readonly_fields = ["created_at", "updated_at"]
 
@@ -31,7 +33,7 @@ class CustomerProfileAdmin(admin.ModelAdmin):
         (None, {"fields": ("user",)}),
         (
             _("Profile"),
-            {"fields": ("avatar", "bio")},
+            {"fields": ("avatar", "bio", "gender", "dob")},
         ),
         (
             _("Address"),
