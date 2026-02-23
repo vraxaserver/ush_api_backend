@@ -411,7 +411,7 @@ class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
             "fields": ("is_active", "on_service", "sort_order")
         }),
         ("Management", {
-            "fields": ("branch_manager", "services")
+            "fields": ("branch_manager",)
         }),
     )
 
