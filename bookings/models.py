@@ -138,6 +138,14 @@ class Booking(models.Model):
         related_name="bookings",
         verbose_name=_("service arrangement"),
     )
+    service = models.ForeignKey(
+        "spacenter.Service",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+        verbose_name=_("service"),
+        null=True,
+        blank=True,
+    )
 
     # Time slot - OneToOne since each booking has exactly one time slot
     time_slot = models.OneToOneField(
@@ -146,15 +154,6 @@ class Booking(models.Model):
         related_name="booking",
         verbose_name=_("time slot"),
     )
-    
-    # Add-on services - ManyToMany for multiple add-ons
-    add_on_services = models.ManyToManyField(
-        "spacenter.AddOnService",
-        blank=True,
-        related_name="bookings",
-        verbose_name=_("add-on services"),
-    )
-
     # Pricing
     subtotal = models.DecimalField(
         _("subtotal"),
@@ -180,19 +179,12 @@ class Booking(models.Model):
         help_text=_("Final payable amount after discounts"),
     )
 
-    # Promotions - link to usage/transaction records for traceability
-    voucher_usages = models.ManyToManyField(
-        "promotions.VoucherUsage",
+    # Flexible metadata (add-ons, vouchers, gift cards, etc.)
+    meta_data = models.JSONField(
+        _("metadata"),
+        default=dict,
         blank=True,
-        related_name="bookings",
-        verbose_name=_("voucher usages"),
-    )
-    
-    gift_card_transactions = models.ManyToManyField(
-        "promotions.GiftCardTransaction",
-        blank=True,
-        related_name="bookings",
-        verbose_name=_("gift card transactions"),
+        help_text=_("Flexible JSON data for add-ons, vouchers, gift cards, and other extras"),
     )
 
     # Customer message/notes
@@ -232,12 +224,8 @@ class Booking(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.booking_number} - {self.service_arrangement.service.name}"
-
-    @property
-    def service(self):
-        """Get the service from the arrangement."""
-        return self.service_arrangement.service
+        service_name = self.service.name if self.service else self.service_arrangement.service.name
+        return f"{self.booking_number} - {service_name}"
 
     @property
     def booking_date(self):

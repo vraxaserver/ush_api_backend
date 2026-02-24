@@ -150,7 +150,6 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         "updated_at",
     ]
     date_hierarchy = "created_at"
-    filter_horizontal = ["add_on_services"]
     raw_id_fields = ["customer", "time_slot"]
 
     fieldsets = (
@@ -169,10 +168,10 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             {
                 "fields": (
                     "spa_center",
+                    "service",
                     "service_arrangement",
                     "time_slot",
                     "therapist",
-                    "add_on_services",
                 )
             },
         ),
@@ -180,6 +179,13 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             _("Pricing"),
             {
                 "fields": ("total_price",)
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": ("meta_data",),
+                "classes": ["collapse"],
             },
         ),
         (
@@ -206,6 +212,8 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
 
     @admin.display(description=_("Service"))
     def get_service_name(self, obj):
+        if obj.service:
+            return obj.service.name
         return obj.service_arrangement.service.name
 
     @admin.display(description=_("Date"))
@@ -228,11 +236,11 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             .select_related(
                 "customer",
                 "spa_center",
+                "service",
                 "service_arrangement__service",
                 "time_slot",
                 "therapist",
             )
-            .prefetch_related("add_on_services")
         )
         spa_center = get_branch_manager_spa_center(request.user)
         if spa_center:

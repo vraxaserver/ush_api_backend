@@ -345,10 +345,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         
         return queryset.select_related(
             "spa_center",
+            "service",
             "service_arrangement__service",
             "service_arrangement__spa_center",
             "time_slot"
-        ).prefetch_related("add_on_services")
+        )
 
     def perform_create(self, serializer):
         """Create booking for the authenticated user."""

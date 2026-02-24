@@ -125,6 +125,7 @@ class Command(BaseCommand):
                 booking = Booking.objects.create(
                     customer=customer,
                     spa_center=arrangement.spa_center,
+                    service=arrangement.service,
                     service_arrangement=arrangement,
                     time_slot=time_slot,
                     subtotal=base,

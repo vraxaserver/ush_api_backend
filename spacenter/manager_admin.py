@@ -446,7 +446,6 @@ class ManagerBookingAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     date_hierarchy = "created_at"
-    filter_horizontal = ["add_on_services"]
     raw_id_fields = ["customer", "time_slot"]
 
     fieldsets = (

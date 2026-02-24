@@ -12,7 +12,6 @@ from rest_framework import serializers
 
 from spacenter.models import AddOnService, Service, SpaCenter
 from spacenter.serializers import (
-    AddOnServiceListSerializer,
     ServiceListSerializer,
     SpaCenterListSerializer,
 )
@@ -151,7 +150,7 @@ class BookingListSerializer(serializers.ModelSerializer):
     """Minimal serializer for booking lists."""
 
     service_name = serializers.CharField(
-        source="service_arrangement.service.name", read_only=True
+        source="service.name", read_only=True
     )
     service_image = serializers.SerializerMethodField()
     spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
@@ -177,8 +176,8 @@ class BookingListSerializer(serializers.ModelSerializer):
 
     def get_service_image(self, obj):
         """Get the primary image URL for the service."""
-        if obj.service_arrangement and obj.service_arrangement.service:
-            service = obj.service_arrangement.service
+        service = obj.service or (obj.service_arrangement.service if obj.service_arrangement else None)
+        if service:
             # Try to get primary image first
             primary_image = service.images.filter(is_primary=True).first()
             if primary_image and primary_image.image:
@@ -203,15 +202,10 @@ class BookingSerializer(serializers.ModelSerializer):
         source="service_arrangement", read_only=True
     )
     spa_center_details = SpaCenterListSerializer(source="spa_center", read_only=True)
-    add_on_services_details = AddOnServiceListSerializer(
-        source="add_on_services", many=True, read_only=True
-    )
     time_slot_details = TimeSlotSerializer(source="time_slot", read_only=True)
     service_name = serializers.CharField(
-        source="service_arrangement.service.name", read_only=True
+        source="service.name", read_only=True
     )
-    voucher_usages_details = serializers.SerializerMethodField()
-    gift_card_transactions_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -221,20 +215,16 @@ class BookingSerializer(serializers.ModelSerializer):
             "customer",
             "spa_center",
             "spa_center_details",
+            "service",
+            "service_name",
             "service_arrangement",
             "service_arrangement_details",
-            "service_name",
             "time_slot",
             "time_slot_details",
-            "add_on_services",
-            "add_on_services_details",
             "subtotal",
             "discount_amount",
             "total_price",
-            "voucher_usages",
-            "voucher_usages_details",
-            "gift_card_transactions",
-            "gift_card_transactions_details",
+            "meta_data",
             "customer_message",
             "status",
             "created_at",
@@ -246,38 +236,6 @@ class BookingSerializer(serializers.ModelSerializer):
             "customer",
             "created_at",
             "updated_at",
-        ]
-
-    def get_voucher_usages_details(self, obj):
-        """Get detailed voucher usage information."""
-        usages = obj.voucher_usages.all()
-        return [
-            {
-                "id": str(usage.id),
-                "voucher_code": usage.voucher.code,
-                "voucher_name": usage.voucher.name,
-                "discount_type": usage.voucher.discount_type,
-                "original_amount": str(usage.original_amount),
-                "discount_amount": str(usage.discount_amount),
-                "final_amount": str(usage.final_amount),
-                "used_at": usage.used_at.isoformat() if usage.used_at else None,
-            }
-            for usage in usages
-        ]
-
-    def get_gift_card_transactions_details(self, obj):
-        """Get detailed gift card transaction information."""
-        transactions = obj.gift_card_transactions.all()
-        return [
-            {
-                "id": str(txn.id),
-                "gift_card_code": txn.gift_card.code,
-                "transaction_type": txn.transaction_type,
-                "amount": str(txn.amount),
-                "balance_after": str(txn.balance_after),
-                "created_at": txn.created_at.isoformat() if txn.created_at else None,
-            }
-            for txn in transactions
         ]
 
 
@@ -607,6 +565,7 @@ class BookingCreateSerializer(serializers.Serializer):
         booking = Booking.objects.create(
             customer=customer,
             spa_center=validated_data["spa_center"],
+            service=validated_data["service"],
             service_arrangement=arrangement,
             time_slot=time_slot,
             subtotal=subtotal,
@@ -614,18 +573,27 @@ class BookingCreateSerializer(serializers.Serializer):
             total_price=final_payable,
             customer_message=validated_data.get("customer_message", ""),
             status=status_val,
+            meta_data={
+                "add_on_services": [
+                    {"id": str(a.id), "name": a.name, "price": str(a.price), "duration": a.duration_minutes}
+                    for a in addons
+                ],
+                "vouchers": [
+                    {"id": str(v.id), "code": v.code, "name": v.name}
+                    for v in validated_data.get("valid_vouchers", [])
+                ],
+                "gift_cards": [
+                    {"id": str(gc.id), "code": gc.code, "amount_used": str(gift_card_usage.get(gc.id, 0))}
+                    for gc in valid_gift_cards
+                ],
+            },
         )
 
-        # Add relations
-        if addons:
-            booking.add_on_services.set(addons)
-            
-        # Record voucher usages and link to booking
+        # Record voucher usages
         if validated_data["valid_vouchers"]:
             from promotions.models import VoucherUsage
-            voucher_usage_records = []
             for v in validated_data["valid_vouchers"]:
-                usage = VoucherUsage.objects.create(
+                VoucherUsage.objects.create(
                     voucher=v,
                     user=customer,
                     order_reference=str(booking.id),
@@ -634,26 +602,17 @@ class BookingCreateSerializer(serializers.Serializer):
                     discount_amount=discount_amount,
                     final_amount=price_after_discount
                 )
-                voucher_usage_records.append(usage)
-            booking.voucher_usages.set(voucher_usage_records)
 
-        # Redeem gift cards and link transactions to booking
+        # Redeem gift cards
         if valid_gift_cards:
-            gc_transaction_records = []
             for gc in valid_gift_cards:
                 amount = gift_card_usage.get(gc.id, 0)
-                success, redeemed_amount, error = gc.redeem(
+                gc.redeem(
                     amount=amount,
                     user=customer,
                     order_reference=str(booking.id),
                     order_type="service_booking"
                 )
-                if success:
-                    # Get the most recent transaction for this gift card (the one just created)
-                    transaction = gc.transactions.order_by('-created_at').first()
-                    if transaction:
-                        gc_transaction_records.append(transaction)
-            booking.gift_card_transactions.set(gc_transaction_records)
 
         return booking
 
