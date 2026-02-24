@@ -226,15 +226,16 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
         "discount_price",
         "current_price_display",
         "is_home_service",
+        "is_eligible_for_loyalty",
         "is_active",
         "sort_order",
         "addon_count",
         "image_count",
     ]
-    list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_home_service", "is_for_male", "is_for_female", "specialty"]
+    list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_home_service", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
-    list_editable = ["sort_order", "is_active", "is_home_service"]
+    list_editable = ["sort_order", "is_active", "is_home_service", "is_eligible_for_loyalty"]
     autocomplete_fields = ["specialty", "country", "city", "spa_center"]
     
     inlines = [ServiceImageInline]
@@ -258,6 +259,10 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
         }),
         ("Additional Info", {
             "fields": ("ideal_for", "benefits")
+        }),
+        ("Loyalty Program", {
+            "fields": ("is_eligible_for_loyalty",),
+            "description": "Enable this to allow bookings of this service to count towards the loyalty program."
         }),
         ("Status", {
             "fields": ("is_active", "sort_order", "created_by")

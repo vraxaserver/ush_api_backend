@@ -281,6 +281,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "add_on_services",
             "images",
             "spa_center",
+            "is_eligible_for_loyalty",
             "is_active",
             "sort_order",
             "created_at",
@@ -362,6 +363,7 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             "benefits",
             "images",
             "branch_ids",
+            "is_eligible_for_loyalty",
             "is_active",
             "sort_order",
         ]
@@ -480,6 +482,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "primary_image",
             "add_on_services",
             "addon_count",
+            "is_eligible_for_loyalty",
             "branch",
         ]
 

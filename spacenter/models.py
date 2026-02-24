@@ -485,6 +485,17 @@ class Service(models.Model):
         verbose_name=_("created by"),
     )
     
+    # Loyalty program
+    is_eligible_for_loyalty = models.BooleanField(
+        _("eligible for loyalty program"),
+        default=False,
+        help_text=_(
+            "If enabled, successful bookings for this service count towards "
+            "the loyalty program. After every 5 paid bookings, the customer "
+            "earns one free booking of this service."
+        ),
+    )
+
     is_active = models.BooleanField(_("active"), default=True)
     sort_order = models.PositiveIntegerField(_("sort order"), default=0)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)

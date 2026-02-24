@@ -1,5 +1,5 @@
 """
-Promotions (Gift Cards) Serializers.
+Promotions (Gift Cards & Loyalty Program) Serializers.
 """
 
 from decimal import Decimal
@@ -11,6 +11,8 @@ from .models import (
     GiftCard,
     GiftCardTemplate,
     GiftCardTransaction,
+    LoyaltyReward,
+    LoyaltyTracker,
 )
 
 
@@ -522,3 +524,122 @@ class GiftCardCheckBalanceSerializer(serializers.Serializer):
 
         attrs["gift_card"] = gift_card
         return attrs
+
+
+# =============================================================================
+# Loyalty Program Serializers
+# =============================================================================
+
+class LoyaltyTrackerSerializer(serializers.ModelSerializer):
+    """Serializer for LoyaltyTracker – shows progress per service."""
+
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_id = serializers.UUIDField(source="service.id", read_only=True)
+    progress_percentage = serializers.FloatField(read_only=True)
+    bookings_remaining = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = LoyaltyTracker
+        fields = [
+            "id",
+            "service_id",
+            "service_name",
+            "booking_count",
+            "bookings_required",
+            "bookings_remaining",
+            "progress_percentage",
+            "total_bookings",
+            "total_rewards_earned",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class LoyaltyRewardSerializer(serializers.ModelSerializer):
+    """Serializer for LoyaltyReward – shows earned free-booking rewards."""
+
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_id = serializers.UUIDField(source="service.id", read_only=True)
+    is_available = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = LoyaltyReward
+        fields = [
+            "id",
+            "service_id",
+            "service_name",
+            "status",
+            "is_available",
+            "earned_from_booking",
+            "redeemed_in_booking",
+            "redeemed_at",
+            "expires_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class LoyaltyRedeemSerializer(serializers.Serializer):
+    """Serializer for redeeming a loyalty reward."""
+
+    reward_id = serializers.UUIDField()
+    booking_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Optional: Link this reward to a specific free booking.",
+    )
+
+    def validate_reward_id(self, value):
+        """Ensure the reward exists and belongs to the current user."""
+        request = self.context.get("request")
+        try:
+            reward = LoyaltyReward.objects.select_related("service").get(id=value)
+        except LoyaltyReward.DoesNotExist:
+            raise serializers.ValidationError("Loyalty reward not found.")
+
+        if request and request.user.is_authenticated:
+            if reward.customer != request.user:
+                raise serializers.ValidationError("This reward does not belong to you.")
+
+        if not reward.is_available:
+            if reward.status == LoyaltyReward.RewardStatus.REDEEMED:
+                raise serializers.ValidationError("This reward has already been redeemed.")
+            elif reward.status == LoyaltyReward.RewardStatus.EXPIRED:
+                raise serializers.ValidationError("This reward has expired.")
+            elif reward.status == LoyaltyReward.RewardStatus.CANCELLED:
+                raise serializers.ValidationError("This reward has been cancelled.")
+            else:
+                raise serializers.ValidationError("This reward is no longer available.")
+
+        return value
+
+    def validate(self, attrs):
+        reward = LoyaltyReward.objects.select_related("service").get(id=attrs["reward_id"])
+        attrs["reward"] = reward
+
+        booking_id = attrs.get("booking_id")
+        if booking_id:
+            from bookings.models import Booking
+            try:
+                booking = Booking.objects.get(id=booking_id)
+                attrs["booking"] = booking
+            except Booking.DoesNotExist:
+                raise serializers.ValidationError({"booking_id": "Booking not found."})
+        else:
+            attrs["booking"] = None
+
+        return attrs
+
+    def create(self, validated_data):
+        """Redeem the loyalty reward."""
+        reward = validated_data["reward"]
+        booking = validated_data.get("booking")
+
+        success, error = reward.redeem(booking=booking)
+        if not success:
+            raise serializers.ValidationError({"reward_id": str(error)})
+
+        return reward
+
