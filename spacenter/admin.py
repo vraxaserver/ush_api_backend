@@ -249,9 +249,6 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
         ("Pricing & Duration", {
             "fields": ("duration_minutes", "currency", "base_price", "discount_price")
         }),
-        ("Extra minutes pricing", {
-            "fields": ("extra_minutes", "price_for_extra_minutes")
-        }),
         ("Home Service", {
             "fields": ("is_home_service", "price_for_home_service", 'is_for_male', 'is_for_female')
         }),
@@ -359,6 +356,8 @@ class ServiceArrangementInline(admin.TabularInline):
         "arrangement_label",
         "base_price",
         "discount_price",
+        "extra_minutes",
+        "price_for_extra_minutes",
         "cleanup_duration",
         "is_active",
     ]
@@ -484,6 +483,8 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         "base_price",
         "discount_price",
         "current_price_display",
+        "extra_minutes",
+        "price_for_extra_minutes",
         "cleanup_duration",
         "is_active",
     ]
@@ -502,6 +503,9 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         }),
         ("Pricing", {
             "fields": ("base_price", "discount_price")
+        }),
+        ("Extra Minutes Pricing", {
+            "fields": ("extra_minutes", "price_for_extra_minutes")
         }),
         ("Status", {
             "fields": ("is_active",)

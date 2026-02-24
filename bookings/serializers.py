@@ -50,6 +50,8 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
             "arrangement_label",
             "cleanup_duration",
             "total_duration",
+            "extra_minutes",
+            "price_for_extra_minutes",
             "is_active",
             "created_at",
             "updated_at",
@@ -79,6 +81,8 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
             "service_name",
             "service_duration",
             "cleanup_duration",
+            "extra_minutes",
+            "price_for_extra_minutes",
         ]
 
 

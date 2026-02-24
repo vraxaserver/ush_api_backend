@@ -269,8 +269,6 @@ class ServiceSerializer(serializers.ModelSerializer):
             "current_price",
             "has_discount",
             "discount_percentage",
-            "extra_minutes",
-            "price_for_extra_minutes",
             "is_home_service",
             "price_for_home_service",
             "home_service_price",
@@ -354,8 +352,6 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             "currency",
             "base_price",
             "discount_price",
-            "extra_minutes",
-            "price_for_extra_minutes",
             "is_home_service",
             "price_for_home_service",
             "is_for_male",
@@ -453,7 +449,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
     )
     has_discount = serializers.BooleanField(read_only=True)
     discount_percentage = serializers.IntegerField(read_only=True)
-    branches = serializers.SerializerMethodField()
+    branch = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -476,8 +472,6 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "current_price",
             "has_discount",
             "discount_percentage",
-            "extra_minutes",
-            "price_for_extra_minutes",
             "is_home_service",
             "home_service_price",
             "is_for_male",
@@ -486,7 +480,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "primary_image",
             "add_on_services",
             "addon_count",
-            "branches",
+            "branch",
         ]
 
     def get_primary_image(self, obj):
@@ -508,18 +502,16 @@ class ServiceListSerializer(serializers.ModelSerializer):
         """Get count of add-on services."""
         return obj.add_on_services.filter(is_active=True).count()
 
-    def get_branches(self, obj):
+    def get_branch(self, obj):
         """Get list of spa centers (branches) offering this service."""
         # If specific spa center context is provided (e.g., from branch services view),
         # return only that branch.
         context_spa_center = self.context.get("spa_center")
         if context_spa_center:
-            return [{"id": str(context_spa_center.id), "name": context_spa_center.name}]
+            return {"id": str(context_spa_center.id), "name": context_spa_center.name}
 
-        return [
-            {"id": str(sc.id), "name": sc.name}
-            for sc in obj.spa_centers.filter(is_active=True)
-        ]
+        return {"id": str(obj.spa_center.id), "name": obj.spa_center.name}
+           
 
 
 # =============================================================================

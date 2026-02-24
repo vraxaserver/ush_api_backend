@@ -394,6 +394,7 @@ class Command(BaseCommand):
     # ── Arrangements ───────────────────────────────────────────
     def _seed_arrangements(self):
         self.stdout.write("\nSeeding service arrangements...")
+        extra_minutes_choices = ["15", "30", "45", "60"]
         room_counter = 1
         for spa in SpaCenter.objects.all():
             for svc in spa.services.all():
@@ -401,12 +402,16 @@ class Command(BaseCommand):
                     room_no = f"R-{room_counter:04d}"
                     bp = svc.base_price * multiplier
                     dp = svc.discount_price * multiplier if svc.discount_price else None
+                    extra_min = random.choice(extra_minutes_choices)
+                    extra_price = Decimal(str(random.randint(25, 150)))
                     obj, created = ServiceArrangement.objects.update_or_create(
                         spa_center=spa, service=svc, room_no=room_no,
                         defaults={
                             "arrangement_type": arr_type,
                             "arrangement_label": f"{label_en} – {svc.name}",
                             "cleanup_duration": 15, "base_price": bp, "discount_price": dp,
+                            "extra_minutes": extra_min,
+                            "price_for_extra_minutes": extra_price,
                         },
                     )
                     room_counter += 1

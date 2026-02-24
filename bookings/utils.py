@@ -118,6 +118,8 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 "current_price": str(arr.current_price),
                 "has_discount": arr.has_discount,
                 "discount_percentage": arr.discount_percentage,
+                "extra_minutes": arr.extra_minutes,
+                "price_for_extra_minutes": str(arr.price_for_extra_minutes) if arr.price_for_extra_minutes else None,
                 "count": 1, 
             }
         else:
