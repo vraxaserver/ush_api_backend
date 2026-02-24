@@ -1,5 +1,5 @@
 """
-Seed promotions: Vouchers, GiftCardTemplates, and GiftCards for all countries.
+Seed promotions: GiftCardTemplates and GiftCards for all countries.
 
 Depends on: seed_users, seed_spacenter.
 """
@@ -14,19 +14,10 @@ from accounts.models import User, UserType
 from promotions.models import (
     GiftCard,
     GiftCardTemplate,
-    Voucher,
     generate_gift_card_code,
 )
 from spacenter.models import Country
 
-
-VOUCHERS = [
-    {"code": "WELCOME20",  "name": "Welcome 20% Off",     "description": "20% off for new customers.",                      "discount_type": "percentage", "discount_value": Decimal("20"), "max_discount_amount": Decimal("100"), "applicable_to": "all",      "minimum_purchase": Decimal("100"), "max_uses": 500, "max_uses_per_user": 1, "first_time_only": True,  "days": 365},
-    {"code": "SPA50",       "name": "Spa 50 Off",          "description": "50 off any spa service.",                         "discount_type": "fixed",      "discount_value": Decimal("50"),  "max_discount_amount": None,           "applicable_to": "services", "minimum_purchase": Decimal("200"), "max_uses": 200, "max_uses_per_user": 2, "first_time_only": False, "days": 180},
-    {"code": "PRODUCT15",   "name": "15% Off Products",    "description": "15% off all spa products.",                       "discount_type": "percentage", "discount_value": Decimal("15"), "max_discount_amount": Decimal("75"),  "applicable_to": "products", "minimum_purchase": Decimal("50"),  "max_uses": 300, "max_uses_per_user": 3, "first_time_only": False, "days": 90},
-    {"code": "SUMMER30",    "name": "Summer 30% Off",      "description": "Summer 30% off all services & products.",         "discount_type": "percentage", "discount_value": Decimal("30"), "max_discount_amount": Decimal("150"), "applicable_to": "all",      "minimum_purchase": Decimal("150"), "max_uses": 100, "max_uses_per_user": 1, "first_time_only": False, "days": 60},
-    {"code": "VIP100",      "name": "VIP 100 Off",         "description": "Exclusive 100 off services for VIP members.",     "discount_type": "fixed",      "discount_value": Decimal("100"), "max_discount_amount": None,          "applicable_to": "services", "minimum_purchase": Decimal("300"), "max_uses": 50,  "max_uses_per_user": 1, "first_time_only": False, "days": 365},
-]
 
 GIFT_TEMPLATES = [
     {"name": "Classic Gift Card",            "description": "Redeemable for all spa services and products.",           "amount": Decimal("100"),  "validity_days": 365, "sort_order": 1},
@@ -40,7 +31,7 @@ CURRENCY_MAP = {"QAT": "QAR", "KWT": "KWD", "ARE": "AED"}
 
 
 class Command(BaseCommand):
-    help = "Seed promotions (vouchers, gift card templates, gift cards)"
+    help = "Seed promotions (gift card templates, gift cards)"
 
     def add_arguments(self, parser):
         parser.add_argument("--clear", action="store_true")
@@ -50,40 +41,10 @@ class Command(BaseCommand):
             self.stdout.write("Clearing promotions...")
             GiftCard.objects.all().delete()
             GiftCardTemplate.objects.all().delete()
-            Voucher.objects.all().delete()
 
-        self._seed_vouchers()
         self._seed_gift_templates()
         self._seed_gift_cards()
         self.stdout.write(self.style.SUCCESS("\n✅ Promotions seeding complete!"))
-
-    def _seed_vouchers(self):
-        self.stdout.write("\nSeeding vouchers (per country)...")
-        admin = User.objects.filter(user_type=UserType.ADMIN).first()
-        now = timezone.now()
-
-        for country in Country.objects.all():
-            for v in VOUCHERS:
-                code = f"{v['code']}_{country.code}"
-                defaults = {
-                    "name": v["name"],
-                    "description": v["description"],
-                    "discount_type": v["discount_type"],
-                    "discount_value": v["discount_value"],
-                    "max_discount_amount": v["max_discount_amount"],
-                    "applicable_to": v["applicable_to"],
-                    "minimum_purchase": v["minimum_purchase"],
-                    "max_uses": v["max_uses"],
-                    "max_uses_per_user": v["max_uses_per_user"],
-                    "first_time_only": v["first_time_only"],
-                    "valid_from": now,
-                    "valid_until": now + timedelta(days=v["days"]),
-                    "status": "active",
-                    "created_by": admin,
-                    "country": country,
-                }
-                obj, created = Voucher.objects.update_or_create(code=code, defaults=defaults)
-                self.stdout.write(f"  {'Created' if created else 'Updated'}: {code}")
 
     def _seed_gift_templates(self):
         self.stdout.write("\nSeeding gift card templates (per country)...")

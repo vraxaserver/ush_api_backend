@@ -534,7 +534,6 @@ class ProductOrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
-    voucher_codes = serializers.SerializerMethodField()
     gift_card_codes = serializers.SerializerMethodField()
 
     class Meta:
@@ -553,15 +552,11 @@ class ProductOrderSerializer(serializers.ModelSerializer):
             "currency",
             "payment_method",
             "items",
-            "voucher_codes",
             "gift_card_codes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
-
-    def get_voucher_codes(self, obj):
-        return [v.code for v in obj.vouchers.all()]
 
     def get_gift_card_codes(self, obj):
         return [g.code for g in obj.gift_cards.all()]
@@ -572,7 +567,6 @@ class CreateProductOrderSerializer(serializers.Serializer):
     Serializer for creating a new product order.
     Accepts:
     - items: list of {product_id, quantity}
-    - voucher_ids: optional list of voucher IDs (UUIDs)
     - gift_card_ids: optional list of gift card IDs (UUIDs)
     - subtotal: optional (sum of item prices before discounts)
     - discount: optional (total discount amount)
@@ -582,12 +576,6 @@ class CreateProductOrderSerializer(serializers.Serializer):
     items = serializers.ListField(
         child=serializers.DictField(child=serializers.CharField()),
         allow_empty=False
-    )
-    voucher_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        required=False,
-        default=list,
-        help_text="List of voucher IDs (UUIDs) to apply"
     )
     gift_card_ids = serializers.ListField(
         child=serializers.CharField(),

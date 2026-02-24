@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, force_authenticate
 from orders.views import CartViewSet, OrderViewSet
 from spacenter.models import SpaCenter, Country, City, SpaProduct, BaseProduct, ProductCategory
-from promotions.models import Voucher
+
 
 User = get_user_model()
 
@@ -57,28 +57,8 @@ def run_verification():
     spa_product.reserved_quantity = 0
     spa_product.save()
 
-    voucher, _ = Voucher.objects.get_or_create(
-        code="TESTVOUCHER",
-        defaults={
-            "discount_type": Voucher.DiscountType.PERCENTAGE,
-            "discount_value": Decimal("10.00"),
-            "valid_from": "2020-01-01",
-            "valid_until": "2030-01-01",
-            "status": Voucher.Status.ACTIVE,
-            "minimum_purchase": Decimal("0.00"),
-            "max_uses": 100,
-            # "expiration_date" was wrong, using valid_until which is already set above
-        }
-    )
-    
-    # Refresh logic for voucher dates
-    if not voucher.code:
-        voucher.code = "TESTVOUCHER"
-        voucher.save()
-
     print(f"User: {user}")
     print(f"SPA Product: {spa_product} (Qty: {spa_product.quantity})")
-    print(f"Voucher: {voucher.code}")
 
     # 2. Test Cart - Add Item
     print("\n2. Testing Add to Cart...")
@@ -98,12 +78,11 @@ def run_verification():
     else:
         print(f"Error Adding to Cart: {response.status_code} - {response.data}")
 
-    # 3. Test Checkout with Voucher
-    print("\n3. Testing Checkout with Voucher...")
+    # 3. Test Checkout
+    print("\n3. Testing Checkout...")
     checkout_view = OrderViewSet.as_view({'post': 'checkout'})
     checkout_data = {
         'payment_method': 'card',
-        'voucher_code': 'TESTVOUCHER'
     }
     request = factory.post(
         '/api/v1/orders/orders/checkout/', 
@@ -117,7 +96,6 @@ def run_verification():
         order_data = response.data
         print(f"Order Created Successfully: {order_data['order_number']}")
         print(f"Total Amount: {order_data['total_amount']}")
-        print(f"Discount Amount: {order_data['discount_amount']}")
         print(f"Final Amount: {order_data['final_amount']}")
         
         # Verify Stock Deduction

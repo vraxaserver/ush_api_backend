@@ -74,7 +74,7 @@ class StripePaymentViewSet(viewsets.ViewSet):
             meta_keys = [
                 "serviceId", "date", "start_time", "timeSlot", "arrangement_type",
                 "branchId", "therapistId", "customer_message", "specialRequests",
-                "voucherCode", "giftCardCode",
+                "giftCardCode",
             ]
             for key in meta_keys:
                 val = body.get(key)

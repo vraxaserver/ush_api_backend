@@ -1,2 +1,2 @@
-# Promotions App (Vouchers & Gift Cards)
+# Promotions App (Gift Cards)
 default_app_config = "promotions.apps.PromotionsConfig"

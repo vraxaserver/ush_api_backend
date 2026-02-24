@@ -16,7 +16,7 @@ SEED_COMMANDS = [
     ("seed_spacenter", "🏢 Spa Centers, Services & Products (spacenter)"),
     ("seed_profiles", "📋 Profiles & Schedules (profiles)"),
     ("seed_slides", "🖼️  Slides (profiles)"),
-    ("seed_promotions", "🎁 Promotions – Vouchers & Gift Cards"),
+    ("seed_promotions", "🎁 Promotions – Gift Cards"),
     ("seed_bookings", "📅 Bookings & Product Orders"),
     ("seed_payments", "💳 Payments"),
 ]

@@ -1,6 +1,6 @@
 # Spa Center Auth & Management Microservice
 
-A comprehensive Django REST Framework microservice for spa center management with authentication, employee management, spa services, products, therapists, and promotions (vouchers & gift cards).
+A comprehensive Django REST Framework microservice for spa center management with authentication, employee management, spa services, products, therapists, and promotions (gift cards).
 
 ## Features
 
@@ -29,7 +29,6 @@ A comprehensive Django REST Framework microservice for spa center management wit
 - **Spa Products**: Location-specific stock and pricing
 
 ### 🎟️ Promotions
-- **Vouchers**: Discount codes (percentage/fixed)
 - **Gift Cards**: Prepaid balance cards with transfer support
 
 ### 💳 Payments
@@ -103,7 +102,7 @@ python manage.py seed_branches       # Spa centers & managers
 python manage.py seed_therapists     # Therapist profiles
 python manage.py seed_products       # Product catalog
 
-# Seed promotions (vouchers & gift cards)
+# Seed promotions (gift cards)
 python manage.py seed_promotions
 
 # Clear and reseed
@@ -327,34 +326,6 @@ Query parameters:
 
 ### Promotions (`/api/v1/promotions/`)
 
-#### Vouchers
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/vouchers/` | List active vouchers | Public |
-| GET | `/vouchers/{id}/` | Get voucher details | Public |
-| POST | `/vouchers/validate/` | Validate voucher code | Public |
-| POST | `/vouchers/apply/` | Apply voucher to order | Yes |
-| GET | `/voucher-usage/` | Get user's voucher history | Yes |
-
-**Validate Voucher Request:**
-```json
-{
-    "code": "WELCOME10",
-    "amount": 150.00
-}
-```
-
-**Apply Voucher Request:**
-```json
-{
-    "code": "WELCOME10",
-    "amount": 150.00,
-    "order_reference": "ORD-123",
-    "order_type": "service_booking"
-}
-```
-
 #### Gift Card Templates
 
 | Method | Endpoint | Description | Auth |
@@ -410,13 +381,12 @@ Query parameters:
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/apply-discounts/` | Apply voucher + gift card | Yes |
+| POST | `/apply-discounts/` | Apply gift card discount | Yes |
 
 **Request:**
 ```json
 {
     "amount": 200.00,
-    "voucher_code": "SUMMER25",
     "gift_card_code": "ABCD-EFGH-IJKL-MNOP",
     "gift_card_pin": "1234",
     "gift_card_amount": 50.00
@@ -427,14 +397,8 @@ Query parameters:
 ```json
 {
     "original_amount": "200.00",
-    "voucher_discount": "50.00",
     "gift_card_amount": "50.00",
-    "final_amount": "100.00",
-    "voucher": {
-        "code": "SUMMER25",
-        "discount_type": "percentage",
-        "discount_value": "25.00"
-    },
+    "final_amount": "150.00",
     "gift_card": {
         "code": "ABCD-EFGH-IJKL-MNOP",
         "balance_before": "100.00",
@@ -497,8 +461,6 @@ Query parameters:
 - **SpaProduct**: Location-specific stock/pricing
 
 ### Promotions App
-- **Voucher**: Discount codes
-- **VoucherUsage**: Usage tracking
 - **GiftCardTemplate**: Gift card denominations
 - **GiftCard**: Individual gift cards
 - **GiftCardTransaction**: Transaction history
@@ -506,19 +468,6 @@ Query parameters:
 ### Payments App
 - **StripeCustomer**: Links users to Stripe customer IDs
 - **Payment**: Payment transactions with status tracking
-
----
-
-## Demo Voucher Codes
-
-| Code | Discount | Description |
-|------|----------|-------------|
-| `WELCOME10` | 10% (max 50) | First-time users only |
-| `SUMMER25` | 25% (max 100) | Services only |
-| `PRODUCT15` | 15% | Products only |
-| `FLAT50` | 50 QAR fixed | Min purchase 200 |
-| `VIP100` | 100 QAR fixed | Services, min 300 |
-| `AROMATHERAPY20` | 20% | Aromatherapy & Oils |
 
 ---
 
@@ -592,8 +541,8 @@ auth_service/
 │       ├── seed_therapists.py
 │       ├── seed_products.py
 │       └── seed_specialties.py
-├── promotions/                 # Vouchers & Gift Cards app
-│   ├── models.py              # Voucher, GiftCard models
+├── promotions/                 # Gift Cards app
+│   ├── models.py              # GiftCard models
 │   ├── serializers.py         # Promotion serializers
 │   ├── views.py               # Promotion views
 │   ├── urls.py                # Promotion URLs

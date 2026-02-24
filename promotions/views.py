@@ -1,8 +1,7 @@
 """
-Promotions (Vouchers & Gift Cards) Views.
+Promotions (Gift Cards) Views.
 """
 
-from django.db import models
 from django.db.models import Sum
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, permissions, status, viewsets
@@ -14,8 +13,6 @@ from .models import (
     GiftCard,
     GiftCardTemplate,
     GiftCardTransaction,
-    Voucher,
-    VoucherUsage,
 )
 from .serializers import (
     GiftCardCheckBalanceSerializer,
@@ -27,244 +24,7 @@ from .serializers import (
     GiftCardTransactionSerializer,
     GiftCardTransferSerializer,
     GiftCardValidateSerializer,
-    VoucherApplySerializer,
-    VoucherSerializer,
-    VoucherUsageSerializer,
-    VoucherValidateSerializer,
 )
-
-
-# =============================================================================
-# Voucher Views
-# =============================================================================
-
-class VoucherFilter(django_filters.FilterSet):
-    """Filter for Voucher model."""
-
-    status = django_filters.CharFilter(field_name="status")
-    applicable_to = django_filters.CharFilter(field_name="applicable_to")
-    country = django_filters.UUIDFilter(field_name="country__id")
-    country_code = django_filters.CharFilter(
-        field_name="country__code",
-        lookup_expr="iexact",
-    )
-    is_valid = django_filters.BooleanFilter(method="filter_is_valid")
-
-    class Meta:
-        model = Voucher
-        fields = ["status", "applicable_to", "country", "country_code"]
-
-    def filter_is_valid(self, queryset, name, value):
-        """Filter by current validity."""
-        from django.utils import timezone
-        now = timezone.now()
-
-        if value:
-            return queryset.filter(
-                status=Voucher.Status.ACTIVE,
-                valid_from__lte=now,
-                valid_until__gte=now,
-            ).exclude(
-                max_uses__isnull=False,
-                current_uses__gte=models.F("max_uses"),
-            )
-        return queryset
-
-
-class VoucherViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet for Voucher (Read Only).
-    
-    Public vouchers can be listed.
-    Use validate/apply endpoints to use vouchers.
-    """
-
-    queryset = Voucher.objects.filter(status=Voucher.Status.ACTIVE)
-    serializer_class = VoucherSerializer
-    permission_classes = [permissions.AllowAny]
-    filterset_class = VoucherFilter
-    filter_backends = [
-        django_filters.DjangoFilterBackend,
-        filters.SearchFilter,
-        filters.OrderingFilter,
-    ]
-    search_fields = ["code", "name", "description"]
-    ordering_fields = ["created_at", "valid_until", "discount_value"]
-    ordering = ["-created_at"]
-
-    @action(detail=False, methods=["post"])
-    def validate(self, request):
-        """
-        Validate a voucher code.
-        
-        Request body:
-        - code: Voucher code
-        - amount: (optional) Order amount to check minimum purchase
-        - service_ids: (optional) List of service UUIDs to check applicability
-        - product_ids: (optional) List of product UUIDs to check applicability
-        - category_ids: (optional) List of category names to check applicability
-        
-        Returns voucher details with status and message.
-        """
-        serializer = VoucherValidateSerializer(
-            data=request.data,
-            context={"request": request},
-        )
-        
-        if not serializer.is_valid():
-            # Return error response with status and message
-            errors = serializer.errors
-            error_message = ""
-            if "code" in errors:
-                error_message = errors["code"][0] if isinstance(errors["code"], list) else str(errors["code"])
-            elif "amount" in errors:
-                error_message = errors["amount"][0] if isinstance(errors["amount"], list) else str(errors["amount"])
-            else:
-                error_message = "Invalid voucher request."
-            
-            return Response({
-                "status": "error",
-                "message": error_message,
-                "errors": errors,
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        voucher = serializer.validated_data["voucher"]
-        amount = serializer.validated_data.get("amount")
-
-        response_data = {
-            "status": "success",
-            "message": "Voucher is valid.",
-            "voucher": VoucherSerializer(voucher).data,
-        }
-        
-        if amount:
-            response_data["calculated_discount"] = str(voucher.calculate_discount(amount))
-            response_data["final_amount"] = str(amount - voucher.calculate_discount(amount))
-
-        return Response(response_data)
-
-    @action(detail=False, methods=["post"], permission_classes=[permissions.IsAuthenticated])
-    def apply(self, request):
-        """
-        Apply a voucher to an order.
-        
-        Request body:
-        - code: Voucher code
-        - amount: Order amount
-        - order_reference: (optional) Order/booking reference
-        - order_type: (optional) Type of order
-        - service_ids: (optional) List of service UUIDs to check applicability
-        - product_ids: (optional) List of product UUIDs to check applicability
-        - category_ids: (optional) List of category names to check applicability
-        
-        Returns status and message with discount details.
-        """
-        serializer = VoucherApplySerializer(
-            data=request.data,
-            context={"request": request},
-        )
-        
-        if not serializer.is_valid():
-            # Return error response with status and message
-            errors = serializer.errors
-            error_message = ""
-            if "code" in errors:
-                error_message = errors["code"][0] if isinstance(errors["code"], list) else str(errors["code"])
-            elif "amount" in errors:
-                error_message = errors["amount"][0] if isinstance(errors["amount"], list) else str(errors["amount"])
-            else:
-                error_message = "Invalid voucher request."
-            
-            return Response({
-                "status": "error",
-                "message": error_message,
-                "errors": errors,
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        usage = serializer.save()
-
-        return Response({
-            "status": "success",
-            "message": "Voucher applied successfully.",
-            "id": str(usage.id),
-            "voucher_code": usage.voucher.code,
-            "original_amount": str(usage.original_amount),
-            "discount_amount": str(usage.discount_amount),
-            "final_amount": str(usage.final_amount),
-            "usage_id": str(usage.id),
-        }, status=status.HTTP_201_CREATED)
-
-
-class VoucherUsageViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    ViewSet for VoucherUsage (Read Only).
-    
-    Users can see their own voucher usage history.
-    """
-
-    serializer_class = VoucherUsageSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [filters.OrderingFilter]
-    ordering_fields = ["used_at"]
-    ordering = ["-used_at"]
-
-    def get_queryset(self):
-        """Return only current user's usage."""
-        return VoucherUsage.objects.filter(user=self.request.user)
-
-
-class MyVouchersListView(APIView):
-    """
-    List all valid vouchers for the current authenticated user.
-    
-    Returns vouchers that:
-    - Are currently active
-    - Are within their validity period
-    - Have not exceeded total usage limits
-    - The user has not exceeded their per-user usage limit
-    
-    Supports pagination with query params:
-    - page: Page number (default: 1)
-    - page_size: Items per page (default: 10, max: 100)
-    """
-
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        """Get all valid vouchers for the current user with pagination."""
-        from django.utils import timezone
-        from rest_framework.pagination import PageNumberPagination
-
-        now = timezone.now()
-        user = request.user
-
-        # Get vouchers that are valid (active, within date range, not exhausted)
-        vouchers = Voucher.objects.filter(
-            status=Voucher.Status.ACTIVE,
-            valid_from__lte=now,
-            valid_until__gte=now,
-        ).exclude(
-            # Exclude vouchers where max_uses is set and current_uses >= max_uses
-            max_uses__isnull=False,
-            current_uses__gte=models.F("max_uses"),
-        )
-
-        # Filter out vouchers where the user has reached their per-user limit
-        valid_vouchers = []
-        for voucher in vouchers:
-            user_uses = voucher.usages.filter(user=user).count()
-            if user_uses < voucher.max_uses_per_user:
-                valid_vouchers.append(voucher)
-
-        # Apply pagination
-        paginator = PageNumberPagination()
-        paginator.page_size = 10
-        paginator.page_size_query_param = "page_size"
-        paginator.max_page_size = 100
-
-        paginated_vouchers = paginator.paginate_queryset(valid_vouchers, request)
-        serializer = VoucherSerializer(paginated_vouchers, many=True)
-        return paginator.get_paginated_response(serializer.data)
 
 
 # =============================================================================
@@ -562,26 +322,25 @@ class GiftCardTransactionViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # =============================================================================
-# Combined Payment View (Voucher + Gift Card)
+# Combined Payment View (Gift Card)
 # =============================================================================
 
 class ApplyDiscountsView(APIView):
     """
-    Apply both voucher and gift card to an order.
+    Apply gift card to an order.
     
     This is a convenience endpoint that calculates total discounts
-    from both voucher and gift card.
+    from a gift card.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         """
-        Calculate discounts from voucher and/or gift card.
+        Calculate discounts from gift card.
         
         Request body:
         - amount: Original order amount
-        - voucher_code: (optional) Voucher code to apply
         - gift_card_code: (optional) Gift card code to apply
         - gift_card_pin: (optional) Gift card PIN
         - gift_card_amount: (optional) Amount to use from gift card
@@ -591,7 +350,6 @@ class ApplyDiscountsView(APIView):
         from decimal import Decimal
 
         amount = Decimal(str(request.data.get("amount", 0)))
-        voucher_code = request.data.get("voucher_code")
         gift_card_code = request.data.get("gift_card_code")
         gift_card_pin = request.data.get("gift_card_pin", "")
         gift_card_amount = request.data.get("gift_card_amount")
@@ -604,34 +362,12 @@ class ApplyDiscountsView(APIView):
 
         result = {
             "original_amount": str(amount),
-            "voucher_discount": "0.00",
             "gift_card_amount": "0.00",
             "final_amount": str(amount),
-            "voucher": None,
             "gift_card": None,
         }
 
         remaining = amount
-
-        # Apply voucher first
-        if voucher_code:
-            try:
-                voucher = Voucher.objects.get(code__iexact=voucher_code)
-                can_use, error = voucher.can_be_used_by(request.user, amount)
-                
-                if can_use:
-                    discount = voucher.calculate_discount(amount)
-                    remaining -= discount
-                    result["voucher_discount"] = str(discount)
-                    result["voucher"] = {
-                        "code": voucher.code,
-                        "discount_type": voucher.discount_type,
-                        "discount_value": str(voucher.discount_value),
-                    }
-                else:
-                    result["voucher_error"] = error
-            except Voucher.DoesNotExist:
-                result["voucher_error"] = "Invalid voucher code."
 
         # Apply gift card
         if gift_card_code:

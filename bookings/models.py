@@ -168,7 +168,7 @@ class Booking(models.Model):
         max_digits=10,
         decimal_places=2,
         default=0.00,
-        help_text=_("Total discount applied (vouchers + other)"),
+        help_text=_("Total discount applied"),
     )
 
     extra_minutes = models.PositiveIntegerField(
@@ -199,12 +199,12 @@ class Booking(models.Model):
         help_text=_("Final payable amount after discounts"),
     )
 
-    # Flexible metadata (add-ons, vouchers, gift cards, etc.)
+    # Flexible metadata (add-ons, gift cards, etc.)
     meta_data = models.JSONField(
         _("metadata"),
         default=dict,
         blank=True,
-        help_text=_("Flexible JSON data for add-ons, vouchers, gift cards, and other extras"),
+        help_text=_("Flexible JSON data for add-ons, gift cards, and other extras"),
     )
 
     # Customer message/notes
@@ -358,7 +358,7 @@ class ProductOrder(models.Model):
         max_digits=10,
         decimal_places=2,
         default=0.00,
-        help_text=_("Total discount applied (vouchers + other)"),
+        help_text=_("Total discount applied"),
     )
     
     final_amount = models.DecimalField(
@@ -376,12 +376,6 @@ class ProductOrder(models.Model):
     )
 
     # Promotions
-    vouchers = models.ManyToManyField(
-        "promotions.Voucher",
-        blank=True,
-        related_name="product_orders",
-        verbose_name=_("vouchers"),
-    )
     
     gift_cards = models.ManyToManyField(
         "promotions.GiftCard",
