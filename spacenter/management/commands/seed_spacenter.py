@@ -9,6 +9,7 @@ All translatable fields include both English and Arabic data.
 import io
 import random
 import os
+import urllib.request
 from datetime import time
 from decimal import Decimal
 
@@ -60,6 +61,16 @@ def _make_placeholder_image(label="Spa", width=800, height=600, color=(64, 130, 
                     + struct.pack(">I", zlib.crc32(b"IDAT" + zlib.compress(raw)) & 0xFFFFFFFF)
                     + b"\x00\x00\x00\x00IEND\xaeB`\x82")
         return _minimal_png(*color)
+
+
+def _download_image(url, timeout=15):
+    """Download an image from a URL. Returns bytes or None on failure."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+    except Exception:
+        return None
 
 # ═══════════════════════════════════════════════════════════════════
 # DATA
@@ -140,7 +151,21 @@ SERVICES = [
     {"name_en": "Couples Harmony Massage",         "name_ar": "مساج الانسجام للأزواج",            "spec": "Swedish Massage",      "dur": 90,  "price": Decimal("700"), "disc": Decimal("599"),  "home": False, "home_price": None,           "ideal_en": "Couples, Romance",                   "ideal_ar": "الأزواج، الرومانسية",                 "desc_en": "Side-by-side massage for couples in a private suite with candles and rose petals.",                              "desc_ar": "مساج جنباً إلى جنب للأزواج في جناح خاص مع شموع وبتلات الورد."},
 ]
 
-# Image colors per specialty for visual distinction
+# Real spa service images from Unsplash (free, high-quality)
+SERVICE_IMAGE_URLS = {
+    "Classic Swedish Massage":    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=600&fit=crop&q=80",
+    "Deep Tissue Recovery":       "https://images.unsplash.com/photo-1519823551278-64ac92734314?w=800&h=600&fit=crop&q=80",
+    "Signature Aromatherapy":     "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=800&h=600&fit=crop&q=80",
+    "Volcanic Hot Stone Therapy": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=800&h=600&fit=crop&q=80",
+    "Radiance Facial Treatment":  "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=600&fit=crop&q=80",
+    "Detox Body Scrub & Wrap":    "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=800&h=600&fit=crop&q=80",
+    "Traditional Thai Massage":   "https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?w=800&h=600&fit=crop&q=80",
+    "Holistic Reflexology":       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?w=800&h=600&fit=crop&q=80",
+    "Royal Hammam Experience":    "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=800&h=600&fit=crop&q=80",
+    "Couples Harmony Massage":    "https://images.unsplash.com/photo-1531299204812-e6d44d9a185c?w=800&h=600&fit=crop&q=80",
+}
+
+# Fallback colors per specialty for placeholder images (used if download fails)
 SPECIALTY_COLORS = {
     "Swedish Massage": (100, 160, 200),
     "Deep Tissue Massage": (80, 100, 140),
@@ -195,7 +220,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["clear"]:
             self.stdout.write("Clearing spa center data...")
-            for M in [ServiceArrangement, ServiceImage, SpaProduct, BaseProduct, ProductCategory,
+            # Delete bookings/timeslots first (they have protected FKs to ServiceArrangement)
+            from bookings.models import Booking, TimeSlot, ProductOrder, OrderItem
+            for M in [OrderItem, ProductOrder, Booking, TimeSlot,
+                       ServiceArrangement, ServiceImage, SpaProduct, BaseProduct, ProductCategory,
                        Service, AddOnService, Specialty, SpaCenterOperatingHours, SpaCenter, City, Country]:
                 M.objects.all().delete()
 
@@ -338,10 +366,22 @@ class Command(BaseCommand):
 
                 # Create 1 primary image per service if none exists
                 if not svc.images.exists():
-                    color = SPECIALTY_COLORS.get(sd["spec"], (100, 130, 160))
-                    label = sd["name_en"]
-                    img_data = _make_placeholder_image(label, color=color)
-                    fname = f"{svc.id}.png"
+                    img_url = SERVICE_IMAGE_URLS.get(sd["name_en"])
+                    img_data = None
+                    file_ext = "jpg"
+
+                    if img_url:
+                        self.stdout.write(f"    Downloading image for: {sd['name_en']}...")
+                        img_data = _download_image(img_url)
+
+                    if not img_data:
+                        # Fallback to placeholder if download fails
+                        color = SPECIALTY_COLORS.get(sd["spec"], (100, 130, 160))
+                        img_data = _make_placeholder_image(sd["name_en"], color=color)
+                        file_ext = "png"
+                        self.stdout.write(self.style.WARNING(f"    ⚠ Download failed, using placeholder for: {sd['name_en']}"))
+
+                    fname = f"{svc.id}.{file_ext}"
                     si = ServiceImage(service=svc, alt_text=sd["name_en"], is_primary=True, sort_order=0)
                     si.image.save(fname, ContentFile(img_data), save=True)
 
