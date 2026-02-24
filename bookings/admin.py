@@ -179,7 +179,7 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         (
             _("Pricing"),
             {
-                "fields": ("total_price",)
+                "fields": ("subtotal", "discount_amount", "extra_minutes", "price_for_extra_minutes", "total_duration", "total_price")
             },
         ),
         (

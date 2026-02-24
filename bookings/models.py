@@ -170,6 +170,26 @@ class Booking(models.Model):
         default=0.00,
         help_text=_("Total discount applied (vouchers + other)"),
     )
+
+    extra_minutes = models.PositiveIntegerField(
+        _("extra minutes"),
+        default=0,
+        help_text=_("Extra minutes added to the service duration"),
+    )
+
+    price_for_extra_minutes = models.DecimalField(
+        _("price for extra minutes"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Price charged for the extra minutes"),
+    )
+
+    total_duration = models.PositiveIntegerField(
+        _("total duration (minutes)"),
+        default=0,
+        help_text=_("Total duration in minutes (service duration + extra minutes)"),
+    )
     
     total_price = models.DecimalField(
         _("total price"),

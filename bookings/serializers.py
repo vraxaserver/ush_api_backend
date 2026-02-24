@@ -169,6 +169,7 @@ class BookingListSerializer(serializers.ModelSerializer):
             "booking_date",
             "booking_time",
             "end_time",
+            "total_duration",
             "total_price",
             "status",
             "created_at",
@@ -223,6 +224,9 @@ class BookingSerializer(serializers.ModelSerializer):
             "time_slot_details",
             "subtotal",
             "discount_amount",
+            "extra_minutes",
+            "price_for_extra_minutes",
+            "total_duration",
             "total_price",
             "meta_data",
             "customer_message",
@@ -263,7 +267,28 @@ class BookingCreateSerializer(serializers.Serializer):
     
     customer_message = serializers.CharField(required=False, allow_blank=True, default="")
     
+    # Extra time
+    extra_minutes = serializers.IntegerField(
+        required=False,
+        default=0,
+        help_text="Extra minutes to add to the service duration"
+    )
+    price_for_extra_minutes = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        default=0,
+        help_text="Price for the extra minutes"
+    )
+
     # Financials
+    discount_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        default=0,
+        help_text="Total discount amount to apply"
+    )
     subtotal = serializers.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -341,11 +366,13 @@ class BookingCreateSerializer(serializers.Serializer):
             })
 
         service_duration = service.duration_minutes
+        extra_minutes = int(attrs.get("extra_minutes", 0))
+        total_duration = service_duration + extra_minutes
         
         # 2. Check Availability
         cleanup_duration = selected_arrangement.cleanup_duration
         end_time = Booking.calculate_end_time(
-            start_time, service_duration, 0, cleanup_duration
+            start_time, total_duration, 0, cleanup_duration
         )
         
         if end_time > closing_time:
@@ -366,8 +393,11 @@ class BookingCreateSerializer(serializers.Serializer):
         attrs["end_time"] = end_time
         
         # 3. Calculate Financials
-        base_price = service.current_price
-        attrs["calculated_subtotal"] = base_price
+        # Price = base_price from arrangement + price_for_extra_minutes
+        from decimal import Decimal
+        base_price = selected_arrangement.base_price
+        price_for_extra = Decimal(str(attrs.get("price_for_extra_minutes", 0)))
+        attrs["calculated_subtotal"] = base_price + price_for_extra
 
         return attrs
 
@@ -388,12 +418,23 @@ class BookingCreateSerializer(serializers.Serializer):
         )
         
         # Financials
+        from decimal import Decimal
+        extra_minutes = int(validated_data.get("extra_minutes", 0))
+        price_for_extra = Decimal(str(validated_data.get("price_for_extra_minutes", 0)))
+        discount_amount = Decimal(str(validated_data.get("discount_amount", 0)))
+        
+        # Total duration = service duration + extra minutes
+        service = validated_data["service"]
+        total_duration = service.duration_minutes + extra_minutes
+        
         subtotal = validated_data.get("subtotal") or validated_data["calculated_subtotal"]
         
-        # Use client-provided total_price if available, else use subtotal
+        # Use client-provided total_price if available, else calculate: subtotal - discount
         final_payable = validated_data.get("total_price")
         if final_payable is None:
-            final_payable = subtotal
+            final_payable = subtotal - discount_amount
+            if final_payable < 0:
+                final_payable = Decimal("0.00")
         
         status_val = Booking.BookingStatus.REQUESTED
 
@@ -406,8 +447,6 @@ class BookingCreateSerializer(serializers.Serializer):
                 "id": str(service.id),
                 "name": service.name,
                 "duration_minutes": service.duration_minutes,
-                "base_price": str(service.base_price),
-                "discount_price": str(service.discount_price) if service.discount_price else None,
                 "currency": service.currency,
             },
             "spa_center": {
@@ -428,13 +467,12 @@ class BookingCreateSerializer(serializers.Serializer):
                 "room_no": arrangement.room_no,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
-                "base_price": str(arrangement.base_price),
-                "discount_price": str(arrangement.discount_price) if arrangement.discount_price else None,
-                "extra_minutes": arrangement.extra_minutes if arrangement.extra_minutes != "0" else None,
-                "price_for_extra_minutes": str(arrangement.price_for_extra_minutes) if arrangement.price_for_extra_minutes else None,
             },
             "pricing": {
                 "subtotal": str(subtotal),
+                "discount_amount": str(discount_amount),
+                "extra_minutes": extra_minutes,
+                "price_for_extra_minutes": str(price_for_extra),
                 "total_price": str(final_payable),
             },
         }
@@ -447,7 +485,10 @@ class BookingCreateSerializer(serializers.Serializer):
             service_arrangement=arrangement,
             time_slot=time_slot,
             subtotal=subtotal,
-            discount_amount=0,
+            discount_amount=discount_amount,
+            extra_minutes=extra_minutes,
+            price_for_extra_minutes=price_for_extra,
+            total_duration=total_duration,
             total_price=final_payable,
             customer_message=validated_data.get("customer_message", ""),
             status=status_val,
