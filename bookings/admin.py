@@ -1,3 +1,4 @@
+import json
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -146,6 +147,7 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     readonly_fields = [
         "id",
         "booking_number",
+        "get_formatted_meta_data",
         "created_at",
         "updated_at",
     ]
@@ -171,7 +173,6 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
                     "service",
                     "service_arrangement",
                     "time_slot",
-                    "therapist",
                 )
             },
         ),
@@ -182,9 +183,9 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             },
         ),
         (
-            _("Metadata"),
+            _("Booking Snapshot (Meta Data)"),
             {
-                "fields": ("meta_data",),
+                "fields": ("get_formatted_meta_data",),
                 "classes": ["collapse"],
             },
         ),
@@ -228,6 +229,14 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     def display_status(self, obj):
         return obj.get_status_display()
 
+    @admin.display(description=_("Formatted Meta Data"))
+    def get_formatted_meta_data(self, obj):
+        """Display JSON data in a pretty-printed format."""
+        if not obj.meta_data:
+            return "-"
+        formatted_json = json.dumps(obj.meta_data, indent=4, ensure_ascii=False)
+        return format_html('<pre style="background-color: #828387; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">{}</pre>', formatted_json)
+
     def get_queryset(self, request):
         """Filter bookings by branch manager's spa center."""
         qs = (
@@ -239,7 +248,6 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
                 "service",
                 "service_arrangement__service",
                 "time_slot",
-                "therapist",
             )
         )
         spa_center = get_branch_manager_spa_center(request.user)
