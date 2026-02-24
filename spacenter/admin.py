@@ -25,7 +25,7 @@ from .models import (
     Specialty
 )
 
-from .filters import CountryFilter, CityFilter, SpaCenterFilter
+from .filters import CountryFilter, CityFilter, SpaCenterFilter, ServiceArrangementServiceFilter
 
 
 def get_branch_manager_spa_center(user):
@@ -488,7 +488,7 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         "cleanup_duration",
         "is_active",
     ]
-    list_filter = ["spa_center", "arrangement_type", "is_active"]
+    list_filter = [ServiceArrangementServiceFilter, SpaCenterFilter, "arrangement_type", "is_active"]
     search_fields = ["room_no", "arrangement_label", "service__name", "spa_center__name"]
     autocomplete_fields = ["spa_center", "service"]
     ordering = ["spa_center", "service", "room_no"]
