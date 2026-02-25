@@ -5,6 +5,7 @@ from django.utils.translation import gettext_lazy as _
 
 from .models import Booking, TimeSlot
 from spacenter.models import SpaCenter, Service, ServiceArrangement
+from spacenter.filters import SpaCenterFilter
 
 
 def get_branch_manager_spa_center(user):
@@ -133,6 +134,7 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         "created_at",
     ]
     list_filter = [
+        SpaCenterFilter,
         "status",
         "created_at",
     ]
