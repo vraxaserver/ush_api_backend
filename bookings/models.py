@@ -375,15 +375,6 @@ class ProductOrder(models.Model):
         default="QAR",
     )
 
-    # Promotions
-    
-    gift_cards = models.ManyToManyField(
-        "promotions.GiftCard",
-        blank=True,
-        related_name="product_orders",
-        verbose_name=_("gift cards"),
-    )
-
     payment_method = models.CharField(
         _("payment method"),
         max_length=50,
