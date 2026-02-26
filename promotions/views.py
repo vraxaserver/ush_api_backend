@@ -519,9 +519,11 @@ class LoyaltyStatusView(APIView):
             status=LoyaltyReward.RewardStatus.REDEEMED,
         ).count()
 
+        context = {"request": request}
+
         return Response({
-            "trackers": LoyaltyTrackerSerializer(trackers, many=True).data,
-            "available_rewards": LoyaltyRewardSerializer(available_rewards, many=True).data,
+            "trackers": LoyaltyTrackerSerializer(trackers, many=True, context=context).data,
+            "available_rewards": LoyaltyRewardSerializer(available_rewards, many=True, context=context).data,
             "total_rewards_earned": total_earned,
             "total_rewards_redeemed": total_redeemed,
         })

@@ -535,6 +535,8 @@ class LoyaltyTrackerSerializer(serializers.ModelSerializer):
 
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_id = serializers.UUIDField(source="service.id", read_only=True)
+    service_description = serializers.CharField(source="service.description", read_only=True)
+    service_image = serializers.SerializerMethodField()
     progress_percentage = serializers.FloatField(read_only=True)
     bookings_remaining = serializers.IntegerField(read_only=True)
 
@@ -544,6 +546,8 @@ class LoyaltyTrackerSerializer(serializers.ModelSerializer):
             "id",
             "service_id",
             "service_name",
+            "service_description",
+            "service_image",
             "booking_count",
             "bookings_required",
             "bookings_remaining",
@@ -555,12 +559,27 @@ class LoyaltyTrackerSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_service_image(self, obj):
+        """Return the URL of the primary service image (or first available)."""
+        image = (
+            obj.service.images.filter(is_primary=True).first()
+            or obj.service.images.first()
+        )
+        if image and image.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(image.image.url)
+            return image.image.url
+        return None
+
 
 class LoyaltyRewardSerializer(serializers.ModelSerializer):
     """Serializer for LoyaltyReward – shows earned free-booking rewards."""
 
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_id = serializers.UUIDField(source="service.id", read_only=True)
+    service_description = serializers.CharField(source="service.description", read_only=True)
+    service_image = serializers.SerializerMethodField()
     is_available = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -569,6 +588,8 @@ class LoyaltyRewardSerializer(serializers.ModelSerializer):
             "id",
             "service_id",
             "service_name",
+            "service_description",
+            "service_image",
             "status",
             "is_available",
             "earned_from_booking",
@@ -579,6 +600,19 @@ class LoyaltyRewardSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_service_image(self, obj):
+        """Return the URL of the primary service image (or first available)."""
+        image = (
+            obj.service.images.filter(is_primary=True).first()
+            or obj.service.images.first()
+        )
+        if image and image.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(image.image.url)
+            return image.image.url
+        return None
 
 
 class LoyaltyRedeemSerializer(serializers.Serializer):
