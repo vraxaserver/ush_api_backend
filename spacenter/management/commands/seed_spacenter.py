@@ -210,6 +210,39 @@ ARRANGEMENT_TYPES = [
     ("vip_suite",   "VIP Suite",   "جناح VIP",    Decimal("1.5")),
 ]
 
+# Real spa center / luxury interior images from Unsplash (free, high-quality)
+# Keyed by city name (English) for deterministic assignment
+SPACENTER_IMAGE_URLS = {
+    # Qatar
+    "Doha":           "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=1200&h=800&fit=crop&q=80",
+    "Lusail":          "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=1200&h=800&fit=crop&q=80",
+    "Al Wakrah":       "https://images.unsplash.com/photo-1600334129128-685c5582fd35?w=1200&h=800&fit=crop&q=80",
+    "Al Khor":         "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&h=800&fit=crop&q=80",
+    "Al Rayyan":       "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1200&h=800&fit=crop&q=80",
+    # Kuwait
+    "Kuwait City":     "https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?w=1200&h=800&fit=crop&q=80",
+    "Salmiya":         "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=1200&h=800&fit=crop&q=80",
+    "Hawalli":          "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=1200&h=800&fit=crop&q=80",
+    "Jabriya":         "https://images.unsplash.com/photo-1519823551278-64ac92734314?w=1200&h=800&fit=crop&q=80",
+    "Farwaniya":       "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=1200&h=800&fit=crop&q=80",
+    # UAE
+    "Dubai":           "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&h=800&fit=crop&q=80",
+    "Abu Dhabi":       "https://images.unsplash.com/photo-1531299204812-e6d44d9a185c?w=1200&h=800&fit=crop&q=80",
+    "Sharjah":         "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?w=1200&h=800&fit=crop&q=80",
+    "Ajman":           "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=1200&h=800&fit=crop&q=80",
+    "Ras Al Khaimah":  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&h=800&fit=crop&q=80",
+}
+
+# Fallback colors per city for spa center placeholder images (if download fails)
+SPACENTER_COLORS = {
+    "Doha": (50, 120, 160), "Lusail": (60, 130, 170), "Al Wakrah": (70, 110, 150),
+    "Al Khor": (80, 140, 130), "Al Rayyan": (90, 100, 140),
+    "Kuwait City": (100, 130, 120), "Salmiya": (60, 100, 150), "Hawalli": (80, 120, 160),
+    "Jabriya": (70, 130, 140), "Farwaniya": (90, 110, 130),
+    "Dubai": (120, 100, 170), "Abu Dhabi": (100, 110, 150), "Sharjah": (80, 130, 130),
+    "Ajman": (70, 120, 140), "Ras Al Khaimah": (60, 140, 120),
+}
+
 
 class Command(BaseCommand):
     help = "Seed spa center data (countries, cities, centers, services, products, arrangements) with Arabic translations"
@@ -324,6 +357,26 @@ class Command(BaseCommand):
 
                 obj, created = SpaCenter.objects.update_or_create(slug=slug, defaults=defaults)
                 self.stdout.write(f"  {'Created' if created else 'Updated'}: {obj.name}")
+
+                # Assign image to spa center if none exists
+                if not obj.image:
+                    img_url = SPACENTER_IMAGE_URLS.get(city.name_en)
+                    img_data = None
+                    file_ext = "jpg"
+
+                    if img_url:
+                        self.stdout.write(f"    Downloading image for: {obj.name}...")
+                        img_data = _download_image(img_url)
+
+                    if not img_data:
+                        color = SPACENTER_COLORS.get(city.name_en, (80, 120, 150))
+                        img_data = _make_placeholder_image(f"USH Spa – {city.name_en}", width=1200, height=800, color=color)
+                        file_ext = "png"
+                        self.stdout.write(self.style.WARNING(f"    ⚠ Download failed, using placeholder for: {obj.name}"))
+
+                    fname = f"spacenter_{obj.id}.{file_ext}"
+                    obj.image.save(fname, ContentFile(img_data), save=True)
+                    self.stdout.write(f"    📷 Image set for: {obj.name}")
 
     # ── Operating Hours ────────────────────────────────────────
     def _seed_operating_hours(self):
