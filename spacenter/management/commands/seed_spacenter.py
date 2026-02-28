@@ -151,18 +151,18 @@ SERVICES = [
     {"name_en": "Couples Harmony Massage",         "name_ar": "مساج الانسجام للأزواج",            "spec": "Swedish Massage",      "dur": 90,  "price": Decimal("700"), "disc": Decimal("599"),  "home": False, "home_price": None,           "ideal_en": "Couples, Romance",                   "ideal_ar": "الأزواج، الرومانسية",                 "desc_en": "Side-by-side massage for couples in a private suite with candles and rose petals.",                              "desc_ar": "مساج جنباً إلى جنب للأزواج في جناح خاص مع شموع وبتلات الورد."},
 ]
 
-# Real spa service images from Unsplash (free, high-quality)
+# Real spa service images from Pexels (free, high-quality, verified working)
 SERVICE_IMAGE_URLS = {
-    "Classic Swedish Massage":    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=800&h=600&fit=crop&q=80",
-    "Deep Tissue Recovery":       "https://images.unsplash.com/photo-1519823551278-64ac92734314?w=800&h=600&fit=crop&q=80",
-    "Signature Aromatherapy":     "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=800&h=600&fit=crop&q=80",
-    "Volcanic Hot Stone Therapy": "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=800&h=600&fit=crop&q=80",
-    "Radiance Facial Treatment":  "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&h=600&fit=crop&q=80",
-    "Detox Body Scrub & Wrap":    "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=800&h=600&fit=crop&q=80",
-    "Traditional Thai Massage":   "https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?w=800&h=600&fit=crop&q=80",
-    "Holistic Reflexology":       "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?w=800&h=600&fit=crop&q=80",
-    "Royal Hammam Experience":    "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=800&h=600&fit=crop&q=80",
-    "Couples Harmony Massage":    "https://images.unsplash.com/photo-1531299204812-e6d44d9a185c?w=800&h=600&fit=crop&q=80",
+    "Classic Swedish Massage":    "https://images.pexels.com/photos/3757993/pexels-photo-3757993.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Deep Tissue Recovery":       "https://images.pexels.com/photos/3764568/pexels-photo-3764568.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Signature Aromatherapy":     "https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Volcanic Hot Stone Therapy": "https://images.pexels.com/photos/3188585/pexels-photo-3188585.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Radiance Facial Treatment":  "https://images.pexels.com/photos/3985329/pexels-photo-3985329.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Detox Body Scrub & Wrap":    "https://images.pexels.com/photos/3737821/pexels-photo-3737821.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Traditional Thai Massage":   "https://images.pexels.com/photos/5794058/pexels-photo-5794058.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Holistic Reflexology":       "https://images.pexels.com/photos/3737832/pexels-photo-3737832.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Royal Hammam Experience":    "https://images.pexels.com/photos/3997993/pexels-photo-3997993.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
+    "Couples Harmony Massage":    "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",
 }
 
 # Fallback colors per specialty for placeholder images (used if download fails)
@@ -210,27 +210,28 @@ ARRANGEMENT_TYPES = [
     ("vip_suite",   "VIP Suite",   "جناح VIP",    Decimal("1.5")),
 ]
 
-# Real spa center / luxury interior images from Unsplash (free, high-quality)
+# Real spa center / luxury interior images from Pexels (free, high-quality, verified working)
+# Each city gets a unique spa/wellness/luxury interior photo
 # Keyed by city name (English) for deterministic assignment
 SPACENTER_IMAGE_URLS = {
     # Qatar
-    "Doha":           "https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=1200&h=800&fit=crop&q=80",
-    "Lusail":          "https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=1200&h=800&fit=crop&q=80",
-    "Al Wakrah":       "https://images.unsplash.com/photo-1600334129128-685c5582fd35?w=1200&h=800&fit=crop&q=80",
-    "Al Khor":         "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200&h=800&fit=crop&q=80",
-    "Al Rayyan":       "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1200&h=800&fit=crop&q=80",
+    "Doha":           "https://images.pexels.com/photos/3757942/pexels-photo-3757942.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa pool interior
+    "Lusail":          "https://images.pexels.com/photos/1579739/pexels-photo-1579739.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa reception luxury
+    "Al Wakrah":       "https://images.pexels.com/photos/3865676/pexels-photo-3865676.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Wellness candles
+    "Al Khor":         "https://images.pexels.com/photos/3997993/pexels-photo-3997993.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa treatment room
+    "Al Rayyan":       "https://images.pexels.com/photos/261102/pexels-photo-261102.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",     # Luxury hotel pool
     # Kuwait
-    "Kuwait City":     "https://images.unsplash.com/photo-1596178060671-7a80dc8059ea?w=1200&h=800&fit=crop&q=80",
-    "Salmiya":         "https://images.unsplash.com/photo-1591343395082-e120087004b4?w=1200&h=800&fit=crop&q=80",
-    "Hawalli":          "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=1200&h=800&fit=crop&q=80",
-    "Jabriya":         "https://images.unsplash.com/photo-1519823551278-64ac92734314?w=1200&h=800&fit=crop&q=80",
-    "Farwaniya":       "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=1200&h=800&fit=crop&q=80",
+    "Kuwait City":     "https://images.pexels.com/photos/3757952/pexels-photo-3757952.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Massage table setup
+    "Salmiya":         "https://images.pexels.com/photos/6585759/pexels-photo-6585759.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa relaxation lounge
+    "Hawalli":          "https://images.pexels.com/photos/1029604/pexels-photo-1029604.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",  # Zen spa stones
+    "Jabriya":         "https://images.pexels.com/photos/3910071/pexels-photo-3910071.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Candle relaxation
+    "Farwaniya":       "https://images.pexels.com/photos/3735149/pexels-photo-3735149.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa towels flowers
     # UAE
-    "Dubai":           "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&h=800&fit=crop&q=80",
-    "Abu Dhabi":       "https://images.unsplash.com/photo-1531299204812-e6d44d9a185c?w=1200&h=800&fit=crop&q=80",
-    "Sharjah":         "https://images.unsplash.com/photo-1512290923902-8a9f81dc236c?w=1200&h=800&fit=crop&q=80",
-    "Ajman":           "https://images.unsplash.com/photo-1560750588-73207b1ef5b8?w=1200&h=800&fit=crop&q=80",
-    "Ras Al Khaimah":  "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&h=800&fit=crop&q=80",
+    "Dubai":           "https://images.pexels.com/photos/261327/pexels-photo-261327.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",     # Indoor pool luxury
+    "Abu Dhabi":       "https://images.pexels.com/photos/2507007/pexels-photo-2507007.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Spa entrance
+    "Sharjah":         "https://images.pexels.com/photos/3225529/pexels-photo-3225529.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Wellness retreat
+    "Ajman":           "https://images.pexels.com/photos/1910472/pexels-photo-1910472.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",   # Luxury bathroom spa
+    "Ras Al Khaimah":  "https://images.pexels.com/photos/189296/pexels-photo-189296.jpeg?auto=compress&cs=tinysrgb&w=1200&h=800&dpr=1",     # Luxury resort pool
 }
 
 # Fallback colors per city for spa center placeholder images (if download fails)
