@@ -469,6 +469,11 @@ STRIPE_PUBLISHABLE_KEY = config("STRIPE_PUBLISHABLE_KEY", default="")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 
 # ============================================================================
+# Site Base URL (used for public gift card pages, SMS links, etc.)
+# ============================================================================
+SITE_BASE_URL = config("SITE_BASE_URL", default="http://localhost:8000")
+
+# ============================================================================
 # Logging Configuration
 # ============================================================================
 LOGGING = {

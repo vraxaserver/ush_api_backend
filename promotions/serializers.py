@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
+    GiftCard,
     LoyaltyReward,
     LoyaltyTracker,
 )
@@ -164,3 +165,364 @@ class LoyaltyRedeemSerializer(serializers.Serializer):
 
         return reward
 
+
+# =============================================================================
+# Gift Card Serializers
+# =============================================================================
+
+class GiftCardCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a gift card.
+
+    Authenticated user selects a service, spa center, and provides recipient phone number.
+    """
+
+    service_id = serializers.UUIDField(write_only=True)
+    spa_center_id = serializers.UUIDField(
+        write_only=True,
+        help_text="Spa center ID where the service will be redeemed",
+    )
+    service_arrangement_id = serializers.UUIDField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="Optional service arrangement (room/setup) ID",
+    )
+    extra_minutes = serializers.IntegerField(
+        required=False,
+        default=0,
+        min_value=0,
+        help_text="Extra minutes to add to the service duration",
+    )
+    total_duration = serializers.IntegerField(
+        min_value=1,
+        help_text="Total duration in minutes (service time + extra time)",
+    )
+    recipient_phone = serializers.CharField(
+        help_text="Phone number of the gift recipient (E.164 format, e.g., +97450123456)"
+    )
+    recipient_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional name for the recipient",
+    )
+    gift_message = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional personal message to the recipient",
+    )
+
+    class Meta:
+        model = GiftCard
+        fields = [
+            "service_id",
+            "spa_center_id",
+            "service_arrangement_id",
+            "extra_minutes",
+            "total_duration",
+            "recipient_phone",
+            "recipient_name",
+            "gift_message",
+        ]
+
+    def validate_service_id(self, value):
+        """Ensure the service exists and is active."""
+        from spacenter.models import Service
+        try:
+            Service.objects.get(id=value, is_active=True)
+        except Service.DoesNotExist:
+            raise serializers.ValidationError("Service not found or is inactive.")
+        return value
+
+    def validate_spa_center_id(self, value):
+        """Ensure the spa center exists and is active."""
+        from spacenter.models import SpaCenter
+        try:
+            SpaCenter.objects.get(id=value, is_active=True)
+        except SpaCenter.DoesNotExist:
+            raise serializers.ValidationError("Spa center not found or is inactive.")
+        return value
+
+    def validate_service_arrangement_id(self, value):
+        """Ensure the service arrangement exists and is active."""
+        if value is None:
+            return value
+        from spacenter.models import ServiceArrangement
+        try:
+            ServiceArrangement.objects.get(id=value, is_active=True)
+        except ServiceArrangement.DoesNotExist:
+            raise serializers.ValidationError("Service arrangement not found or is inactive.")
+        return value
+
+    def validate(self, attrs):
+        """Ensure arrangement belongs to the selected service and spa center offers the service."""
+        service_id = attrs.get("service_id")
+        spa_center_id = attrs.get("spa_center_id")
+        arrangement_id = attrs.get("service_arrangement_id")
+
+        # Verify the service belongs to the spa center
+        from spacenter.models import Service
+        try:
+            service = Service.objects.get(id=service_id)
+            if str(service.spa_center_id) != str(spa_center_id):
+                raise serializers.ValidationError({
+                    "spa_center_id": "This spa center does not offer the selected service."
+                })
+        except Service.DoesNotExist:
+            pass  # Already validated above
+
+        # Verify arrangement belongs to the service
+        if arrangement_id:
+            from spacenter.models import ServiceArrangement
+            try:
+                arrangement = ServiceArrangement.objects.get(id=arrangement_id)
+                if str(arrangement.service_id) != str(service_id):
+                    raise serializers.ValidationError({
+                        "service_arrangement_id": "This arrangement does not belong to the selected service."
+                    })
+            except ServiceArrangement.DoesNotExist:
+                pass  # Already validated above
+
+        return attrs
+
+    def create(self, validated_data):
+        """Create a gift card with provided fields."""
+        from spacenter.models import Service, ServiceArrangement, SpaCenter
+
+        service_id = validated_data.pop("service_id")
+        spa_center_id = validated_data.pop("spa_center_id")
+        arrangement_id = validated_data.pop("service_arrangement_id", None)
+        extra_minutes = validated_data.pop("extra_minutes", 0)
+        total_duration = validated_data.pop("total_duration")
+
+        service = Service.objects.get(id=service_id)
+        spa_center = SpaCenter.objects.get(id=spa_center_id)
+
+        arrangement = None
+        if arrangement_id:
+            arrangement = ServiceArrangement.objects.get(id=arrangement_id)
+
+        gift_card = GiftCard.objects.create(
+            sender=self.context["request"].user,
+            service=service,
+            spa_center=spa_center,
+            service_arrangement=arrangement,
+            extra_minutes=extra_minutes,
+            total_duration=total_duration,
+            amount=service.current_price,
+            currency=service.currency,
+            recipient_phone=validated_data["recipient_phone"],
+            recipient_name=validated_data.get("recipient_name", ""),
+            gift_message=validated_data.get("gift_message", ""),
+        )
+
+        return gift_card
+
+
+class GiftCardDetailSerializer(serializers.ModelSerializer):
+    """Detailed serializer for gift cards – for authenticated sender."""
+
+    sender_name = serializers.SerializerMethodField()
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_description = serializers.CharField(source="service.description", read_only=True)
+    service_duration = serializers.IntegerField(source="service.duration_minutes", read_only=True)
+    service_image = serializers.SerializerMethodField()
+    service_arrangement_label = serializers.CharField(
+        source="service_arrangement.arrangement_label", read_only=True, default=None,
+    )
+    service_arrangement_type = serializers.CharField(
+        source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
+    )
+    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
+    spa_center_address = serializers.CharField(source="spa_center.full_address", read_only=True)
+    spa_center_phone = serializers.CharField(source="spa_center.phone", read_only=True)
+    public_url = serializers.SerializerMethodField()
+    is_redeemable = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = GiftCard
+        fields = [
+            "id",
+            "sender_name",
+            "recipient_phone",
+            "recipient_name",
+            "gift_message",
+            "service",
+            "service_name",
+            "service_description",
+            "service_duration",
+            "service_image",
+            "service_arrangement",
+            "service_arrangement_label",
+            "service_arrangement_type",
+            "extra_minutes",
+            "total_duration",
+            "spa_center",
+            "spa_center_name",
+            "spa_center_address",
+            "spa_center_phone",
+            "amount",
+            "currency",
+            "status",
+            "is_redeemable",
+            "public_url",
+            "public_token",
+            "sms_sent",
+            "sms_sent_at",
+            "redeemed_at",
+            "expires_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_sender_name(self, obj):
+        return obj.sender.get_full_name() or str(obj.sender)
+
+    def get_service_image(self, obj):
+        """Return the URL of the primary service image (or first available)."""
+        image = (
+            obj.service.images.filter(is_primary=True).first()
+            or obj.service.images.first()
+        )
+        if image and image.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(image.image.url)
+            return image.image.url
+        return None
+
+    def get_public_url(self, obj):
+        return obj.get_public_url()
+
+
+class GiftCardPublicSerializer(serializers.ModelSerializer):
+    """
+    Public serializer for gift cards – shown on the public page.
+
+    Does NOT expose the secret code, sender details, or internal IDs.
+    Shows service details, location, and validity status.
+    """
+
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_description = serializers.CharField(source="service.description", read_only=True)
+    service_duration = serializers.IntegerField(source="service.duration_minutes", read_only=True)
+    service_image = serializers.SerializerMethodField()
+    service_arrangement_label = serializers.CharField(
+        source="service_arrangement.arrangement_label", read_only=True, default=None,
+    )
+    service_arrangement_type = serializers.CharField(
+        source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
+    )
+    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
+    spa_center_address = serializers.CharField(source="spa_center.full_address", read_only=True)
+    spa_center_city = serializers.CharField(source="spa_center.city.name", read_only=True)
+    spa_center_country = serializers.CharField(source="spa_center.country.name", read_only=True)
+    spa_center_phone = serializers.CharField(source="spa_center.phone", read_only=True)
+    spa_center_latitude = serializers.DecimalField(
+        source="spa_center.latitude", max_digits=9, decimal_places=6, read_only=True,
+    )
+    spa_center_longitude = serializers.DecimalField(
+        source="spa_center.longitude", max_digits=9, decimal_places=6, read_only=True,
+    )
+    sender_name = serializers.SerializerMethodField()
+    is_valid = serializers.SerializerMethodField()
+    is_redeemable = serializers.BooleanField(read_only=True)
+    is_locked = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = GiftCard
+        fields = [
+            "public_token",
+            "sender_name",
+            "recipient_name",
+            "gift_message",
+            "service_name",
+            "service_description",
+            "service_duration",
+            "service_image",
+            "service_arrangement_label",
+            "service_arrangement_type",
+            "extra_minutes",
+            "total_duration",
+            "spa_center_name",
+            "spa_center_address",
+            "spa_center_city",
+            "spa_center_country",
+            "spa_center_phone",
+            "spa_center_latitude",
+            "spa_center_longitude",
+            "amount",
+            "currency",
+            "status",
+            "is_valid",
+            "is_redeemable",
+            "is_locked",
+            "expires_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_sender_name(self, obj):
+        return obj.sender.get_full_name() or "A friend"
+
+    def get_service_image(self, obj):
+        """Return the URL of the primary service image (or first available)."""
+        image = (
+            obj.service.images.filter(is_primary=True).first()
+            or obj.service.images.first()
+        )
+        if image and image.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(image.image.url)
+            return image.image.url
+        return None
+
+    def get_is_valid(self, obj):
+        """Check if the gift card is currently valid and redeemable."""
+        return obj.is_redeemable
+
+
+class GiftCardValidityCheckSerializer(serializers.Serializer):
+    """Serializer for checking gift card validity (public, no auth required)."""
+
+    public_token = serializers.CharField()
+
+    def validate_public_token(self, value):
+        try:
+            gift_card = GiftCard.objects.select_related(
+                "service", "spa_center", "spa_center__city", "spa_center__country", "sender",
+            ).get(public_token=value)
+        except GiftCard.DoesNotExist:
+            raise serializers.ValidationError("Gift card not found.")
+        return value
+
+
+class GiftCardRedeemSerializer(serializers.Serializer):
+    """
+    Serializer for redeeming a gift card (public, no auth required).
+
+    Requires the public token and the 6-digit secret code.
+    """
+
+    public_token = serializers.CharField()
+    secret_code = serializers.CharField(
+        min_length=6,
+        max_length=6,
+        help_text="6-digit secret code received via SMS",
+    )
+
+    def validate_public_token(self, value):
+        try:
+            gift_card = GiftCard.objects.select_related(
+                "service", "spa_center", "sender",
+            ).get(public_token=value)
+        except GiftCard.DoesNotExist:
+            raise serializers.ValidationError("Gift card not found.")
+        return value
+
+    def validate_secret_code(self, value):
+        if not value.isdigit() or len(value) != 6:
+            raise serializers.ValidationError("Secret code must be exactly 6 digits.")
+        return value

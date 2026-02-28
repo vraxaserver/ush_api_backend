@@ -1,5 +1,5 @@
 """
-Promotions Signals – Loyalty Program.
+Promotions Signals – Loyalty Program & Gift Cards.
 
 Hooks into booking lifecycle to award loyalty points when a booking is completed.
 """
