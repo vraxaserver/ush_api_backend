@@ -27,6 +27,14 @@ from phonenumber_field.modelfields import PhoneNumberField
 # Default number of successful bookings required to earn a free booking
 LOYALTY_BOOKINGS_REQUIRED = 5
 
+# Default number of days before a loyalty reward expires
+LOYALTY_REWARD_EXPIRY_DAYS = 10
+
+
+def default_reward_expiry():
+    """Return the default expiry datetime for a loyalty reward (10 days from now)."""
+    return timezone.now() + timezone.timedelta(days=LOYALTY_REWARD_EXPIRY_DAYS)
+
 
 class LoyaltyTracker(models.Model):
     """
@@ -224,12 +232,14 @@ class LoyaltyReward(models.Model):
         blank=True,
     )
 
-    # Optional expiry for the reward
+    # Expiry – defaults to 10 days after creation
     expires_at = models.DateTimeField(
         _("expires at"),
-        null=True,
-        blank=True,
-        help_text=_("Leave blank for no expiry"),
+        default=default_reward_expiry,
+        help_text=_(
+            "Reward expires after this date and cannot be redeemed. "
+            "Defaults to 10 days after creation. Admin can adjust."
+        ),
     )
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
