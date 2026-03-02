@@ -13,6 +13,15 @@ from .models import (
 
 
 # =============================================================================
+# Loyalty Admin Filters
+# =============================================================================
+
+from admin_searchable_dropdown.filters import AutocompleteFilterFactory
+
+LoyaltySpaCenterFilter = AutocompleteFilterFactory("Spa Center", "service__spa_center")
+
+
+# =============================================================================
 # Loyalty Program Admin
 # =============================================================================
 
@@ -59,7 +68,7 @@ class LoyaltyTrackerAdmin(admin.ModelAdmin):
         "updated_at",
     ]
     list_filter = [
-        "service__spa_center",
+        LoyaltySpaCenterFilter,
         "bookings_required",
     ]
     search_fields = [
@@ -146,7 +155,7 @@ class LoyaltyRewardAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         "status",
-        "service__spa_center",
+        LoyaltySpaCenterFilter,
     ]
     search_fields = [
         "customer__email",
