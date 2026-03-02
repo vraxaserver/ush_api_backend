@@ -51,7 +51,7 @@ class LoyaltyTrackerViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return LoyaltyTracker.objects.filter(
             customer=self.request.user,
-        ).select_related("service")
+        ).select_related("service", "service_arrangement")
 
 
 class LoyaltyRewardViewSet(viewsets.ReadOnlyModelViewSet):
@@ -74,7 +74,7 @@ class LoyaltyRewardViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         return LoyaltyReward.objects.filter(
             customer=self.request.user,
-        ).select_related("service")
+        ).select_related("service", "service_arrangement")
 
     @action(detail=False, methods=["post"])
     def redeem(self, request):
@@ -124,12 +124,12 @@ class LoyaltyStatusView(APIView):
 
         trackers = LoyaltyTracker.objects.filter(
             customer=user,
-        ).select_related("service")
+        ).select_related("service", "service_arrangement")
 
         available_rewards = LoyaltyReward.objects.filter(
             customer=user,
             status=LoyaltyReward.RewardStatus.AVAILABLE,
-        ).select_related("service")
+        ).select_related("service", "service_arrangement")
 
         all_rewards = LoyaltyReward.objects.filter(customer=user)
         total_earned = all_rewards.count()

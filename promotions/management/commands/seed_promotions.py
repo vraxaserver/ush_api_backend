@@ -223,6 +223,16 @@ class Command(BaseCommand):
             tracked_services = random.sample(eligible_services, num_services)
 
             for service in tracked_services:
+                # Pick a random arrangement for this service
+                arrangements = list(
+                    ServiceArrangement.objects.filter(
+                        service=service,
+                        spa_center=service.spa_center,
+                        is_active=True,
+                    )
+                )
+                arrangement = random.choice(arrangements) if arrangements else None
+
                 booking_count = random.randint(0, 4)
                 total_bookings = booking_count + random.randint(0, 10)
                 total_rewards = total_bookings // 5
@@ -230,6 +240,7 @@ class Command(BaseCommand):
                 tracker, created = LoyaltyTracker.objects.update_or_create(
                     customer=customer,
                     service=service,
+                    service_arrangement=arrangement,
                     defaults={
                         "booking_count": booking_count,
                         "bookings_required": 5,
@@ -239,9 +250,14 @@ class Command(BaseCommand):
                 )
                 if created:
                     created_count += 1
+
+                arr_label = (
+                    f" ({arrangement.arrangement_label})"
+                    if arrangement else ""
+                )
                 self.stdout.write(
                     f"  {'Created' if created else 'Updated'}: "
-                    f"{customer.get_full_name()} – {service.name} "
+                    f"{customer.get_full_name()} – {service.name}{arr_label} "
                     f"({tracker.booking_count}/5)"
                 )
 
@@ -280,6 +296,7 @@ class Command(BaseCommand):
                 reward = LoyaltyReward(
                     customer=tracker.customer,
                     service=tracker.service,
+                    service_arrangement=tracker.service_arrangement,
                     status=status,
                     expires_at=now + timedelta(days=random.randint(30, 180)),
                 )
@@ -291,9 +308,14 @@ class Command(BaseCommand):
 
                 reward.save()
                 created_count += 1
+
+                arr_label = (
+                    f" ({tracker.service_arrangement.arrangement_label})"
+                    if tracker.service_arrangement else ""
+                )
                 self.stdout.write(
                     f"  Created: Reward for {tracker.customer.get_full_name()} "
-                    f"– {tracker.service.name} ({reward.get_status_display()})"
+                    f"– {tracker.service.name}{arr_label} ({reward.get_status_display()})"
                 )
 
         self.stdout.write(f"  Total loyalty rewards created: {created_count}")

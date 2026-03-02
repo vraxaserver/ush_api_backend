@@ -30,7 +30,7 @@ LOYALTY_BOOKINGS_REQUIRED = 5
 
 class LoyaltyTracker(models.Model):
     """
-    Tracks loyalty progress per customer per service.
+    Tracks loyalty progress per customer per service per arrangement.
 
     Incremented on every successful (paid) booking for an eligible service.
     When `booking_count` reaches `bookings_required` (default 5),
@@ -50,6 +50,15 @@ class LoyaltyTracker(models.Model):
         on_delete=models.CASCADE,
         related_name="loyalty_trackers",
         verbose_name=_("service"),
+    )
+    service_arrangement = models.ForeignKey(
+        "spacenter.ServiceArrangement",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="loyalty_trackers",
+        verbose_name=_("service arrangement"),
+        help_text=_("Room/setup configuration for this loyalty tracker"),
     )
 
     # Rolling counter – resets to 0 after reward is issued
@@ -84,15 +93,18 @@ class LoyaltyTracker(models.Model):
     class Meta:
         verbose_name = _("loyalty tracker")
         verbose_name_plural = _("loyalty trackers")
-        unique_together = [("customer", "service")]
+        unique_together = [("customer", "service", "service_arrangement")]
         ordering = ["-updated_at"]
         indexes = [
-            models.Index(fields=["customer", "service"]),
+            models.Index(fields=["customer", "service", "service_arrangement"]),
         ]
 
     def __str__(self):
+        label = self.service.name
+        if self.service_arrangement:
+            label += f" ({self.service_arrangement.arrangement_label})"
         return (
-            f"{self.customer} – {self.service.name}: "
+            f"{self.customer} – {label}: "
             f"{self.booking_count}/{self.bookings_required}"
         )
 
@@ -126,6 +138,7 @@ class LoyaltyTracker(models.Model):
             reward = LoyaltyReward.objects.create(
                 customer=self.customer,
                 service=self.service,
+                service_arrangement=self.service_arrangement,
                 earned_from_booking=booking,
             )
             self.booking_count = 0
@@ -167,6 +180,15 @@ class LoyaltyReward(models.Model):
         on_delete=models.CASCADE,
         related_name="loyalty_rewards",
         verbose_name=_("service"),
+    )
+    service_arrangement = models.ForeignKey(
+        "spacenter.ServiceArrangement",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="loyalty_rewards",
+        verbose_name=_("service arrangement"),
+        help_text=_("Room/setup configuration for this loyalty reward"),
     )
 
     status = models.CharField(
@@ -223,8 +245,11 @@ class LoyaltyReward(models.Model):
         ]
 
     def __str__(self):
+        label = self.service.name
+        if self.service_arrangement:
+            label += f" ({self.service_arrangement.arrangement_label})"
         return (
-            f"Reward for {self.customer} – {self.service.name} "
+            f"Reward for {self.customer} – {label} "
             f"({self.get_status_display()})"
         )
 

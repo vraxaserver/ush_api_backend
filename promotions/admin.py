@@ -50,6 +50,7 @@ class LoyaltyTrackerAdmin(admin.ModelAdmin):
     list_display = [
         "customer",
         "service",
+        "service_arrangement",
         "progress_display",
         "booking_count",
         "bookings_required",
@@ -71,6 +72,7 @@ class LoyaltyTrackerAdmin(admin.ModelAdmin):
     readonly_fields = [
         "customer",
         "service",
+        "service_arrangement",
         "booking_count",
         "bookings_required",
         "total_bookings",
@@ -78,11 +80,11 @@ class LoyaltyTrackerAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
-    autocomplete_fields = ["customer", "service"]
+    autocomplete_fields = ["customer", "service", "service_arrangement"]
 
     fieldsets = (
         ("Tracking", {
-            "fields": ("customer", "service")
+            "fields": ("customer", "service", "service_arrangement")
         }),
         ("Progress", {
             "fields": (
@@ -134,6 +136,7 @@ class LoyaltyRewardAdmin(admin.ModelAdmin):
     list_display = [
         "customer",
         "service",
+        "service_arrangement",
         "status_display",
         "earned_from_booking",
         "redeemed_in_booking",
@@ -155,6 +158,7 @@ class LoyaltyRewardAdmin(admin.ModelAdmin):
     readonly_fields = [
         "customer",
         "service",
+        "service_arrangement",
         "status",
         "earned_from_booking",
         "redeemed_in_booking",
@@ -165,7 +169,7 @@ class LoyaltyRewardAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Reward", {
-            "fields": ("customer", "service", "status")
+            "fields": ("customer", "service", "service_arrangement", "status")
         }),
         ("Bookings", {
             "fields": ("earned_from_booking", "redeemed_in_booking")

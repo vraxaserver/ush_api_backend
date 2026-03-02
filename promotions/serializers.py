@@ -19,12 +19,21 @@ from .models import (
 # =============================================================================
 
 class LoyaltyTrackerSerializer(serializers.ModelSerializer):
-    """Serializer for LoyaltyTracker – shows progress per service."""
+    """Serializer for LoyaltyTracker – shows progress per service per arrangement."""
 
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_id = serializers.UUIDField(source="service.id", read_only=True)
     service_description = serializers.CharField(source="service.description", read_only=True)
     service_image = serializers.SerializerMethodField()
+    service_arrangement_id = serializers.UUIDField(
+        source="service_arrangement.id", read_only=True, default=None,
+    )
+    service_arrangement_label = serializers.CharField(
+        source="service_arrangement.arrangement_label", read_only=True, default=None,
+    )
+    service_arrangement_type = serializers.CharField(
+        source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
+    )
     progress_percentage = serializers.FloatField(read_only=True)
     bookings_remaining = serializers.IntegerField(read_only=True)
 
@@ -36,6 +45,9 @@ class LoyaltyTrackerSerializer(serializers.ModelSerializer):
             "service_name",
             "service_description",
             "service_image",
+            "service_arrangement_id",
+            "service_arrangement_label",
+            "service_arrangement_type",
             "booking_count",
             "bookings_required",
             "bookings_remaining",
@@ -68,6 +80,15 @@ class LoyaltyRewardSerializer(serializers.ModelSerializer):
     service_id = serializers.UUIDField(source="service.id", read_only=True)
     service_description = serializers.CharField(source="service.description", read_only=True)
     service_image = serializers.SerializerMethodField()
+    service_arrangement_id = serializers.UUIDField(
+        source="service_arrangement.id", read_only=True, default=None,
+    )
+    service_arrangement_label = serializers.CharField(
+        source="service_arrangement.arrangement_label", read_only=True, default=None,
+    )
+    service_arrangement_type = serializers.CharField(
+        source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
+    )
     is_available = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -78,6 +99,9 @@ class LoyaltyRewardSerializer(serializers.ModelSerializer):
             "service_name",
             "service_description",
             "service_image",
+            "service_arrangement_id",
+            "service_arrangement_label",
+            "service_arrangement_type",
             "status",
             "is_available",
             "earned_from_booking",

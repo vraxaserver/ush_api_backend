@@ -74,12 +74,16 @@ def award_loyalty_on_payment_success(sender, instance, **kwargs):
         )
         return
 
+    # Get the service arrangement from the booking
+    service_arrangement = getattr(instance, "service_arrangement", None)
+
     # Get or create the loyalty tracker
     from promotions.models import LoyaltyTracker
 
     tracker, created = LoyaltyTracker.objects.get_or_create(
         customer=customer,
         service=service,
+        service_arrangement=service_arrangement,
     )
 
     reward = tracker.record_booking(booking=instance)
