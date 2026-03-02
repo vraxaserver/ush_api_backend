@@ -22,7 +22,7 @@ from .serializers import (
     GiftCardPublicSerializer,
     GiftCardRedeemSerializer,
     GiftCardValidityCheckSerializer,
-    LoyaltyRedeemSerializer,
+    LoyaltyRedeemBookingSerializer,
     LoyaltyRewardSerializer,
     LoyaltyTrackerSerializer,
 )
@@ -79,24 +79,32 @@ class LoyaltyRewardViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["post"])
     def redeem(self, request):
         """
-        Redeem a loyalty reward for a free booking.
+        Redeem a loyalty reward by creating a free booking.
 
         Request body:
         - reward_id: UUID of the loyalty reward
-        - booking_id: (optional) UUID of the free booking to link
+        - date: Booking date (YYYY-MM-DD)
+        - start_time: Booking start time (HH:MM)
+        - customer_message: (optional) Special requests
 
-        Returns the updated reward details.
+        Returns the created booking and updated reward details.
         """
-        serializer = LoyaltyRedeemSerializer(
+        serializer = LoyaltyRedeemBookingSerializer(
             data=request.data,
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        reward = serializer.save()
+        booking = serializer.save()
+
+        # Reload the reward for fresh status
+        from .models import LoyaltyReward
+        reward = booking.loyalty_reward
+        reward.refresh_from_db()
 
         return Response({
             "success": True,
-            "message": f"Loyalty reward redeemed successfully for service: {reward.service.name}.",
+            "message": f"Loyalty reward redeemed. Free booking created for {booking.service.name}.",
+            "booking": serializer.to_representation(booking),
             "reward": LoyaltyRewardSerializer(reward).data,
         })
 

@@ -221,6 +221,22 @@ class Booking(models.Model):
         help_text=_("Internal notes for staff"),
     )
 
+    # Loyalty reward redemption
+    is_loyalty_reward = models.BooleanField(
+        _("is loyalty reward"),
+        default=False,
+        help_text=_("Whether this booking was created by redeeming a loyalty reward"),
+    )
+    loyalty_reward = models.ForeignKey(
+        "promotions.LoyaltyReward",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="loyalty_bookings",
+        verbose_name=_("loyalty reward"),
+        help_text=_("The loyalty reward redeemed for this booking"),
+    )
+
     # Status tracking
     status = models.CharField(
         _("status"),

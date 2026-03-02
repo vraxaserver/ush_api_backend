@@ -348,7 +348,8 @@ class BookingViewSet(viewsets.ModelViewSet):
             "service",
             "service_arrangement__service",
             "service_arrangement__spa_center",
-            "time_slot"
+            "time_slot",
+            "loyalty_reward",
         )
 
     def perform_create(self, serializer):

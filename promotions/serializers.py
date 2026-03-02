@@ -4,6 +4,7 @@ Promotions (Gift Cards & Loyalty Program) Serializers.
 
 from decimal import Decimal
 
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -127,21 +128,35 @@ class LoyaltyRewardSerializer(serializers.ModelSerializer):
         return None
 
 
-class LoyaltyRedeemSerializer(serializers.Serializer):
-    """Serializer for redeeming a loyalty reward."""
+class LoyaltyRedeemBookingSerializer(serializers.Serializer):
+    """
+    Redeem a loyalty reward by creating a free booking.
+
+    Creates a Booking + TimeSlot atomically, marks the reward as redeemed,
+    and links the reward to the new booking. The service and arrangement
+    are resolved from the reward itself.
+
+    Input fields:
+        - reward_id (UUID): The loyalty reward to redeem
+        - date (date): Desired booking date
+        - start_time (time): Desired start time
+        - customer_message (str, optional): Special requests
+    """
 
     reward_id = serializers.UUIDField()
-    booking_id = serializers.UUIDField(
-        required=False,
-        allow_null=True,
-        help_text="Optional: Link this reward to a specific free booking.",
+    date = serializers.DateField()
+    start_time = serializers.TimeField()
+    customer_message = serializers.CharField(
+        required=False, allow_blank=True, default=""
     )
 
     def validate_reward_id(self, value):
-        """Ensure the reward exists and belongs to the current user."""
+        """Ensure the reward exists, belongs to the current user, and is available."""
         request = self.context.get("request")
         try:
-            reward = LoyaltyReward.objects.select_related("service").get(id=value)
+            reward = LoyaltyReward.objects.select_related(
+                "service", "service_arrangement", "service__spa_center",
+            ).get(id=value)
         except LoyaltyReward.DoesNotExist:
             raise serializers.ValidationError("Loyalty reward not found.")
 
@@ -161,33 +176,186 @@ class LoyaltyRedeemSerializer(serializers.Serializer):
 
         return value
 
-    def validate(self, attrs):
-        reward = LoyaltyReward.objects.select_related("service").get(id=attrs["reward_id"])
-        attrs["reward"] = reward
+    def validate_date(self, value):
+        """Validate that the date is not in the past."""
+        from django.utils import timezone as tz
+        today = tz.now().date()
+        if value < today:
+            raise serializers.ValidationError("Cannot book for a past date.")
+        return value
 
-        booking_id = attrs.get("booking_id")
-        if booking_id:
-            from bookings.models import Booking
-            try:
-                booking = Booking.objects.get(id=booking_id)
-                attrs["booking"] = booking
-            except Booking.DoesNotExist:
-                raise serializers.ValidationError({"booking_id": "Booking not found."})
-        else:
-            attrs["booking"] = None
+    def validate(self, attrs):
+        """
+        Cross-field validation:
+        - Resolve service, arrangement, spa_center from the reward
+        - Calculate end time
+        - Check time slot availability
+        """
+        from bookings.models import Booking, TimeSlot
+
+        reward = LoyaltyReward.objects.select_related(
+            "service", "service_arrangement",
+            "service__spa_center", "service_arrangement__spa_center",
+        ).get(id=attrs["reward_id"])
+
+        service = reward.service
+        arrangement = reward.service_arrangement
+        spa_center = service.spa_center
+
+        if not arrangement:
+            raise serializers.ValidationError({
+                "reward_id": "This reward has no service arrangement. Cannot create booking."
+            })
+
+        if not arrangement.is_active:
+            raise serializers.ValidationError({
+                "reward_id": "The service arrangement for this reward is no longer active."
+            })
+
+        date = attrs["date"]
+        start_time = attrs["start_time"]
+
+        # Check spa center operating hours
+        opening_time = spa_center.default_opening_time
+        closing_time = spa_center.default_closing_time
+
+        if start_time < opening_time:
+            raise serializers.ValidationError({
+                "start_time": f"Spa center opens at {opening_time}."
+            })
+
+        # Calculate end time
+        service_duration = service.duration_minutes
+        cleanup_duration = arrangement.cleanup_duration
+        end_time = Booking.calculate_end_time(
+            start_time, service_duration, 0, cleanup_duration
+        )
+
+        if end_time > closing_time:
+            raise serializers.ValidationError({
+                "start_time": "Booking exceeds closing time."
+            })
+
+        # Check availability
+        overlapping = TimeSlot.objects.filter(
+            arrangement=arrangement,
+            date=date,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        ).exists()
+
+        if overlapping:
+            raise serializers.ValidationError({
+                "start_time": "Selected arrangement is booked for this time."
+            })
+
+        # Store resolved objects
+        attrs["reward"] = reward
+        attrs["service"] = service
+        attrs["arrangement"] = arrangement
+        attrs["spa_center"] = spa_center
+        attrs["end_time"] = end_time
+        attrs["service_duration"] = service_duration
 
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
-        """Redeem the loyalty reward."""
-        reward = validated_data["reward"]
-        booking = validated_data.get("booking")
+        """Create a free booking and redeem the reward atomically."""
+        from bookings.models import Booking, TimeSlot
+        from decimal import Decimal
 
+        request = self.context.get("request")
+        customer = request.user
+
+        reward = validated_data["reward"]
+        service = validated_data["service"]
+        arrangement = validated_data["arrangement"]
+        spa_center = validated_data["spa_center"]
+        date = validated_data["date"]
+        start_time = validated_data["start_time"]
+        end_time = validated_data["end_time"]
+        service_duration = validated_data["service_duration"]
+
+        # 1. Create time slot
+        time_slot = TimeSlot.objects.create(
+            arrangement=arrangement,
+            date=date,
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+        # 2. Build meta_data snapshot
+        meta_data = {
+            "service": {
+                "id": str(service.id),
+                "name": service.name,
+                "duration_minutes": service.duration_minutes,
+                "currency": service.currency,
+            },
+            "spa_center": {
+                "id": str(spa_center.id),
+                "name": spa_center.name,
+                "city": spa_center.city.name if spa_center.city else None,
+                "country": spa_center.country.name if spa_center.country else None,
+                "address": spa_center.address or None,
+            },
+            "schedule": {
+                "date": str(date),
+                "start_time": str(start_time),
+                "end_time": str(end_time),
+            },
+            "arrangement": {
+                "id": str(arrangement.id),
+                "type": arrangement.arrangement_type,
+                "room_no": arrangement.room_no,
+                "label": arrangement.arrangement_label,
+                "cleanup_duration": arrangement.cleanup_duration,
+            },
+            "pricing": {
+                "subtotal": "0.00",
+                "discount_amount": "0.00",
+                "extra_minutes": 0,
+                "price_for_extra_minutes": "0.00",
+                "total_price": "0.00",
+            },
+            "loyalty": {
+                "reward_id": str(reward.id),
+                "is_loyalty_reward": True,
+            },
+        }
+
+        # 3. Create booking (free — total_price=0, status=CONFIRMED)
+        booking = Booking.objects.create(
+            customer=customer,
+            spa_center=spa_center,
+            service=service,
+            service_arrangement=arrangement,
+            time_slot=time_slot,
+            subtotal=Decimal("0.00"),
+            discount_amount=Decimal("0.00"),
+            extra_minutes=0,
+            price_for_extra_minutes=Decimal("0.00"),
+            total_duration=service_duration,
+            total_price=Decimal("0.00"),
+            customer_message=validated_data.get("customer_message", ""),
+            status=Booking.BookingStatus.CONFIRMED,
+            is_loyalty_reward=True,
+            loyalty_reward=reward,
+            meta_data=meta_data,
+        )
+
+        # 4. Redeem the reward and link to the booking
         success, error = reward.redeem(booking=booking)
         if not success:
             raise serializers.ValidationError({"reward_id": str(error)})
 
-        return reward
+        return booking
+
+    def to_representation(self, instance):
+        """Return full booking details after creation."""
+        from bookings.serializers import BookingSerializer
+        return BookingSerializer(instance).data
 
 
 # =============================================================================

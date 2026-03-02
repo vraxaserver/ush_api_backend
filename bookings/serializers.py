@@ -171,6 +171,7 @@ class BookingListSerializer(serializers.ModelSerializer):
             "end_time",
             "total_duration",
             "total_price",
+            "is_loyalty_reward",
             "status",
             "created_at",
         ]
@@ -228,6 +229,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "price_for_extra_minutes",
             "total_duration",
             "total_price",
+            "is_loyalty_reward",
+            "loyalty_reward",
             "meta_data",
             "customer_message",
             "status",
