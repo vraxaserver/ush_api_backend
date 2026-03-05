@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from .models import Booking, TimeSlot
+from .models import Booking, TimeSlot, ProductOrder, OrderItem
 from spacenter.models import SpaCenter, Service, ServiceArrangement
 from spacenter.filters import SpaCenterFilter
 
@@ -49,8 +49,6 @@ class BranchManagerPermissionMixin:
         if get_branch_manager_spa_center(request.user):
             return True
         return super().has_change_permission(request, obj)
-
-
 
 
 
@@ -266,3 +264,97 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             elif db_field.name == "service_arrangement":
                 kwargs["queryset"] = ServiceArrangement.objects.filter(spa_center=spa_center)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class OrderItemInline(admin.TabularInline):
+    """Inline for order items inside ProductOrder admin."""
+    model = OrderItem
+    extra = 0
+    readonly_fields = ["product", "quantity", "unit_price", "total_price"]
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ProductOrder)
+class ProductOrderAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+    """Admin for ProductOrder model."""
+
+    list_display = [
+        "order_number",
+        "user",
+        "status",
+        "payment_status",
+        "total_amount",
+        "delivery_charge",
+        "final_amount",
+        "created_at",
+    ]
+    list_filter = [
+        "status",
+        "payment_status",
+        "created_at",
+    ]
+    search_fields = [
+        "order_number",
+        "user__email",
+        "user__first_name",
+        "user__last_name",
+        "contact_number",
+    ]
+    ordering = ["-created_at"]
+    readonly_fields = [
+        "id",
+        "order_number",
+        "created_at",
+        "updated_at",
+    ]
+    date_hierarchy = "created_at"
+    raw_id_fields = ["user"]
+    inlines = [OrderItemInline]
+
+    fieldsets = (
+        (
+            _("Order Information"),
+            {
+                "fields": (
+                    "order_number",
+                    "user",
+                    "status",
+                    "payment_status",
+                )
+            },
+        ),
+        (
+            _("Delivery Details"),
+            {
+                "fields": (
+                    "shipping_address",
+                    "contact_number",
+                )
+            },
+        ),
+        (
+            _("Pricing"),
+            {
+                "fields": (
+                    "total_amount",
+                    "delivery_charge",
+                    "final_amount",
+                    "currency",
+                )
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": (
+                    "id",
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ["collapse"],
+            },
+        ),
+    )

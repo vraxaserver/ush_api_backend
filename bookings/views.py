@@ -524,90 +524,32 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         
         user = request.user
         items_data = data["items"]  # List of {product, quantity} objects from validation
-        payment_method = data["payment_method"]
-        gift_card_ids = data.get("gift_card_ids", [])
+        shipping_address = data.get("shipping_address", "")
+        contact_number = data.get("contact_number", "")
+        
+        from decimal import Decimal
         
         # Calculate totals
         calculated_subtotal = sum(item["product"].current_price * item["quantity"] for item in items_data)
         subtotal = data.get("subtotal") or calculated_subtotal
         
-        from promotions.models import GiftCard, GiftCardTransaction
-        from decimal import Decimal
+        delivery_charge = Decimal(str(data.get("delivery_charge", 0) or 0))
         
-        discount_amount = Decimal(str(data.get("discount", 0) or 0))
-        
-        # price after discount
-        price_after_discount = max(Decimal("0"), subtotal - discount_amount)
-        
-        # Validate gift cards and PRE-CALCULATE how much can be redeemed
-        valid_gift_cards = []
-        gift_card_redemption_plan = []  # List of (gift_card, amount_to_redeem)
-        gift_card_amount_used = Decimal("0.00")
-        remaining_to_pay = price_after_discount
-        
-        for gc_id in gift_card_ids:
-            if remaining_to_pay <= 0:
-                break
-            try:
-                gift_card = GiftCard.objects.get(id=gc_id)
-                if not gift_card.is_valid:
-                    return Response({"error": f"Gift card '{gift_card.code}' is not valid."}, status=status.HTTP_400_BAD_REQUEST)
-                
-                # Calculate how much to redeem from this gift card
-                amount_to_redeem = min(gift_card.current_balance, remaining_to_pay)
-                if amount_to_redeem > 0:
-                    valid_gift_cards.append(gift_card)
-                    gift_card_redemption_plan.append((gift_card, amount_to_redeem))
-                    gift_card_amount_used += amount_to_redeem
-                    remaining_to_pay -= amount_to_redeem
-                    
-            except (GiftCard.DoesNotExist, Exception):
-                return Response({"error": f"Gift card '{gc_id}' not found."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # final_amount = price_after_discount - gift_card_amount_used
-        final_amount = max(Decimal("0"), price_after_discount - gift_card_amount_used)
-        
-        payment_status = ProductOrder.PaymentStatus.PENDING
-        if final_amount == 0:
-            payment_status = ProductOrder.PaymentStatus.PAID
+        # final_amount = subtotal + delivery_charge
+        final_amount = subtotal + delivery_charge
 
-        # Create Order with correct values
+        # Create Order
         order = ProductOrder.objects.create(
             user=user,
             total_amount=subtotal,
-            discount_amount=discount_amount,
+            delivery_charge=delivery_charge,
             final_amount=final_amount,
-            payment_method=payment_method,
-            payment_status=payment_status,
-            status=ProductOrder.OrderStatus.PENDING if final_amount > 0 else ProductOrder.OrderStatus.PROCESSING
+            shipping_address=shipping_address,
+            contact_number=contact_number,
+            payment_status=ProductOrder.PaymentStatus.PENDING,
+            status=ProductOrder.OrderStatus.PENDING,
         )
         
-        # Redeem gift cards (using pre-calculated amounts) and link transactions
-        gift_card_transactions = []
-        gift_card_details = []
-        for gc, amount_to_redeem in gift_card_redemption_plan:
-            success, redeemed_amount, error = gc.redeem(
-                amount=amount_to_redeem,
-                user=user,
-                order_reference=str(order.id),
-                order_type="product_order"
-            )
-            if success:
-                order.gift_cards.add(gc)
-                # Get the transaction that was just created
-                transaction = gc.transactions.order_by('-created_at').first()
-                if transaction:
-                    gift_card_transactions.append(transaction)
-                gift_card_details.append({
-                    "id": str(gc.id),
-                    "code": gc.code,
-                    "amount_redeemed": str(redeemed_amount),
-                    "balance_after": str(gc.current_balance),
-                })
-        
-        if hasattr(order, 'gift_card_transactions'):
-            order.gift_card_transactions.set(gift_card_transactions)
-
         # Create Items & Update Stock
         for item in items_data:
             product = item["product"]
@@ -631,12 +573,9 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         order_data = ProductOrderSerializer(order).data
         order_data["calculated_prices"] = {
             "subtotal": str(subtotal),
-            "discount_amount": str(discount_amount),
-            "price_after_discount": str(price_after_discount),
-            "gift_card_amount_used": str(gift_card_amount_used),
+            "delivery_charge": str(delivery_charge),
             "final_amount": str(final_amount),
         }
-        order_data["applied_gift_cards"] = gift_card_details
         
         return Response(order_data, status=status.HTTP_201_CREATED)
 
@@ -666,4 +605,60 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
 
         order.status = new_status
         order.save()
+        return Response(ProductOrderSerializer(order).data)
+
+    @action(detail=False, methods=["post"], url_path="update-payment-status")
+    def update_payment_status(self, request):
+        """
+        Update order payment status based on payment result.
+
+        POST /api/v1/bookings/orders/update-payment-status/
+
+        Request body:
+            {
+                "order_id": "uuid",
+                "payment_status": true  // or false
+            }
+
+        If payment_status is true, payment_status changes to "paid" and order status to "processing".
+        If payment_status is false, payment_status changes to "failed".
+        """
+        order_id = request.data.get("order_id")
+        if not order_id:
+            return Response(
+                {"error": "The 'order_id' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payment_result = request.data.get("payment_status")
+        if payment_result is None:
+            return Response(
+                {"error": "The 'payment_status' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get the order
+        try:
+            order = ProductOrder.objects.get(id=order_id, user=request.user)
+        except ProductOrder.DoesNotExist:
+            return Response(
+                {"error": "Order not found or does not belong to you."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Only allow updating orders with pending payment
+        if order.payment_status != ProductOrder.PaymentStatus.PENDING:
+            return Response(
+                {"error": f"Cannot update payment status for order with payment status '{order.payment_status}'. Only 'pending' orders can be updated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if payment_result:
+            order.payment_status = ProductOrder.PaymentStatus.PAID
+            order.status = ProductOrder.OrderStatus.PROCESSING
+        else:
+            order.payment_status = ProductOrder.PaymentStatus.FAILED
+
+        order.save(update_fields=["payment_status", "status", "updated_at"])
+
         return Response(ProductOrderSerializer(order).data)

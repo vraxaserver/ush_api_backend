@@ -369,20 +369,12 @@ class ProductOrder(models.Model):
         help_text=_("Sum of item prices before discounts"),
     )
     
-    discount_amount = models.DecimalField(
-        _("discount amount"),
-        max_digits=10,
-        decimal_places=2,
-        default=0.00,
-        help_text=_("Total discount applied"),
-    )
-    
     final_amount = models.DecimalField(
         _("final amount"),
         max_digits=10,
         decimal_places=2,
         default=0.00,
-        help_text=_("Final payable amount after discounts"),
+        help_text=_("Final payable amount"),
     )
     
     currency = models.CharField(
@@ -391,11 +383,24 @@ class ProductOrder(models.Model):
         default="QAR",
     )
 
-    payment_method = models.CharField(
-        _("payment method"),
-        max_length=50,
+    # Delivery details
+    shipping_address = models.TextField(
+        _("shipping address"),
         blank=True,
-        help_text=_("Method used for payment (e.g., Credit Card, Cash)"),
+        help_text=_("Delivery address for the order"),
+    )
+    contact_number = models.CharField(
+        _("contact number"),
+        max_length=20,
+        blank=True,
+        help_text=_("Phone number of the person receiving the delivery"),
+    )
+    delivery_charge = models.DecimalField(
+        _("delivery charge"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Delivery fee added to the order"),
     )
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)

@@ -537,7 +537,6 @@ class ProductOrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     payment_status_display = serializers.CharField(source="get_payment_status_display", read_only=True)
-    gift_card_codes = serializers.SerializerMethodField()
 
     class Meta:
         model = ProductOrder
@@ -550,19 +549,16 @@ class ProductOrderSerializer(serializers.ModelSerializer):
             "payment_status",
             "payment_status_display",
             "total_amount",
-            "discount_amount",
+            "delivery_charge",
             "final_amount",
             "currency",
-            "payment_method",
+            "shipping_address",
+            "contact_number",
             "items",
-            "gift_card_codes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = fields
-
-    def get_gift_card_codes(self, obj):
-        return [g.code for g in obj.gift_cards.all()]
 
 
 class CreateProductOrderSerializer(serializers.Serializer):
@@ -570,9 +566,10 @@ class CreateProductOrderSerializer(serializers.Serializer):
     Serializer for creating a new product order.
     Accepts:
     - items: list of {product_id, quantity}
-    - gift_card_ids: optional list of gift card IDs (UUIDs)
-    - subtotal: optional (sum of item prices before discounts)
-    - discount: optional (total discount amount)
+    - shipping_address: delivery address
+    - contact_number: phone number of the delivery recipient
+    - delivery_charge: optional delivery fee
+    - subtotal: optional (sum of item prices)
     - total_amount: optional (final amount to be paid)
     """
     
@@ -580,27 +577,28 @@ class CreateProductOrderSerializer(serializers.Serializer):
         child=serializers.DictField(child=serializers.CharField()),
         allow_empty=False
     )
-    gift_card_ids = serializers.ListField(
-        child=serializers.CharField(),
-        required=False,
-        default=list,
-        help_text="List of gift card IDs to use for payment"
+    shipping_address = serializers.CharField(
+        required=True,
+        help_text="Delivery address for the order"
     )
-    payment_method = serializers.CharField(required=True)
+    contact_number = serializers.CharField(
+        required=True,
+        max_length=20,
+        help_text="Phone number of the person receiving the delivery"
+    )
+    delivery_charge = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        default=0,
+        help_text="Delivery fee to add to the order"
+    )
     subtotal = serializers.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         required=False, 
         allow_null=True,
-        help_text="Sum of item prices before discounts (optional, for client-side cross-check)"
-    )
-    discount = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        allow_null=True,
-        default=0,
-        help_text="Total discount amount (optional)"
+        help_text="Sum of item prices (optional, for client-side cross-check)"
     )
     total_amount = serializers.DecimalField(
         max_digits=10, 
