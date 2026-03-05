@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from .models import (
     GiftCard,
     LoyaltyReward,
-    LoyaltyTracker,
+    LoyaltyTracker
 )
 
 from .serializers import (
@@ -24,7 +24,7 @@ from .serializers import (
     GiftCardValidityCheckSerializer,
     LoyaltyRedeemBookingSerializer,
     LoyaltyRewardSerializer,
-    LoyaltyTrackerSerializer,
+    LoyaltyTrackerSerializer
 )
 
 # =============================================================================
@@ -130,9 +130,13 @@ class LoyaltyStatusView(APIView):
         """
         user = request.user
 
-        trackers = LoyaltyTracker.objects.filter(
+        all_trackers = LoyaltyTracker.objects.filter(
             customer=user,
         ).select_related("service", "service_arrangement")
+
+        # Split trackers: active progress vs. recently rewarded (counter reset to 0)
+        trackers = all_trackers.filter(booking_count__gt=0)
+        most_recent_rewards = all_trackers.filter(booking_count=0)
 
         available_rewards = LoyaltyReward.objects.filter(
             customer=user,
@@ -149,6 +153,7 @@ class LoyaltyStatusView(APIView):
 
         return Response({
             "trackers": LoyaltyTrackerSerializer(trackers, many=True, context=context).data,
+            "most_recent_rewards": LoyaltyTrackerSerializer(most_recent_rewards, many=True, context=context).data,
             "available_rewards": LoyaltyRewardSerializer(available_rewards, many=True, context=context).data,
             "total_rewards_earned": total_earned,
             "total_rewards_redeemed": total_redeemed,
