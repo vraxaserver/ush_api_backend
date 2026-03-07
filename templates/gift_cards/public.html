@@ -1,445 +1,449 @@
 {% extends "gift_cards/base.html" %}
 
 {% block title %}Your Gift Card — {{ gift_card.service_name }}{% endblock %}
-{% block meta_description %}You've received a spa gift card for {{ gift_card.service_name }} at {{ gift_card.spa_center_name }}{% endblock %}
+{% block meta_description %}You've received a spa gift card for {{ gift_card.service_name }} at {{
+gift_card.spa_center_name }}{% endblock %}
 
 {% block extra_styles %}
 /* ===== HERO ===== */
 .gc-hero {
-    position: relative;
-    overflow: hidden;
-    min-height: 320px;
-    display: flex;
-    align-items: flex-end;
+position: relative;
+overflow: hidden;
+min-height: 320px;
+display: flex;
+align-items: flex-end;
 }
 
 .gc-hero__bg {
-    position: absolute;
-    inset: 0;
-    background-size: cover;
-    background-position: center;
-    background-color: #5b21b6;
+position: absolute;
+inset: 0;
+background-size: cover;
+background-position: center;
+background-color: #5b21b6;
 }
 
 .gc-hero__bg::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--gradient-hero);
+content: '';
+position: absolute;
+inset: 0;
+background: var(--gradient-hero);
 }
 
 .gc-hero__content {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    padding: 40px 0 32px;
+position: relative;
+z-index: 1;
+width: 100%;
+padding: 40px 0 32px;
 }
 
 .gc-hero__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.18);
-    backdrop-filter: blur(8px);
-    color: #fff;
-    padding: 6px 16px;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 16px;
-    letter-spacing: 0.5px;
+display: inline-flex;
+align-items: center;
+gap: 6px;
+background: rgba(255,255,255,0.18);
+backdrop-filter: blur(8px);
+color: #fff;
+padding: 6px 16px;
+border-radius: 50px;
+font-size: 0.8rem;
+font-weight: 600;
+margin-bottom: 16px;
+letter-spacing: 0.5px;
 }
 
 .gc-hero__title {
-    font-family: var(--font-heading);
-    font-size: 2rem;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 6px;
-    line-height: 1.2;
+font-family: var(--font-heading);
+font-size: 2rem;
+font-weight: 700;
+color: #fff;
+margin-bottom: 6px;
+line-height: 1.2;
 }
 
 .gc-hero__subtitle {
-    color: rgba(255,255,255,0.8);
-    font-size: 0.95rem;
+color: rgba(255,255,255,0.8);
+font-size: 0.95rem;
+padding-bottom: 20px;
 }
 
 /* ===== GIFT MESSAGE CARD ===== */
 .gc-message {
-    margin: -40px auto 0;
-    position: relative;
-    z-index: 2;
-    padding: 28px;
+margin: -40px auto 0;
+position: relative;
+z-index: 2;
+padding: 28px;
 }
 
 .gc-message__icon {
-    width: 48px;
-    height: 48px;
-    background: var(--gradient-warm);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    margin-bottom: 14px;
-    box-shadow: 0 4px 16px rgba(245,158,11,0.3);
+width: 48px;
+height: 48px;
+background: var(--gradient-warm);
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 1.5rem;
+margin-bottom: 14px;
+box-shadow: 0 4px 16px rgba(245,158,11,0.3);
 }
 
 .gc-message__from {
-    font-family: var(--font-heading);
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--primary-dark);
-    margin-bottom: 8px;
+font-family: var(--font-heading);
+font-weight: 600;
+font-size: 1rem;
+color: var(--primary-dark);
+margin-bottom: 8px;
 }
 
 .gc-message__text {
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    font-style: italic;
-    line-height: 1.7;
+font-size: 0.95rem;
+color: var(--text-secondary);
+font-style: italic;
+line-height: 1.7;
 }
 
 /* ===== DETAILS SECTION ===== */
 .gc-section {
-    padding: 28px 0;
+padding: 28px 0;
 }
 
 .gc-section__title {
-    font-family: var(--font-heading);
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: var(--text);
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+font-family: var(--font-heading);
+font-size: 1.15rem;
+font-weight: 600;
+color: var(--text);
+margin-bottom: 16px;
+display: flex;
+align-items: center;
+gap: 8px;
 }
 
 .gc-section__title-icon {
-    width: 32px;
-    height: 32px;
-    background: #ede9fe;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
+width: 32px;
+height: 32px;
+background: #ede9fe;
+border-radius: var(--radius-sm);
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 1rem;
 }
 
 /* ===== SERVICE CARD ===== */
 .gc-service {
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border);
+border-radius: var(--radius-lg);
+overflow: hidden;
+background: var(--surface);
+box-shadow: var(--shadow-sm);
+border: 1px solid var(--border);
 }
 
 .gc-service__image {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-    display: block;
+width: 100%;
+height: 200px;
+object-fit: cover;
+display: block;
 }
 
 .gc-service__image-placeholder {
-    width: 100%;
-    height: 200px;
-    background: var(--gradient-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
+width: 100%;
+height: 200px;
+background: var(--gradient-primary);
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 3rem;
 }
 
 .gc-service__body {
-    padding: 20px;
+padding: 20px;
 }
 
 .gc-service__name {
-    font-family: var(--font-heading);
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 8px;
+font-family: var(--font-heading);
+font-size: 1.2rem;
+font-weight: 600;
+margin-bottom: 8px;
 }
 
 .gc-service__desc {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    margin-bottom: 16px;
+color: var(--text-secondary);
+font-size: 0.9rem;
+line-height: 1.6;
+margin-bottom: 16px;
 }
 
 .gc-service__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
+display: flex;
+flex-wrap: wrap;
+gap: 12px;
 }
 
 .gc-service__meta-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--surface-alt);
-    border-radius: var(--radius-sm);
-    font-size: 0.82rem;
-    color: var(--text-secondary);
+display: flex;
+align-items: center;
+gap: 6px;
+padding: 6px 12px;
+background: var(--surface-alt);
+border-radius: var(--radius-sm);
+font-size: 0.82rem;
+color: var(--text-secondary);
 }
 
 .gc-service__meta-item strong {
-    color: var(--text);
-    font-weight: 600;
+color: var(--text);
+font-weight: 600;
 }
 
 /* ===== SPA CENTER ===== */
 .gc-spa {
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border);
+background: var(--surface);
+border-radius: var(--radius-lg);
+padding: 20px;
+box-shadow: var(--shadow-sm);
+border: 1px solid var(--border);
 }
 
 .gc-spa__name {
-    font-family: var(--font-heading);
-    font-weight: 600;
-    font-size: 1.05rem;
-    margin-bottom: 12px;
+font-family: var(--font-heading);
+font-weight: 600;
+font-size: 1.05rem;
+margin-bottom: 12px;
 }
 
 .gc-spa__info {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+display: flex;
+flex-direction: column;
+gap: 10px;
 }
 
 .gc-spa__info-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 0.88rem;
-    color: var(--text-secondary);
+display: flex;
+align-items: flex-start;
+gap: 10px;
+font-size: 0.88rem;
+color: var(--text-secondary);
 }
 
 .gc-spa__info-icon {
-    width: 22px;
-    text-align: center;
-    flex-shrink: 0;
-    margin-top: 2px;
+width: 22px;
+text-align: center;
+flex-shrink: 0;
+margin-top: 2px;
 }
 
 /* ===== STATUS ===== */
 .gc-status {
-    text-align: center;
-    padding: 20px;
-    background: var(--surface);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border);
+text-align: center;
+padding: 20px;
+background: var(--surface);
+border-radius: var(--radius-lg);
+box-shadow: var(--shadow-sm);
+border: 1px solid var(--border);
 }
 
 .gc-status__label {
-    font-size: 0.8rem;
-    color: var(--text-light);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
+font-size: 0.8rem;
+color: var(--text-light);
+text-transform: uppercase;
+letter-spacing: 0.5px;
+margin-bottom: 6px;
 }
 
 /* ===== CTA ===== */
 .gc-cta {
-    padding: 32px 0 40px;
-    text-align: center;
+padding: 32px 0 40px;
+text-align: center;
 }
 
 .gc-cta__note {
-    font-size: 0.82rem;
-    color: var(--text-light);
-    margin-top: 12px;
+font-size: 0.82rem;
+color: var(--text-light);
+margin-top: 12px;
 }
 
 /* ===== NOT AVAILABLE ===== */
 .gc-unavailable {
-    text-align: center;
-    padding: 80px 20px;
+text-align: center;
+padding: 80px 20px;
 }
 
 .gc-unavailable__icon {
-    font-size: 3.5rem;
-    margin-bottom: 20px;
+font-size: 3.5rem;
+margin-bottom: 20px;
 }
 
 .gc-unavailable__title {
-    font-family: var(--font-heading);
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 10px;
+font-family: var(--font-heading);
+font-size: 1.5rem;
+font-weight: 600;
+margin-bottom: 10px;
 }
 
 .gc-unavailable__text {
-    color: var(--text-secondary);
-    font-size: 0.95rem;
-    max-width: 400px;
-    margin: 0 auto;
+color: var(--text-secondary);
+font-size: 0.95rem;
+max-width: 400px;
+margin: 0 auto;
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {
-    .gc-hero { min-height: 260px; }
-    .gc-hero__title { font-size: 1.6rem; }
-    .gc-message { margin-top: -32px; padding: 22px; }
-    .gc-service__image, .gc-service__image-placeholder { height: 160px; }
-    .gc-service__meta { gap: 8px; }
-    .gc-service__meta-item { padding: 5px 10px; font-size: 0.78rem; }
+.gc-hero { min-height: 260px; }
+.gc-hero__title { font-size: 1.6rem; }
+.gc-message { margin-top: -32px; padding: 22px; }
+.gc-service__image, .gc-service__image-placeholder { height: 160px; }
+.gc-service__meta { gap: 8px; }
+.gc-service__meta-item { padding: 5px 10px; font-size: 0.78rem; }
 }
 {% endblock %}
 
 {% block content %}
 {% if not gift_card or gift_card.status == 'pending_payment' %}
-    <!-- NOT AVAILABLE -->
-    <div class="container">
-        <div class="gc-unavailable animate-in">
-            <div class="gc-unavailable__icon">🔒</div>
-            <h1 class="gc-unavailable__title">Gift Card Not Available</h1>
-            <p class="gc-unavailable__text">
-                This gift card is not available yet. It will become accessible once the payment has been completed.
-            </p>
-        </div>
+<!-- NOT AVAILABLE -->
+<div class="container">
+    <div class="gc-unavailable animate-in">
+        <div class="gc-unavailable__icon">🔒</div>
+        <h1 class="gc-unavailable__title">Gift Card Not Available</h1>
+        <p class="gc-unavailable__text">
+            This gift card is not available yet. It will become accessible once the payment has been completed.
+        </p>
     </div>
+</div>
 {% else %}
-    <!-- HERO -->
-    <section class="gc-hero animate-in">
-        <div class="gc-hero__bg"
-             {% if gift_card.service_image %}
-             style="background-image: url('{{ gift_card.service_image }}')"
-             {% endif %}>
-        </div>
-        <div class="gc-hero__content">
-            <div class="container">
-                <div class="gc-hero__badge">🎁 Gift Card</div>
-                <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
-                <p class="gc-hero__subtitle">A special gift from {{ gift_card.sender_name }}</p>
-            </div>
-        </div>
-    </section>
-
-    <div class="container">
-        <!-- GIFT MESSAGE -->
-        {% if gift_card.gift_message %}
-        <div class="gc-message glass-card animate-in animate-in-delay-1">
-            <div class="gc-message__icon">💌</div>
-            {% if gift_card.recipient_name %}
-            <div class="gc-message__from">Dear {{ gift_card.recipient_name }},</div>
-            {% endif %}
-            <p class="gc-message__text">"{{ gift_card.gift_message }}"</p>
-        </div>
-        {% endif %}
-
-        <!-- SERVICE DETAILS -->
-        <div class="gc-section animate-in animate-in-delay-2">
-            <div class="gc-section__title">
-                <span class="gc-section__title-icon">✨</span>
-                Service Details
-            </div>
-            <div class="gc-service">
-                {% if gift_card.service_image %}
-                <img src="{{ gift_card.service_image }}" alt="{{ gift_card.service_name }}" class="gc-service__image" loading="lazy">
-                {% else %}
-                <div class="gc-service__image-placeholder">🧖</div>
-                {% endif %}
-                <div class="gc-service__body">
-                    <h2 class="gc-service__name">{{ gift_card.service_name }}</h2>
-                    {% if gift_card.service_description %}
-                    <p class="gc-service__desc">{{ gift_card.service_description }}</p>
-                    {% endif %}
-                    <div class="gc-service__meta">
-                        <div class="gc-service__meta-item">
-                            ⏱ <strong>{{ gift_card.total_duration }} min</strong>
-                        </div>
-                        {% if gift_card.service_arrangement_type %}
-                        <div class="gc-service__meta-item">
-                            🏷 <strong>{{ gift_card.service_arrangement_type }}</strong>
-                        </div>
-                        {% endif %}
-                        {% if gift_card.extra_minutes %}
-                        <div class="gc-service__meta-item">
-                            ➕ <strong>{{ gift_card.extra_minutes }} min</strong> extra
-                        </div>
-                        {% endif %}
-                        <div class="gc-service__meta-item">
-                            💰 <strong>{{ gift_card.currency }} {{ gift_card.amount }}</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SPA CENTER -->
-        <div class="gc-section animate-in animate-in-delay-3">
-            <div class="gc-section__title">
-                <span class="gc-section__title-icon">🏢</span>
-                Location
-            </div>
-            <div class="gc-spa">
-                <div class="gc-spa__name">{{ gift_card.spa_center_name }}</div>
-                <div class="gc-spa__info">
-                    {% if gift_card.spa_center_address %}
-                    <div class="gc-spa__info-row">
-                        <span class="gc-spa__info-icon">📍</span>
-                        <span>{{ gift_card.spa_center_address }}</span>
-                    </div>
-                    {% endif %}
-                    {% if gift_card.spa_center_city %}
-                    <div class="gc-spa__info-row">
-                        <span class="gc-spa__info-icon">🌆</span>
-                        <span>{{ gift_card.spa_center_city }}{% if gift_card.spa_center_country %}, {{ gift_card.spa_center_country }}{% endif %}</span>
-                    </div>
-                    {% endif %}
-                    {% if gift_card.spa_center_phone %}
-                    <div class="gc-spa__info-row">
-                        <span class="gc-spa__info-icon">📞</span>
-                        <span><a href="tel:{{ gift_card.spa_center_phone }}" style="color: var(--primary); text-decoration: none;">{{ gift_card.spa_center_phone }}</a></span>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- STATUS -->
-        <div class="gc-section animate-in animate-in-delay-4">
-            <div class="gc-status">
-                <div class="gc-status__label">Status</div>
-                {% if gift_card.status == 'active' %}
-                    <span class="badge badge-success">✅ Active & Ready to Redeem</span>
-                {% elif gift_card.status == 'redeemed' %}
-                    <span class="badge badge-info">🎉 Redeemed</span>
-                {% elif gift_card.status == 'expired' %}
-                    <span class="badge badge-warning">⏰ Expired</span>
-                {% elif gift_card.status == 'cancelled' %}
-                    <span class="badge badge-error">❌ Cancelled</span>
-                {% else %}
-                    <span class="badge badge-info">{{ gift_card.status }}</span>
-                {% endif %}
-
-                {% if gift_card.expires_at %}
-                <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-light);">
-                    Expires: {{ gift_card.expires_at|date:"M d, Y" }}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- CTA -->
-        {% if gift_card.is_redeemable %}
-        <div class="gc-cta animate-in animate-in-delay-4">
-            <a href="/gift-cards/redeem/{{ gift_card.public_token }}/" class="btn btn-primary btn-block">
-                🎁 Redeem This Gift
-            </a>
-            <p class="gc-cta__note">You'll need your 6-digit secret code sent via SMS</p>
-        </div>
-        {% endif %}
+<!-- HERO -->
+<section class="gc-hero animate-in">
+    <div class="gc-hero__bg" {% if gift_card.service_image %}
+        style="background-image: url('{{ gift_card.service_image }}')" {% endif %}>
     </div>
+    <div class="gc-hero__content">
+        <div class="container">
+            <div class="gc-hero__badge">🎁 Gift Card</div>
+            <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
+            <p class="gc-hero__subtitle">A special gift from {{ gift_card.sender_name }}</p>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <!-- GIFT MESSAGE -->
+    {% if gift_card.gift_message %}
+    <div class="gc-message glass-card animate-in animate-in-delay-1">
+        <div class="gc-message__icon">💌</div>
+        {% if gift_card.recipient_name %}
+        <div class="gc-message__from">Dear {{ gift_card.recipient_name }},</div>
+        {% endif %}
+        <p class="gc-message__text">"{{ gift_card.gift_message }}"</p>
+    </div>
+    {% endif %}
+
+    <!-- SERVICE DETAILS -->
+    <div class="gc-section animate-in animate-in-delay-2">
+        <div class="gc-section__title">
+            <span class="gc-section__title-icon">✨</span>
+            Service Details
+        </div>
+        <div class="gc-service">
+            {% if gift_card.service_image %}
+            <img src="{{ gift_card.service_image }}" alt="{{ gift_card.service_name }}" class="gc-service__image"
+                loading="lazy">
+            {% else %}
+            <div class="gc-service__image-placeholder">🧖</div>
+            {% endif %}
+            <div class="gc-service__body">
+                <h2 class="gc-service__name">{{ gift_card.service_name }}</h2>
+                {% if gift_card.service_description %}
+                <p class="gc-service__desc">{{ gift_card.service_description }}</p>
+                {% endif %}
+                <div class="gc-service__meta">
+                    <div class="gc-service__meta-item">
+                        ⏱ <strong>{{ gift_card.total_duration }} min</strong>
+                    </div>
+                    {% if gift_card.service_arrangement_type %}
+                    <div class="gc-service__meta-item">
+                        🏷 <strong>{{ gift_card.service_arrangement_type }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if gift_card.extra_minutes %}
+                    <div class="gc-service__meta-item">
+                        ➕ <strong>{{ gift_card.extra_minutes }} min</strong> extra
+                    </div>
+                    {% endif %}
+                    <div class="gc-service__meta-item">
+                        💰 <strong>{{ gift_card.currency }} {{ gift_card.amount }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SPA CENTER -->
+    <div class="gc-section animate-in animate-in-delay-3">
+        <div class="gc-section__title">
+            <span class="gc-section__title-icon">🏢</span>
+            Location
+        </div>
+        <div class="gc-spa">
+            <div class="gc-spa__name">{{ gift_card.spa_center_name }}</div>
+            <div class="gc-spa__info">
+                {% if gift_card.spa_center_address %}
+                <div class="gc-spa__info-row">
+                    <span class="gc-spa__info-icon">📍</span>
+                    <span>{{ gift_card.spa_center_address }}</span>
+                </div>
+                {% endif %}
+                {% if gift_card.spa_center_city %}
+                <div class="gc-spa__info-row">
+                    <span class="gc-spa__info-icon">🌆</span>
+                    <span>{{ gift_card.spa_center_city }}{% if gift_card.spa_center_country %}, {{
+                        gift_card.spa_center_country }}{% endif %}</span>
+                </div>
+                {% endif %}
+                {% if gift_card.spa_center_phone %}
+                <div class="gc-spa__info-row">
+                    <span class="gc-spa__info-icon">📞</span>
+                    <span><a href="tel:{{ gift_card.spa_center_phone }}"
+                            style="color: var(--primary); text-decoration: none;">{{ gift_card.spa_center_phone
+                            }}</a></span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- STATUS -->
+    <div class="gc-section animate-in animate-in-delay-4">
+        <div class="gc-status">
+            <div class="gc-status__label">Status</div>
+            {% if gift_card.status == 'active' %}
+            <span class="badge badge-success">✅ Active & Ready to Redeem</span>
+            {% elif gift_card.status == 'redeemed' %}
+            <span class="badge badge-info">🎉 Redeemed</span>
+            {% elif gift_card.status == 'expired' %}
+            <span class="badge badge-warning">⏰ Expired</span>
+            {% elif gift_card.status == 'cancelled' %}
+            <span class="badge badge-error">❌ Cancelled</span>
+            {% else %}
+            <span class="badge badge-info">{{ gift_card.status }}</span>
+            {% endif %}
+
+            {% if gift_card.expires_at %}
+            <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-light);">
+                Expires: {{ gift_card.expires_at|date:"M d, Y" }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- CTA -->
+    {% if gift_card.is_redeemable %}
+    <div class="gc-cta animate-in animate-in-delay-4">
+        <a href="/gift-cards/redeem/{{ gift_card.public_token }}/" class="btn btn-primary btn-block">
+            🎁 Redeem This Gift
+        </a>
+        <p class="gc-cta__note">You'll need your 6-digit secret code sent via SMS</p>
+    </div>
+    {% endif %}
+</div>
 {% endif %}
 {% endblock %}
