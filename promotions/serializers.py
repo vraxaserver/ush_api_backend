@@ -598,11 +598,21 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     service_arrangement_type = serializers.CharField(
         source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
     )
-    spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
-    spa_center_address = serializers.CharField(source="spa_center.full_address", read_only=True)
-    spa_center_city = serializers.CharField(source="spa_center.city.name", read_only=True)
-    spa_center_country = serializers.CharField(source="spa_center.country.name", read_only=True)
-    spa_center_phone = serializers.CharField(source="spa_center.phone", read_only=True)
+    spa_center_name = serializers.CharField(
+        source="spa_center.name", read_only=True, allow_blank=True, allow_null=True, default="",
+    )
+    spa_center_address = serializers.CharField(
+        source="spa_center.full_address", read_only=True, allow_blank=True, allow_null=True, default="",
+    )
+    spa_center_city = serializers.CharField(
+        source="spa_center.city.name", read_only=True, allow_blank=True, allow_null=True, default="",
+    )
+    spa_center_country = serializers.CharField(
+        source="spa_center.country.name", read_only=True, allow_blank=True, allow_null=True, default="",
+    )
+    spa_center_phone = serializers.CharField(
+        source="spa_center.phone", read_only=True, allow_blank=True, allow_null=True, default="",
+    )
     spa_center_latitude = serializers.DecimalField(
         source="spa_center.latitude", max_digits=9, decimal_places=6, read_only=True,
     )
