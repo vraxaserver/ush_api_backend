@@ -237,6 +237,22 @@ class Booking(models.Model):
         help_text=_("The loyalty reward redeemed for this booking"),
     )
 
+    # Gift card redemption
+    is_gift_card = models.BooleanField(
+        _("is gift card"),
+        default=False,
+        help_text=_("Whether this booking was created by redeeming a gift card"),
+    )
+    gift_card = models.ForeignKey(
+        "promotions.GiftCard",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gift_card_bookings",
+        verbose_name=_("gift card"),
+        help_text=_("The gift card redeemed for this booking"),
+    )
+
     # Status tracking
     status = models.CharField(
         _("status"),

@@ -172,6 +172,7 @@ class BookingListSerializer(serializers.ModelSerializer):
             "total_duration",
             "total_price",
             "is_loyalty_reward",
+            "is_gift_card",
             "status",
             "created_at",
         ]
@@ -231,6 +232,8 @@ class BookingSerializer(serializers.ModelSerializer):
             "total_price",
             "is_loyalty_reward",
             "loyalty_reward",
+            "is_gift_card",
+            "gift_card",
             "meta_data",
             "customer_message",
             "status",

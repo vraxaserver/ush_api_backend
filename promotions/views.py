@@ -2,8 +2,12 @@
 Promotions (Gift Cards & Loyalty Program) Views.
 """
 
+from collections import defaultdict
+from datetime import datetime, timedelta
+
 from django.db.models import Sum
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -304,20 +308,14 @@ class GiftCardPublicView(APIView):
     """
     Public Gift Card Page (no authentication required).
 
-    GET – Retrieve gift card details by public token.
-    Shows service info, location, and validity status.
+    Renders an HTML template with gift card details.
+    Only visible when payment is complete (status != pending_payment).
     """
 
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
     def get(self, request, public_token):
-        """
-        Get public gift card details.
-
-        Returns service details, spa center location, and validity status.
-        Does NOT expose secret code or sensitive sender info.
-        """
         gift_card = get_object_or_404(
             GiftCard.objects.select_related(
                 "service",
@@ -332,7 +330,382 @@ class GiftCardPublicView(APIView):
 
         serializer = GiftCardPublicSerializer(gift_card, context={"request": request})
 
-        return Response(serializer.data)
+        return render(request, "gift_cards/public.html", {
+            "gift_card": serializer.data,
+        })
+
+
+class GiftCardRedeemPageView(APIView):
+    """
+    Gift Card Redeem Page (no authentication required).
+
+    Renders the HTML template for the redeem booking flow.
+    Only accessible when the gift card is active and redeemable.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, public_token):
+        gift_card = get_object_or_404(
+            GiftCard.objects.select_related(
+                "service",
+                "spa_center",
+                "spa_center__city",
+                "spa_center__country",
+                "sender",
+                "service_arrangement",
+            ),
+            public_token=public_token,
+            status=GiftCard.GiftCardStatus.ACTIVE,
+        )
+
+        serializer = GiftCardPublicSerializer(gift_card, context={"request": request})
+
+        return render(request, "gift_cards/redeem.html", {
+            "gift_card": serializer.data,
+        })
+
+
+class GiftCardVerifyCodeView(APIView):
+    """
+    Verify a gift card secret code (no authentication required).
+
+    POST with public_token + secret_code.
+    Returns whether the code is valid without actually redeeming.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        public_token = request.data.get("public_token")
+        secret_code = request.data.get("secret_code")
+
+        if not public_token or not secret_code:
+            return Response(
+                {"valid": False, "message": "Both public_token and secret_code are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            gift_card = GiftCard.objects.get(public_token=public_token)
+        except GiftCard.DoesNotExist:
+            return Response(
+                {"valid": False, "message": "Gift card not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not gift_card.is_redeemable:
+            return Response(
+                {"valid": False, "message": "This gift card is not available for redemption."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if gift_card.secret_code != secret_code:
+            gift_card.record_failed_attempt()
+            remaining = gift_card.max_attempts - gift_card.failed_attempts
+            if remaining <= 0:
+                msg = "Invalid code. Gift card is now locked due to too many failed attempts."
+            else:
+                msg = f"Invalid code. {remaining} attempt(s) remaining."
+            return Response(
+                {"valid": False, "message": msg, "is_locked": gift_card.is_locked},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"valid": True, "message": "Code verified successfully."})
+
+
+class GiftCardAvailabilityView(APIView):
+    """
+    Get available time slots for a gift card's service arrangement.
+
+    GET /gift-cards/api/availability/{public_token}/
+    Returns available dates and time slots for the next 30 days.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request, public_token):
+        from bookings.models import TimeSlot
+        from spacenter.models import ServiceArrangement
+
+        gift_card = get_object_or_404(
+            GiftCard.objects.select_related(
+                "service",
+                "spa_center",
+                "service_arrangement",
+                "service_arrangement__spa_center",
+            ),
+            public_token=public_token,
+            status=GiftCard.GiftCardStatus.ACTIVE,
+        )
+
+        arrangement = gift_card.service_arrangement
+        spa_center = gift_card.spa_center
+        service = gift_card.service
+
+        today = timezone.now().date()
+        date_from = today
+        date_to = today + timedelta(days=30)
+
+        # Get booked time slots for this arrangement
+        booked_slots = TimeSlot.objects.filter(
+            arrangement=arrangement,
+            date__gte=date_from,
+            date__lte=date_to,
+        )
+
+        # Build booked map
+        booked_map = defaultdict(set)
+        for slot in booked_slots:
+            date_str = slot.date.isoformat()
+            for hour_slot in slot.get_blocked_hour_slots():
+                booked_map[date_str].add(hour_slot)
+
+        # Generate available slots
+        opening_hour = spa_center.default_opening_time.hour
+        closing_hour = spa_center.default_closing_time.hour
+        all_hours = [
+            f"{h:02d}:00"
+            for h in range(opening_hour, closing_hour)
+        ]
+
+        available_slots = {}
+        current_date = date_from
+        while current_date <= date_to:
+            date_str = current_date.isoformat()
+            day_slots = {}
+            for hour in all_hours:
+                hour_range = f"{hour} - {int(hour[:2])+1:02d}:00"
+                if hour_range in booked_map.get(date_str, set()):
+                    day_slots[hour] = "booked"
+                else:
+                    day_slots[hour] = "available"
+            available_slots[date_str] = day_slots
+            current_date += timedelta(days=1)
+
+        return Response({
+            "service_name": service.name,
+            "spa_center_name": spa_center.name,
+            "opening_time": spa_center.default_opening_time.strftime("%H:%M"),
+            "closing_time": spa_center.default_closing_time.strftime("%H:%M"),
+            "available_slots": available_slots,
+        })
+
+
+class GiftCardRedeemBookingView(APIView):
+    """
+    Create a booking from a gift card redemption.
+
+    POST with public_token, secret_code, date, start_time.
+    No authentication required — anyone with the code can book.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        from bookings.models import Booking, TimeSlot
+        from django.db import transaction
+        from decimal import Decimal
+
+        public_token = request.data.get("public_token")
+        secret_code = request.data.get("secret_code")
+        date_str = request.data.get("date")
+        start_time_str = request.data.get("start_time")
+
+        # Validate required fields
+        if not all([public_token, secret_code, date_str, start_time_str]):
+            return Response(
+                {"success": False, "message": "All fields are required: public_token, secret_code, date, start_time."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get the gift card
+        try:
+            gift_card = GiftCard.objects.select_related(
+                "service", "spa_center", "sender", "service_arrangement",
+            ).get(public_token=public_token)
+        except GiftCard.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Gift card not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Verify the code
+        if not gift_card.is_redeemable:
+            return Response(
+                {"success": False, "message": "This gift card is not available for redemption."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if gift_card.secret_code != secret_code:
+            gift_card.record_failed_attempt()
+            return Response(
+                {"success": False, "message": "Invalid secret code."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Parse date and time
+        try:
+            booking_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return Response(
+                {"success": False, "message": "Invalid date format. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            start_time = datetime.strptime(start_time_str, "%H:%M").time()
+        except ValueError:
+            return Response(
+                {"success": False, "message": "Invalid time format. Use HH:MM."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validate date is not in the past
+        if booking_date < timezone.now().date():
+            return Response(
+                {"success": False, "message": "Cannot book for a past date."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        arrangement = gift_card.service_arrangement
+        service = gift_card.service
+        spa_center = gift_card.spa_center
+
+        # Check operating hours
+        opening_time = spa_center.default_opening_time
+        closing_time = spa_center.default_closing_time
+
+        if start_time < opening_time:
+            return Response(
+                {"success": False, "message": f"Spa center opens at {opening_time}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Calculate end time
+        service_duration = gift_card.total_duration or service.duration_minutes
+        cleanup_duration = arrangement.cleanup_duration
+        end_time = Booking.calculate_end_time(
+            start_time, service_duration, 0, cleanup_duration
+        )
+
+        if end_time > closing_time:
+            return Response(
+                {"success": False, "message": "Booking exceeds closing time."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Check availability
+        overlapping = TimeSlot.objects.filter(
+            arrangement=arrangement,
+            date=booking_date,
+            start_time__lt=end_time,
+            end_time__gt=start_time,
+        ).exists()
+
+        if overlapping:
+            return Response(
+                {"success": False, "message": "This time slot is already booked."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create booking atomically
+        try:
+            with transaction.atomic():
+                # Create time slot
+                time_slot = TimeSlot.objects.create(
+                    arrangement=arrangement,
+                    date=booking_date,
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+
+                # Build meta_data
+                meta_data = {
+                    "service": {
+                        "id": str(service.id),
+                        "name": service.name,
+                        "duration_minutes": service.duration_minutes,
+                        "currency": service.currency,
+                    },
+                    "spa_center": {
+                        "id": str(spa_center.id),
+                        "name": spa_center.name,
+                        "city": spa_center.city.name if spa_center.city else None,
+                        "country": spa_center.country.name if spa_center.country else None,
+                        "address": spa_center.address or None,
+                    },
+                    "schedule": {
+                        "date": str(booking_date),
+                        "start_time": str(start_time),
+                        "end_time": str(end_time),
+                    },
+                    "arrangement": {
+                        "id": str(arrangement.id),
+                        "type": arrangement.arrangement_type,
+                        "room_no": arrangement.room_no,
+                        "label": arrangement.arrangement_label,
+                        "cleanup_duration": arrangement.cleanup_duration,
+                    },
+                    "pricing": {
+                        "subtotal": "0.00",
+                        "discount_amount": "0.00",
+                        "extra_minutes": gift_card.extra_minutes,
+                        "price_for_extra_minutes": "0.00",
+                        "total_price": "0.00",
+                    },
+                    "gift_card": {
+                        "gift_card_id": str(gift_card.id),
+                        "is_gift_card": True,
+                        "original_amount": str(gift_card.amount),
+                        "sender_name": gift_card.sender.get_full_name() or str(gift_card.sender),
+                    },
+                }
+
+                # Create booking
+                booking = Booking.objects.create(
+                    customer=gift_card.sender,  # Use sender as customer for now
+                    spa_center=spa_center,
+                    service=service,
+                    service_arrangement=arrangement,
+                    time_slot=time_slot,
+                    subtotal=Decimal("0.00"),
+                    discount_amount=Decimal("0.00"),
+                    extra_minutes=gift_card.extra_minutes,
+                    price_for_extra_minutes=Decimal("0.00"),
+                    total_duration=service_duration,
+                    total_price=Decimal("0.00"),
+                    status=Booking.BookingStatus.CONFIRMED,
+                    is_gift_card=True,
+                    gift_card=gift_card,
+                    meta_data=meta_data,
+                )
+
+                # Redeem the gift card
+                gift_card.status = GiftCard.GiftCardStatus.REDEEMED
+                gift_card.redeemed_at = timezone.now()
+                gift_card.redeemed_booking = booking
+                gift_card.save(update_fields=[
+                    "status", "redeemed_at", "redeemed_booking", "updated_at",
+                ])
+
+            return Response({
+                "success": True,
+                "message": f"Booking confirmed for {service.name} on {booking_date}.",
+                "booking_number": booking.booking_number,
+                "booking_id": str(booking.id),
+            })
+
+        except Exception as e:
+            return Response(
+                {"success": False, "message": f"Failed to create booking: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class GiftCardValidityCheckView(APIView):

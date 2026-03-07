@@ -53,7 +53,9 @@ urlpatterns = [
     path("api/v1/bookings/", include("bookings.urls")),
     path("api/v1/payments/", include("payments.urls")),
 
-    
+    # Gift Card Public Pages & API (outside /api/v1/ namespace)
+    path("gift-cards/", include("promotions.gift_card_urls")),
+
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

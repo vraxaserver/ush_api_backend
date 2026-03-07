@@ -376,9 +376,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
     )
     service_arrangement_id = serializers.UUIDField(
         write_only=True,
-        required=False,
-        allow_null=True,
-        help_text="Optional service arrangement (room/setup) ID",
+        help_text="Service arrangement (room/setup) ID",
     )
     extra_minutes = serializers.IntegerField(
         required=False,
@@ -437,8 +435,6 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
 
     def validate_service_arrangement_id(self, value):
         """Ensure the service arrangement exists and is active."""
-        if value is None:
-            return value
         from spacenter.models import ServiceArrangement
         try:
             ServiceArrangement.objects.get(id=value, is_active=True)
@@ -464,16 +460,15 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             pass  # Already validated above
 
         # Verify arrangement belongs to the service
-        if arrangement_id:
-            from spacenter.models import ServiceArrangement
-            try:
-                arrangement = ServiceArrangement.objects.get(id=arrangement_id)
-                if str(arrangement.service_id) != str(service_id):
-                    raise serializers.ValidationError({
-                        "service_arrangement_id": "This arrangement does not belong to the selected service."
-                    })
-            except ServiceArrangement.DoesNotExist:
-                pass  # Already validated above
+        from spacenter.models import ServiceArrangement
+        try:
+            arrangement = ServiceArrangement.objects.get(id=arrangement_id)
+            if str(arrangement.service_id) != str(service_id):
+                raise serializers.ValidationError({
+                    "service_arrangement_id": "This arrangement does not belong to the selected service."
+                })
+        except ServiceArrangement.DoesNotExist:
+            pass  # Already validated above
 
         return attrs
 
@@ -483,16 +478,13 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
 
         service_id = validated_data.pop("service_id")
         spa_center_id = validated_data.pop("spa_center_id")
-        arrangement_id = validated_data.pop("service_arrangement_id", None)
+        arrangement_id = validated_data.pop("service_arrangement_id")
         extra_minutes = validated_data.pop("extra_minutes", 0)
         total_duration = validated_data.pop("total_duration")
 
         service = Service.objects.get(id=service_id)
         spa_center = SpaCenter.objects.get(id=spa_center_id)
-
-        arrangement = None
-        if arrangement_id:
-            arrangement = ServiceArrangement.objects.get(id=arrangement_id)
+        arrangement = ServiceArrangement.objects.get(id=arrangement_id)
 
         gift_card = GiftCard.objects.create(
             sender=self.context["request"].user,
@@ -621,6 +613,13 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     is_valid = serializers.SerializerMethodField()
     is_redeemable = serializers.BooleanField(read_only=True)
     is_locked = serializers.BooleanField(read_only=True)
+    spa_center_image = serializers.SerializerMethodField()
+    spa_center_opening_time = serializers.TimeField(
+        source="spa_center.default_opening_time", read_only=True,
+    )
+    spa_center_closing_time = serializers.TimeField(
+        source="spa_center.default_closing_time", read_only=True,
+    )
 
     class Meta:
         model = GiftCard
@@ -644,6 +643,9 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
             "spa_center_phone",
             "spa_center_latitude",
             "spa_center_longitude",
+            "spa_center_image",
+            "spa_center_opening_time",
+            "spa_center_closing_time",
             "amount",
             "currency",
             "status",
@@ -674,6 +676,20 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     def get_is_valid(self, obj):
         """Check if the gift card is currently valid and redeemable."""
         return obj.is_redeemable
+
+    def get_spa_center_image(self, obj):
+        """Return the URL of the spa center's primary image."""
+        if hasattr(obj.spa_center, 'images'):
+            image = (
+                obj.spa_center.images.filter(is_primary=True).first()
+                or obj.spa_center.images.first()
+            )
+            if image and image.image:
+                request = self.context.get("request")
+                if request:
+                    return request.build_absolute_uri(image.image.url)
+                return image.image.url
+        return None
 
 
 class GiftCardValidityCheckSerializer(serializers.Serializer):

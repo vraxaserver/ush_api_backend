@@ -1,0 +1,930 @@
+{% extends "gift_cards/base.html" %}
+
+{% block title %}Redeem Gift Card — {{ gift_card.service_name }}{% endblock %}
+
+{% block extra_styles %}
+/* ===== REDEEM PAGE ===== */
+.gc-redeem-hero {
+    background: var(--gradient-primary);
+    padding: 32px 0 40px;
+    text-align: center;
+    color: #fff;
+}
+
+.gc-redeem-hero__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255,255,255,0.8);
+    text-decoration: none;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+}
+
+.gc-redeem-hero__back:hover { color: #fff; }
+
+.gc-redeem-hero__title {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.gc-redeem-hero__sub {
+    font-size: 0.9rem;
+    opacity: 0.85;
+}
+
+/* ===== STEPS ===== */
+.gc-steps {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 24px 0 0;
+}
+
+.gc-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    transition: color 0.3s;
+}
+
+.gc-step.active { color: #fff; }
+.gc-step.completed { color: var(--accent-light); }
+
+.gc-step__num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    background: rgba(255,255,255,0.15);
+    transition: all 0.3s;
+}
+
+.gc-step.active .gc-step__num {
+    background: #fff;
+    color: var(--primary);
+}
+
+.gc-step.completed .gc-step__num {
+    background: var(--accent-light);
+    color: #fff;
+}
+
+.gc-step__line {
+    width: 32px;
+    height: 2px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+}
+
+/* ===== FORM SECTIONS ===== */
+.gc-form-area {
+    padding: 28px 0 40px;
+}
+
+.gc-panel {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.gc-panel__title {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ===== SECRET CODE ===== */
+.gc-code-inputs {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.gc-code-input {
+    width: 48px;
+    height: 56px;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    transition: all 0.2s;
+    background: var(--surface-alt);
+    color: var(--text);
+}
+
+.gc-code-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+    background: #fff;
+}
+
+.gc-code-input.error {
+    border-color: var(--error);
+    background: #fef2f2;
+}
+
+.gc-code-input.success {
+    border-color: var(--success);
+    background: #f0fdf4;
+}
+
+/* ===== DATE PICKER ===== */
+.gc-calendar {
+    margin: 16px 0;
+}
+
+.gc-calendar__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.gc-calendar__month {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.gc-calendar__nav {
+    display: flex;
+    gap: 8px;
+}
+
+.gc-calendar__btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.gc-calendar__btn:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.gc-calendar__days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.gc-calendar__day-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-light);
+    padding: 8px 0;
+    text-transform: uppercase;
+}
+
+.gc-calendar__day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    color: var(--text);
+}
+
+.gc-calendar__day:hover:not(.disabled):not(.selected) {
+    background: #ede9fe;
+    color: var(--primary);
+}
+
+.gc-calendar__day.selected {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+}
+
+.gc-calendar__day.disabled {
+    color: var(--text-light);
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+.gc-calendar__day.today {
+    border: 2px solid var(--primary-light);
+}
+
+.gc-calendar__day.empty {
+    cursor: default;
+}
+
+/* ===== TIME SLOTS ===== */
+.gc-times {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.gc-time-slot {
+    padding: 12px 8px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    text-align: center;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+}
+
+.gc-time-slot:hover:not(.disabled):not(.selected) {
+    border-color: var(--primary-light);
+    background: #ede9fe;
+}
+
+.gc-time-slot.selected {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+.gc-time-slot.disabled {
+    background: #f3f4f6;
+    color: var(--text-light);
+    cursor: not-allowed;
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.gc-no-slots {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+/* ===== SUMMARY ===== */
+.gc-summary {
+    background: var(--surface-alt);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin: 16px 0;
+}
+
+.gc-summary__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 0.9rem;
+}
+
+.gc-summary__row + .gc-summary__row {
+    border-top: 1px solid var(--border);
+}
+
+.gc-summary__label {
+    color: var(--text-secondary);
+}
+
+.gc-summary__value {
+    font-weight: 600;
+    color: var(--text);
+}
+
+/* ===== MESSAGES ===== */
+.gc-alert {
+    padding: 14px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    margin: 16px 0;
+    display: none;
+}
+
+.gc-alert.show { display: flex; align-items: center; gap: 8px; }
+.gc-alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.gc-alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.gc-alert-info { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+
+/* ===== LOADING OVERLAY ===== */
+.gc-loading {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+}
+
+.gc-loading.show { display: flex; }
+
+.gc-loading__card {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+}
+
+.gc-loading__spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #ede9fe;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 16px;
+}
+
+/* ===== SUCCESS PAGE ===== */
+.gc-success {
+    display: none;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.gc-success.show { display: block; }
+
+.gc-success__icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+.gc-success__title {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 10px;
+}
+
+.gc-success__text {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    max-width: 400px;
+    margin: 0 auto 24px;
+}
+
+/* ===== HIDDEN HELPER ===== */
+.hidden { display: none !important; }
+
+@media (max-width: 480px) {
+    .gc-redeem-hero { padding: 24px 0 32px; }
+    .gc-redeem-hero__title { font-size: 1.3rem; }
+    .gc-panel { padding: 20px; }
+    .gc-code-input { width: 42px; height: 50px; font-size: 1.2rem; }
+    .gc-times { grid-template-columns: repeat(2, 1fr); }
+    .gc-steps { gap: 4px; }
+    .gc-step { font-size: 0.72rem; }
+    .gc-step__line { width: 20px; }
+}
+{% endblock %}
+
+{% block content %}
+<!-- LOADING OVERLAY -->
+<div class="gc-loading" id="loadingOverlay">
+    <div class="gc-loading__card">
+        <div class="gc-loading__spinner"></div>
+        <p>Processing your booking...</p>
+    </div>
+</div>
+
+<!-- SUCCESS STATE -->
+<div class="gc-success" id="successSection">
+    <div class="container">
+        <div class="gc-success__icon">🎉</div>
+        <h1 class="gc-success__title">Booking Confirmed!</h1>
+        <p class="gc-success__text" id="successMessage">
+            Your spa booking has been created successfully.
+        </p>
+        <div class="gc-summary" id="successSummary"></div>
+        <a href="/gift-cards/public/{{ gift_card.public_token }}/" class="btn btn-outline" style="margin-top: 20px;">
+            ← Back to Gift Card
+        </a>
+    </div>
+</div>
+
+<!-- MAIN REDEEM FLOW -->
+<div id="redeemFlow">
+    <!-- HERO -->
+    <section class="gc-redeem-hero">
+        <div class="container">
+            <a href="/gift-cards/public/{{ gift_card.public_token }}/" class="gc-redeem-hero__back">
+                ← Back to Gift Card
+            </a>
+            <h1 class="gc-redeem-hero__title">Redeem Your Gift</h1>
+            <p class="gc-redeem-hero__sub">{{ gift_card.service_name }} at {{ gift_card.spa_center_name }}</p>
+
+            <!-- Steps -->
+            <div class="gc-steps">
+                <div class="gc-step active" id="step1Indicator">
+                    <span class="gc-step__num">1</span>
+                    <span>Code</span>
+                </div>
+                <div class="gc-step__line"></div>
+                <div class="gc-step" id="step2Indicator">
+                    <span class="gc-step__num">2</span>
+                    <span>Date</span>
+                </div>
+                <div class="gc-step__line"></div>
+                <div class="gc-step" id="step3Indicator">
+                    <span class="gc-step__num">3</span>
+                    <span>Confirm</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="gc-form-area">
+            <!-- STEP 1: SECRET CODE -->
+            <div id="step1Panel" class="gc-panel animate-in">
+                <div class="gc-panel__title">🔑 Enter Your Secret Code</div>
+                <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;">
+                    Enter the 6-digit code sent to your phone via SMS.
+                </p>
+                <div class="gc-code-inputs" id="codeInputs">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="1" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="2" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="3" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="4" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                    <input type="text" maxlength="1" class="gc-code-input" data-index="5" inputmode="numeric" pattern="[0-9]" autocomplete="off">
+                </div>
+                <div class="gc-alert gc-alert-error" id="codeError"></div>
+                <button class="btn btn-primary btn-block" id="verifyCodeBtn" disabled>
+                    Verify Code →
+                </button>
+            </div>
+
+            <!-- STEP 2: DATE & TIME -->
+            <div id="step2Panel" class="gc-panel hidden">
+                <div class="gc-panel__title">📅 Choose Date & Time</div>
+
+                <!-- Calendar -->
+                <div class="gc-calendar">
+                    <div class="gc-calendar__header">
+                        <button class="gc-calendar__btn" id="prevMonth">‹</button>
+                        <span class="gc-calendar__month" id="calendarMonth"></span>
+                        <button class="gc-calendar__btn" id="nextMonth">›</button>
+                    </div>
+                    <div class="gc-calendar__days" id="calendarGrid"></div>
+                </div>
+
+                <div class="divider"></div>
+
+                <!-- Time Slots -->
+                <div id="timeSlotsSection" class="hidden">
+                    <div class="gc-panel__title" style="margin-top: 8px;">⏰ Available Times</div>
+                    <div id="timeSlotsContainer">
+                        <div class="gc-no-slots">Select a date to view available times</div>
+                    </div>
+                </div>
+
+                <div class="gc-alert gc-alert-error" id="dateError"></div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-outline" id="backToStep1" style="flex: 0 0 auto;">←</button>
+                    <button class="btn btn-primary btn-block" id="confirmDateBtn" disabled>
+                        Continue →
+                    </button>
+                </div>
+            </div>
+
+            <!-- STEP 3: CONFIRM -->
+            <div id="step3Panel" class="gc-panel hidden">
+                <div class="gc-panel__title">✅ Confirm Your Booking</div>
+                <div class="gc-summary">
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Service</span>
+                        <span class="gc-summary__value">{{ gift_card.service_name }}</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Location</span>
+                        <span class="gc-summary__value">{{ gift_card.spa_center_name }}</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Date</span>
+                        <span class="gc-summary__value" id="confirmDate">—</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Time</span>
+                        <span class="gc-summary__value" id="confirmTime">—</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Duration</span>
+                        <span class="gc-summary__value">{{ gift_card.total_duration }} min</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Price</span>
+                        <span class="gc-summary__value" style="color: var(--success);">FREE (Gift Card)</span>
+                    </div>
+                </div>
+
+                <div class="gc-alert gc-alert-error" id="confirmError"></div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-outline" id="backToStep2" style="flex: 0 0 auto;">←</button>
+                    <button class="btn btn-primary btn-block" id="confirmRedeemBtn">
+                        🎉 Confirm Booking
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    'use strict';
+
+    // Config
+    const PUBLIC_TOKEN = '{{ gift_card.public_token }}';
+    const BASE_API = '/gift-cards/api';
+
+    // State
+    let secretCode = '';
+    let selectedDate = null;
+    let selectedTime = null;
+    let currentMonth = new Date();
+    let availabilityData = null;
+
+    // DOM elements
+    const codeInputs = document.querySelectorAll('.gc-code-input');
+    const verifyCodeBtn = document.getElementById('verifyCodeBtn');
+    const step1Panel = document.getElementById('step1Panel');
+    const step2Panel = document.getElementById('step2Panel');
+    const step3Panel = document.getElementById('step3Panel');
+    const step1Indicator = document.getElementById('step1Indicator');
+    const step2Indicator = document.getElementById('step2Indicator');
+    const step3Indicator = document.getElementById('step3Indicator');
+    const confirmDateBtn = document.getElementById('confirmDateBtn');
+    const confirmRedeemBtn = document.getElementById('confirmRedeemBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const redeemFlow = document.getElementById('redeemFlow');
+    const successSection = document.getElementById('successSection');
+
+    // ===== CODE INPUT LOGIC =====
+    codeInputs.forEach((input, index) => {
+        input.addEventListener('input', (e) => {
+            const val = e.target.value.replace(/\D/g, '');
+            e.target.value = val;
+            if (val && index < 5) {
+                codeInputs[index + 1].focus();
+            }
+            updateCodeState();
+        });
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                codeInputs[index - 1].focus();
+                codeInputs[index - 1].value = '';
+            }
+        });
+
+        input.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const pastedData = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+            pastedData.split('').forEach((char, i) => {
+                if (codeInputs[i]) codeInputs[i].value = char;
+            });
+            updateCodeState();
+            if (pastedData.length >= 6) codeInputs[5].focus();
+        });
+    });
+
+    function updateCodeState() {
+        secretCode = Array.from(codeInputs).map(i => i.value).join('');
+        verifyCodeBtn.disabled = secretCode.length !== 6;
+    }
+
+    // ===== STEP NAVIGATION =====
+    function goToStep(step) {
+        [step1Panel, step2Panel, step3Panel].forEach(p => p.classList.add('hidden'));
+        [step1Indicator, step2Indicator, step3Indicator].forEach(s => {
+            s.classList.remove('active', 'completed');
+        });
+
+        if (step === 1) {
+            step1Panel.classList.remove('hidden');
+            step1Indicator.classList.add('active');
+        } else if (step === 2) {
+            step2Panel.classList.remove('hidden');
+            step1Indicator.classList.add('completed');
+            step2Indicator.classList.add('active');
+            renderCalendar();
+            fetchAvailability();
+        } else if (step === 3) {
+            step3Panel.classList.remove('hidden');
+            step1Indicator.classList.add('completed');
+            step2Indicator.classList.add('completed');
+            step3Indicator.classList.add('active');
+            updateConfirmSummary();
+        }
+    }
+
+    // ===== VERIFY CODE =====
+    verifyCodeBtn.addEventListener('click', async () => {
+        verifyCodeBtn.disabled = true;
+        verifyCodeBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+        hideAlert('codeError');
+
+        try {
+            const resp = await fetch(`${BASE_API}/verify-code/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ public_token: PUBLIC_TOKEN, secret_code: secretCode })
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data.valid) {
+                codeInputs.forEach(i => i.classList.add('success'));
+                setTimeout(() => goToStep(2), 400);
+            } else {
+                showAlert('codeError', data.message || 'Invalid code. Please try again.');
+                codeInputs.forEach(i => { i.classList.add('error'); i.value = ''; });
+                codeInputs[0].focus();
+                secretCode = '';
+            }
+        } catch (err) {
+            showAlert('codeError', 'Network error. Please try again.');
+        }
+
+        verifyCodeBtn.disabled = false;
+        verifyCodeBtn.innerHTML = 'Verify Code →';
+    });
+
+    // ===== CALENDAR =====
+    function renderCalendar() {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        document.getElementById('calendarMonth').textContent =
+            currentMonth.toLocaleString('en', { month: 'long', year: 'numeric' });
+
+        const grid = document.getElementById('calendarGrid');
+        grid.innerHTML = '';
+
+        // Day labels
+        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => {
+            const label = document.createElement('div');
+            label.className = 'gc-calendar__day-label';
+            label.textContent = d;
+            grid.appendChild(label);
+        });
+
+        // First day of month
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Empty cells
+        for (let i = 0; i < firstDay; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'gc-calendar__day empty';
+            grid.appendChild(empty);
+        }
+
+        // Day cells
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateObj = new Date(year, month, d);
+            const btn = document.createElement('button');
+            btn.className = 'gc-calendar__day';
+            btn.textContent = d;
+
+            if (dateObj < today) {
+                btn.classList.add('disabled');
+            } else {
+                btn.addEventListener('click', () => selectDate(dateObj, btn));
+            }
+
+            if (dateObj.toDateString() === today.toDateString()) {
+                btn.classList.add('today');
+            }
+
+            if (selectedDate && dateObj.toDateString() === selectedDate.toDateString()) {
+                btn.classList.add('selected');
+            }
+
+            grid.appendChild(btn);
+        }
+    }
+
+    function selectDate(dateObj, btn) {
+        selectedDate = dateObj;
+        selectedTime = null;
+        confirmDateBtn.disabled = true;
+
+        // Update calendar UI
+        document.querySelectorAll('.gc-calendar__day').forEach(d => d.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        // Show time slots
+        renderTimeSlots();
+    }
+
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        const today = new Date();
+        const prev = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+        if (prev.getFullYear() >= today.getFullYear() && prev.getMonth() >= today.getMonth()) {
+            currentMonth = prev;
+            renderCalendar();
+        }
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+        renderCalendar();
+    });
+
+    // ===== AVAILABILITY =====
+    async function fetchAvailability() {
+        try {
+            const resp = await fetch(`${BASE_API}/availability/${PUBLIC_TOKEN}/`);
+            if (resp.ok) {
+                availabilityData = await resp.json();
+            }
+        } catch (err) {
+            console.error('Failed to fetch availability:', err);
+        }
+    }
+
+    function renderTimeSlots() {
+        const container = document.getElementById('timeSlotsContainer');
+        const section = document.getElementById('timeSlotsSection');
+        section.classList.remove('hidden');
+
+        if (!selectedDate || !availabilityData) {
+            container.innerHTML = '<div class="gc-no-slots">Loading availability...</div>';
+            return;
+        }
+
+        const dateStr = formatDateISO(selectedDate);
+        const slots = availabilityData.available_slots || {};
+        const daySlots = slots[dateStr] || {};
+        const times = Object.entries(daySlots);
+
+        if (times.length === 0) {
+            container.innerHTML = '<div class="gc-no-slots">No available slots for this date</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'gc-times';
+
+        times.forEach(([time, status]) => {
+            const btn = document.createElement('button');
+            btn.className = 'gc-time-slot';
+            btn.textContent = time;
+
+            if (status === 'booked') {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+            } else {
+                btn.addEventListener('click', () => selectTime(time, btn));
+            }
+
+            if (selectedTime === time) btn.classList.add('selected');
+
+            grid.appendChild(btn);
+        });
+
+        container.appendChild(grid);
+    }
+
+    function selectTime(time, btn) {
+        selectedTime = time;
+        confirmDateBtn.disabled = false;
+
+        document.querySelectorAll('.gc-time-slot').forEach(s => s.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+
+    // ===== CONFIRM =====
+    function updateConfirmSummary() {
+        document.getElementById('confirmDate').textContent =
+            selectedDate ? selectedDate.toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+        document.getElementById('confirmTime').textContent = selectedTime || '—';
+    }
+
+    confirmDateBtn.addEventListener('click', () => goToStep(3));
+
+    document.getElementById('backToStep1').addEventListener('click', () => goToStep(1));
+    document.getElementById('backToStep2').addEventListener('click', () => goToStep(2));
+
+    // ===== REDEEM BOOKING =====
+    confirmRedeemBtn.addEventListener('click', async () => {
+        confirmRedeemBtn.disabled = true;
+        loadingOverlay.classList.add('show');
+        hideAlert('confirmError');
+
+        try {
+            const resp = await fetch(`${BASE_API}/redeem-booking/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    public_token: PUBLIC_TOKEN,
+                    secret_code: secretCode,
+                    date: formatDateISO(selectedDate),
+                    start_time: selectedTime
+                })
+            });
+
+            const data = await resp.json();
+            loadingOverlay.classList.remove('show');
+
+            if (resp.ok && data.success) {
+                redeemFlow.classList.add('hidden');
+                successSection.classList.add('show');
+                document.getElementById('successMessage').textContent =
+                    data.message || 'Your spa booking has been created successfully!';
+
+                const summary = document.getElementById('successSummary');
+                summary.innerHTML = `
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Booking #</span>
+                        <span class="gc-summary__value">${data.booking_number || '—'}</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Date</span>
+                        <span class="gc-summary__value">${document.getElementById('confirmDate').textContent}</span>
+                    </div>
+                    <div class="gc-summary__row">
+                        <span class="gc-summary__label">Time</span>
+                        <span class="gc-summary__value">${selectedTime}</span>
+                    </div>
+                `;
+            } else {
+                showAlert('confirmError', data.message || data.error || 'Failed to create booking.');
+                confirmRedeemBtn.disabled = false;
+            }
+        } catch (err) {
+            loadingOverlay.classList.remove('show');
+            showAlert('confirmError', 'Network error. Please try again.');
+            confirmRedeemBtn.disabled = false;
+        }
+    });
+
+    // ===== HELPERS =====
+    function formatDateISO(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    function showAlert(id, message) {
+        const el = document.getElementById(id);
+        el.textContent = message;
+        el.classList.add('show');
+    }
+
+    function hideAlert(id) {
+        const el = document.getElementById(id);
+        el.classList.remove('show');
+    }
+
+    // Initial state
+    goToStep(1);
+    codeInputs[0].focus();
+})();
+</script>
+{% endblock %}

@@ -240,7 +240,7 @@ class GiftCardAdmin(admin.ModelAdmin):
         "recipient_name",
         "service",
         "spa_center",
-        "amount_display",
+        "secret_code",
         "status_display",
         "sms_sent_display",
         "created_at",

@@ -383,12 +383,10 @@ class GiftCard(models.Model):
         default="QAR",
     )
 
-    # Service arrangement (room/setup configuration)
+    # Service arrangement (room/setup configuration) — REQUIRED
     service_arrangement = models.ForeignKey(
         "spacenter.ServiceArrangement",
         on_delete=models.PROTECT,
-        null=True,
-        blank=True,
         related_name="gift_cards",
         verbose_name=_("service arrangement"),
         help_text=_("Room/setup configuration for the gifted service"),
@@ -533,7 +531,7 @@ class GiftCard(models.Model):
     def get_public_url(self):
         """Return the public page URL for this gift card."""
         base_url = getattr(settings, "SITE_BASE_URL", "http://localhost:8000")
-        return f"{base_url}/api/v1/promotions/gift-cards/public/{self.public_token}/"
+        return f"{base_url}/gift-cards/public/{self.public_token}/"
 
     def record_failed_attempt(self):
         """Record a failed redemption attempt."""
