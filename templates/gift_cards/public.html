@@ -395,16 +395,20 @@ margin: 0 auto;
                 {% if gift_card.spa_center_city %}
                 <div class="gc-spa__info-row">
                     <span class="gc-spa__info-icon">🌆</span>
-                    <span>{{ gift_card.spa_center_city }}{% if gift_card.spa_center_country %}, {{
-                        gift_card.spa_center_country }}{% endif %}</span>
+                    <span>
+                        {{ gift_card.spa_center_city }}
+                        {% if gift_card.spa_center_country %}, {{ gift_card.spa_center_country }}{% endif %}
+                    </span>
                 </div>
                 {% endif %}
                 {% if gift_card.spa_center_phone %}
                 <div class="gc-spa__info-row">
                     <span class="gc-spa__info-icon">📞</span>
-                    <span><a href="tel:{{ gift_card.spa_center_phone }}"
-                            style="color: var(--primary); text-decoration: none;">{{ gift_card.spa_center_phone
-                            }}</a></span>
+                    <span>
+                        <a href="tel:{{ gift_card.spa_center_phone }}"
+                            style="color: var(--primary); text-decoration: none;">
+                            {{ gift_card.spa_center_phone }}
+                        </a></span>
                 </div>
                 {% endif %}
             </div>
