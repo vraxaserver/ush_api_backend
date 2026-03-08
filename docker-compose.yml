@@ -34,9 +34,6 @@ services:
     restart: unless-stopped
     command: >
       sh -c "
-        mkdir -p /app/staticfiles /app/mediafiles /app/logs &&
-        chown -R www-data:www-data /app/staticfiles /app/mediafiles /app/logs &&
-        chmod -R 775 /app/staticfiles /app/mediafiles /app/logs &&
         python manage.py migrate &&
         python manage.py collectstatic --noinput &&
         gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --access-logfile - --error-logfile -
@@ -49,8 +46,8 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
     volumes:
-      - static_volume:/app/staticfiles
-      - media_volume:/app/mediafiles
+      - /home/ubuntu/staticfiles:/app/staticfiles
+      - /home/ubuntu/mediafiles:/app/mediafiles
       - ./logs:/app/logs
     depends_on:
       redis:
@@ -141,10 +138,6 @@ services:
 volumes:
   redis_data:
     name: spaush_redis_data
-  static_volume:
-    name: ush_api_backend_static_volume
-  media_volume:
-    name: ush_api_backend_media_volume
 
 # ==========================================================================
 # Networks

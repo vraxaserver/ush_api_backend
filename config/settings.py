@@ -248,7 +248,7 @@ LOCALE_PATHS = [
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = "/app/staticfiles"
 
 # Only use STATICFILES_DIRS for local development if you really need it
 # (recommended: remove it in production container images)
@@ -259,7 +259,7 @@ else:
 
 # Media files (user uploads)
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "mediafiles"
+MEDIA_ROOT = "/app/mediafiles"
 
 
 
