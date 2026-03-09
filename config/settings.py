@@ -281,18 +281,32 @@ if not DEBUG:
     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default=AWS_REGION_NAME)
     AWS_S3_CUSTOM_DOMAIN = config(
         "AWS_S3_CUSTOM_DOMAIN",
-        default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com",
+        default="",
     )
+    # If no custom domain is set, use the default S3 URL
+    if not AWS_S3_CUSTOM_DOMAIN:
+        AWS_S3_CUSTOM_DOMAIN = (
+            f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+        )
+
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
     AWS_DEFAULT_ACL = None
     AWS_S3_FILE_OVERWRITE = False
     AWS_QUERYSTRING_AUTH = False
+    AWS_LOCATION = "media"
 
-    # Use S3 for media files
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+    # Use S3 for media files (Django 4.2+ STORAGES dict)
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 else:
     # ==========================================================================
     # Development: Local file storage
