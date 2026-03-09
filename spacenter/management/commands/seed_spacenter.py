@@ -194,6 +194,16 @@ BASE_PRODUCTS = [
     {"name_en": "Relaxation Herbal Tea Set",     "name_ar": "مجموعة شاي الأعشاب للاسترخاء","short_en": "Curated calming herbal teas – chamomile, lemongrass.", "short_ar": "شاي أعشاب مهدئ - بابونج وعشبة الليمون.",     "type": "retail",     "cat": "Wellness",      "brand": "ZenLeaf",    "sku": "ZL-TEA-001", "organic": True,  "aroma": False, "featured": True},
 ]
 
+# Real product images from Pexels (free, high-quality, verified working)
+PRODUCT_IMAGE_URLS = {
+    "AP-LAV-001": "https://images.pexels.com/photos/932577/pexels-photo-932577.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",   # Lavender essential oil
+    "GL-SER-001": "https://images.pexels.com/photos/3685530/pexels-photo-3685530.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",  # Face serum dropper
+    "NS-BOD-001": "https://images.pexels.com/photos/725998/pexels-photo-725998.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",    # Coconut body butter jar
+    "AP-EUC-002": "https://images.pexels.com/photos/4041392/pexels-photo-4041392.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",  # Eucalyptus steam/essential oil
+    "HZ-SCA-001": "https://images.pexels.com/photos/3993398/pexels-photo-3993398.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",  # Hair/scalp oil bottle
+    "ZL-TEA-001": "https://images.pexels.com/photos/1417945/pexels-photo-1417945.jpeg?auto=compress&cs=tinysrgb&w=800&h=600&dpr=1",  # Herbal tea set
+}
+
 DEFAULT_HOURS = [
     (0, time(9,0),  time(22,0), False),
     (1, time(9,0),  time(22,0), False),
@@ -467,6 +477,20 @@ class Command(BaseCommand):
                     "suitable_for_sensitive_skin": d.get("sensitive", False), "is_featured": d.get("featured", False),
                 },
             )
+
+            # Download and save product image if none exists
+            if not obj.image:
+                img_url = PRODUCT_IMAGE_URLS.get(d["sku"])
+                if img_url:
+                    self.stdout.write(f"    Downloading image for: {obj.name}...")
+                    img_data = _download_image(img_url)
+                    if img_data:
+                        fname = f"product_{obj.id}.jpg"
+                        obj.image.save(fname, ContentFile(img_data), save=True)
+                        self.stdout.write(f"    📷 Image saved for: {obj.name}")
+                    else:
+                        self.stdout.write(self.style.WARNING(f"    ⚠ Download failed for: {obj.name}"))
+
             self.stdout.write(f"  {'Created' if created else 'Updated'}: {obj.name}")
 
     # ── Spa Products ───────────────────────────────────────────
