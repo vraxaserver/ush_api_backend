@@ -52,6 +52,7 @@ urlpatterns = [
     path("api/v1/promotions/", include("promotions.urls")),
     path("api/v1/bookings/", include("bookings.urls")),
     path("api/v1/payments/", include("payments.urls")),
+    path("api/v1/notifications/", include("notifications.urls")),
 
     # Gift Card Public Pages & API (outside /api/v1/ namespace)
     path("gift-cards/", include("promotions.gift_card_urls")),
