@@ -4,7 +4,7 @@
 # ============================================================================
 # Stage 1: Build stage
 # ============================================================================
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.t
 # ============================================================================
 # Stage 2: Production stage
 # ============================================================================
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 # Create non-root user for security
 RUN groupadd --gid 1000 appgroup && \
