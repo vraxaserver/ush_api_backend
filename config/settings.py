@@ -28,6 +28,19 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv(
 
 
 # ============================================================================
+# SMS Configuration (AWS SNS)
+# ============================================================================
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
+AWS_REGION_NAME = config("AWS_REGION_NAME", default="me-center-1")
+# SMS Sender ID (optional, up to 11 alphanumeric characters)
+AWS_SNS_SENDER_ID = config("AWS_SNS_SENDER_ID", default="AuthService")
+# SMS Type: Promotional or Transactional
+AWS_SNS_SMS_TYPE = config("AWS_SNS_SMS_TYPE", default="Transactional")
+
+
+
+# ============================================================================
 # CORS Configuration
 # ============================================================================
 # For development/mobile apps - Allow all origins
@@ -429,16 +442,6 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="contact@spaush.com")
 
-# ============================================================================
-# SMS Configuration (AWS SNS)
-# ============================================================================
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
-AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
-AWS_REGION_NAME = config("AWS_REGION_NAME", default="me-center-1")
-# SMS Sender ID (optional, up to 11 alphanumeric characters)
-AWS_SNS_SENDER_ID = config("AWS_SNS_SENDER_ID", default="AuthService")
-# SMS Type: Promotional or Transactional
-AWS_SNS_SMS_TYPE = config("AWS_SNS_SMS_TYPE", default="Transactional")
 
 # ============================================================================
 # Phone Number Field Configuration
