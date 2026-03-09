@@ -142,7 +142,8 @@ THIRD_PARTY_APPS = [
     "phonenumber_field",
     "django_celery_beat",
     "django_filters",
-    "admin_searchable_dropdown"
+    "admin_searchable_dropdown",
+    "storages",
 ]
 
 LOCAL_APPS = [
@@ -259,8 +260,32 @@ else:
     STATICFILES_DIRS = []
 
 # Media files (user uploads)
-MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/mediafiles"
+if not DEBUG:
+    # ==========================================================================
+    # Production: AWS S3 Storage
+    # ==========================================================================
+    AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
+    AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default=AWS_REGION_NAME)
+    AWS_S3_CUSTOM_DOMAIN = config(
+        "AWS_S3_CUSTOM_DOMAIN",
+        default=f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com",
+    )
+    AWS_S3_OBJECT_PARAMETERS = {
+        "CacheControl": "max-age=86400",
+    }
+    AWS_DEFAULT_ACL = None
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_QUERYSTRING_AUTH = False
+
+    # Use S3 for media files
+    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/"
+else:
+    # ==========================================================================
+    # Development: Local file storage
+    # ==========================================================================
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "mediafiles"
 
 
 
