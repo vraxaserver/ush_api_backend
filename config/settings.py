@@ -486,6 +486,21 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ============================================================================
+# Cache Configuration (Redis)
+# ============================================================================
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config("CACHE_REDIS_URL", default="redis://localhost:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": "ush",
+        "TIMEOUT": 900,  # 15 minutes default
+    }
+}
+
+# ============================================================================
 # Celery Configuration (for async email/SMS)
 # ============================================================================
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")

@@ -9,3 +9,6 @@ class SpacenterConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "spacenter"
     verbose_name = "Spa Centers"
+
+    def ready(self):
+        import spacenter.signals  # noqa: F401

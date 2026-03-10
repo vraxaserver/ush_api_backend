@@ -5,10 +5,12 @@ Admin interface for managing spa centers, services, specialties
 Supports multi-language (English, Arabic) via django-modeltranslation.
 """
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.db.models import Sum
 from django.utils.html import format_html
 from modeltranslation.admin import TranslationAdmin
+
+from config.cache_utils import invalidate_all_caches
 
 from .models import (
     AddOnService,
@@ -26,6 +28,28 @@ from .models import (
 )
 
 from .filters import CountryFilter, CityFilter, SpaCenterFilter, ServiceArrangementServiceFilter
+
+
+# =============================================================================
+# Cache Control Mixin
+# =============================================================================
+
+class ClearCacheActionMixin:
+    """Mixin that adds a 'Clear API Cache' admin action."""
+
+    @admin.action(description="🗑 Clear all API caches")
+    def clear_api_cache(self, request, queryset):
+        invalidate_all_caches()
+        self.message_user(request, "All API caches have been cleared.", messages.SUCCESS)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions["clear_api_cache"] = (
+            self.clear_api_cache.__func__,
+            "clear_api_cache",
+            "🗑 Clear all API caches",
+        )
+        return actions
 
 
 def get_branch_manager_spa_center(user):
@@ -72,7 +96,7 @@ class BranchManagerPermissionMixin:
 
 
 @admin.register(Country)
-class CountryAdmin(TranslationAdmin):
+class CountryAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for Country model with translation support."""
 
     list_display = ["name", "code", "phone_code", "is_active", "sort_order", "city_count"]
@@ -99,7 +123,7 @@ class CountryAdmin(TranslationAdmin):
 
 
 @admin.register(City)
-class CityAdmin(TranslationAdmin):
+class CityAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for City model with translation support."""
 
     list_display = ["name", "country", "state", "is_active", "sort_order"]
@@ -120,7 +144,7 @@ class CityAdmin(TranslationAdmin):
 
 
 @admin.register(Specialty)
-class SpecialtyAdmin(TranslationAdmin):
+class SpecialtyAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for Specialty model with translation support."""
 
     list_display = ["name", "is_active", "sort_order", "service_count"]
@@ -147,7 +171,7 @@ class SpecialtyAdmin(TranslationAdmin):
 
 
 @admin.register(AddOnService)
-class AddOnServiceAdmin(TranslationAdmin):
+class AddOnServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for AddOnService model."""
 
     list_display = [
@@ -211,7 +235,7 @@ class ServiceImageInline(admin.TabularInline):
 
 
 @admin.register(Service)
-class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
+class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for Service model with translation support."""
 
     list_display = [
@@ -324,7 +348,7 @@ class ServiceAdmin(BranchManagerPermissionMixin, TranslationAdmin):
 
 
 @admin.register(ServiceImage)
-class ServiceImageAdmin(admin.ModelAdmin):
+class ServiceImageAdmin(ClearCacheActionMixin, admin.ModelAdmin):
     """Admin for ServiceImage model."""
 
     list_display = ["service", "image_preview", "is_primary", "sort_order"]
@@ -369,7 +393,7 @@ class ServiceArrangementInline(admin.TabularInline):
     autocomplete_fields = ["service"]
 
 @admin.register(SpaCenter)
-class SpaCenterAdmin(BranchManagerPermissionMixin, TranslationAdmin):
+class SpaCenterAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, TranslationAdmin):
     """Admin for SpaCenter model with translation support."""
 
     list_display = [
@@ -477,7 +501,7 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, admin.ModelAdmin):
     """Admin for ServiceArrangement model with pricing support."""
 
     list_display = [
@@ -554,7 +578,7 @@ class ServiceArrangementAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
 # =============================================================================
 
 @admin.register(ProductCategory)
-class ProductCategoryAdmin(TranslationAdmin):
+class ProductCategoryAdmin(ClearCacheActionMixin, TranslationAdmin):
     """
     Admin for ProductCategory model.
     Only Admin can add/update/delete.
@@ -582,7 +606,7 @@ class ProductCategoryAdmin(TranslationAdmin):
 
 
 @admin.register(BaseProduct)
-class BaseProductAdmin(TranslationAdmin):
+class BaseProductAdmin(ClearCacheActionMixin, TranslationAdmin):
     """
     Admin for BaseProduct model.
     Only Admin can add/update/delete.
@@ -671,7 +695,7 @@ class BaseProductAdmin(TranslationAdmin):
 
 
 @admin.register(SpaProduct)
-class SpaProductAdmin(admin.ModelAdmin):
+class SpaProductAdmin(ClearCacheActionMixin, admin.ModelAdmin):
     """
     Admin for SpaProduct model.
     Admin and Branch Manager can add/update.

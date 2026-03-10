@@ -8,6 +8,7 @@ Public endpoints for list/retrieve, authenticated for create/update/delete on se
 
 import logging
 
+from django.core.cache import cache
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -15,6 +16,18 @@ from rest_framework.response import Response
 
 from accounts.models import EmployeeRole
 from accounts.permissions import IsAdminUser
+from config.cache_utils import (
+    ADDON_SERVICE_CACHE_PREFIX,
+    CACHE_TIMEOUT,
+    CITY_CACHE_PREFIX,
+    COUNTRY_CACHE_PREFIX,
+    PRODUCT_CATEGORY_CACHE_PREFIX,
+    SERVICE_CACHE_PREFIX,
+    SPA_CENTER_CACHE_PREFIX,
+    SPA_PRODUCT_CACHE_PREFIX,
+    SPECIALTY_CACHE_PREFIX,
+    build_cache_key,
+)
 
 from .models import (
     AddOnService,
@@ -246,6 +259,15 @@ class CountryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(COUNTRY_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
+
 
 # =============================================================================
 # City Views
@@ -286,6 +308,15 @@ class CityViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             queryset = queryset.filter(is_active=True, country__is_active=True)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(CITY_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
 
     @action(detail=False, methods=["get"], url_path="by-country/(?P<country_code>[^/.]+)")
     def by_country(self, request, country_code=None):
@@ -330,6 +361,15 @@ class SpecialtyViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             queryset = queryset.filter(is_active=True)
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(SPECIALTY_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
 
 
 # =============================================================================
@@ -418,6 +458,18 @@ class ServiceViewSet(viewsets.ModelViewSet):
                     queryset = queryset.none()
         
         return queryset.distinct()
+
+    def list(self, request, *args, **kwargs):
+        # Only cache for unauthenticated (public) requests
+        if not request.user.is_authenticated:
+            cache_key = build_cache_key(SERVICE_CACHE_PREFIX, request)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+            response = super().list(request, *args, **kwargs)
+            cache.set(cache_key, response.data, CACHE_TIMEOUT)
+            return response
+        return super().list(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminOrBranchManager])
     def add_image(self, request, pk=None):
@@ -603,6 +655,15 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(SPA_CENTER_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
+
     @action(detail=True, methods=["get"])
     def services(self, request, pk=None):
         """
@@ -713,6 +774,15 @@ class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["name", "name_en", "name_ar", "description"]
     ordering_fields = ["sort_order", "name", "created_at"]
     ordering = ["sort_order", "name"]
+
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(PRODUCT_CATEGORY_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
 
 
 # =============================================================================
@@ -846,6 +916,15 @@ class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
             return SpaProductDetailSerializer
         return SpaProductListSerializer
 
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(SPA_PRODUCT_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
+
 
 # =============================================================================
 # Add-on Service ViewSet
@@ -880,4 +959,13 @@ class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "list":
             return AddOnServiceListSerializer
         return AddOnServiceSerializer
+
+    def list(self, request, *args, **kwargs):
+        cache_key = build_cache_key(ADDON_SERVICE_CACHE_PREFIX, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
 
