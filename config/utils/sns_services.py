@@ -5,7 +5,7 @@ from decouple import config
 
 
 class SNSSMSService:
-    def __init__(self, region='us-east-1'):
+    def __init__(self, region='ap-southeast-1'):
         self.sns = boto3.client(
             "sns",
             region_name=region,
