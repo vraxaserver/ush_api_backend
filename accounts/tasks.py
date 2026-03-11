@@ -10,7 +10,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from config.utils.sns_services import sms_service
+from config.utils.sms_service import send_sms
 from config.utils.ses_mailer import ses_mailer
 
 import pdb
@@ -101,8 +101,8 @@ def send_sms_verification(self, phone_number, code):
         # Send SMS
         expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
         message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
-        resutl = sms_service.send_sms(phone_number, message)
-        print(resutl)
+        result = send_sms(phone_number, message)
+        print(result)
 
         # logger.info(f"SMS sent to {phone_number}, MessageId: {resutl['message_id']}")
         return True

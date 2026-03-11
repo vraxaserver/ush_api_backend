@@ -9,7 +9,7 @@ import logging
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from config.utils.sns_services import sms_service
+from config.utils.sms_service import send_sms
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ def send_gift_card_sms(self, gift_card_id):
 
         # Send SMS
         phone_number = str(gift_card.recipient_phone)
-        result = sms_service.send_sms(phone_number, message)
+        result = send_sms(phone_number, message)
 
         logger.info(
             "Gift card SMS sent to %s for gift card %s. Result: %s",

@@ -37,6 +37,7 @@ AWS_REGION_NAME = config("AWS_REGION_NAME", default="me-center-1")
 AWS_SNS_SENDER_ID = config("AWS_SNS_SENDER_ID", default="AuthService")
 # SMS Type: Promotional or Transactional
 AWS_SNS_SMS_TYPE = config("AWS_SNS_SMS_TYPE", default="Transactional")
+AWS_SNS_REGION = config("AWS_SNS_REGION", default="ap-southeast-1")
 
 
 
