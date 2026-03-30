@@ -4,19 +4,18 @@ SMS sender using AWS SNS.
 
 import boto3
 from botocore.exceptions import ClientError
+from decouple import config
 
-from config.settings import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SNS_REGION, validate_config
 from config.utils.gcc_utils import validate_gcc_number
 
 
 def _get_sns_client():
     """Create and return a boto3 SNS client."""
-    validate_config()
     return boto3.client(
         "sns",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_SNS_REGION,
+        aws_access_key_id=config("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=config("AWS_SECRET_ACCESS_KEY"),
+        region_name=config("AWS_SNS_REGION", default="ap-southeast-1"),
     )
 
 
