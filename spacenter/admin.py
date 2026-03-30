@@ -377,7 +377,7 @@ class ServiceArrangementInline(admin.TabularInline):
     """Inline for service arrangements at a spa center with pricing."""
 
     model = ServiceArrangement
-    extra = 1
+    extra = 0
     fields = [
         "service",
         "arrangement_type",
