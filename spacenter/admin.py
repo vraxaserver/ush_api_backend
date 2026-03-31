@@ -249,7 +249,6 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
         "base_price",
         "discount_price",
         "current_price_display",
-        "is_home_service",
         "is_eligible_for_loyalty",
         "is_active",
         "sort_order",
@@ -259,7 +258,7 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
     list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_home_service", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
-    list_editable = ["sort_order", "is_active", "is_home_service", "is_eligible_for_loyalty"]
+    list_editable = ["sort_order", "is_active", "is_eligible_for_loyalty"]
     autocomplete_fields = ["specialty", "country", "city", "spa_center"]
     
     inlines = [ServiceImageInline]
@@ -274,16 +273,16 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
         ("Pricing & Duration", {
             "fields": ("duration_minutes", "currency", "base_price", "discount_price")
         }),
-        ("Home Service", {
-            "fields": ("is_home_service", "price_for_home_service", 'is_for_male', 'is_for_female')
+        ("Gender", {
+            "fields": ('is_for_male', 'is_for_female')
         }),
-        ("Add-on Services", {
-            "fields": ("add_on_services",),
-            "description": "Select additional services that can be added to this service."
-        }),
-        ("Additional Info", {
-            "fields": ("ideal_for", "benefits")
-        }),
+        # ("Add-on Services", {
+        #     "fields": ("add_on_services",),
+        #     "description": "Select additional services that can be added to this service."
+        # }),
+        # ("Additional Info", {
+        #     "fields": ("ideal_for", "benefits")
+        # }),
         ("Loyalty Program", {
             "fields": ("is_eligible_for_loyalty",),
             "description": "Enable this to allow bookings of this service to count towards the loyalty program."
