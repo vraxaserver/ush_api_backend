@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from .models import Booking, TimeSlot, ProductOrder, OrderItem
+from .models import Booking, TimeSlot, ProductOrder, OrderItem, HomeServiceBooking
 from spacenter.models import SpaCenter, Service, ServiceArrangement
 from spacenter.filters import SpaCenterFilter
 
@@ -358,3 +358,118 @@ class ProductOrderAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(HomeServiceBooking)
+class HomeServiceBookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+    """Admin for HomeServiceBooking model."""
+
+    list_display = [
+        "booking_number",
+        "customer",
+        "home_service",
+        "date",
+        "time",
+        "total_price",
+        "display_status",
+        "created_at",
+    ]
+    list_filter = [
+        "status",
+        "date",
+        "created_at",
+    ]
+    search_fields = [
+        "booking_number",
+        "customer__email",
+        "customer__first_name",
+        "customer__last_name",
+        "home_service__name",
+        "contact_number",
+    ]
+    ordering = ["-created_at"]
+    readonly_fields = [
+        "id",
+        "booking_number",
+        "created_at",
+        "updated_at",
+    ]
+    date_hierarchy = "created_at"
+    raw_id_fields = ["customer"]
+
+    fieldsets = (
+        (
+            _("Booking Information"),
+            {
+                "fields": (
+                    "booking_number",
+                    "status",
+                    "customer",
+                )
+            },
+        ),
+        (
+            _("Service Details"),
+            {
+                "fields": (
+                    "home_service",
+                    "date",
+                    "time",
+                )
+            },
+        ),
+        (
+            _("Pricing"),
+            {
+                "fields": (
+                    "subtotal",
+                    "discount_amount",
+                    "extra_minutes",
+                    "price_for_extra_minutes",
+                    "total_duration",
+                    "total_price",
+                )
+            },
+        ),
+        (
+            _("Home Details"),
+            {
+                "fields": (
+                    "home_location",
+                    "contact_number",
+                )
+            },
+        ),
+        (
+            _("Notes"),
+            {
+                "fields": (
+                    "customer_message",
+                    "staff_notes",
+                )
+            },
+        ),
+        (
+            _("Metadata"),
+            {
+                "fields": (
+                    "id",
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ["collapse"],
+            },
+        ),
+    )
+
+    @admin.display(description=_("Status"))
+    def display_status(self, obj):
+        return obj.get_status_display()
+
+    def get_queryset(self, request):
+        """Optimise queryset with select_related."""
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("customer", "home_service")
+        )

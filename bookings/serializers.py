@@ -17,7 +17,7 @@ from spacenter.serializers import (
 )
 from spacenter.models import ServiceArrangement
 
-from .models import Booking, TimeSlot, ProductOrder, OrderItem
+from .models import Booking, TimeSlot, ProductOrder, OrderItem, HomeServiceBooking
 
 
 # =============================================================================
@@ -646,3 +646,218 @@ class CreateProductOrderSerializer(serializers.Serializer):
     def validate(self, attrs):
         # Additional validations if needed
         return attrs
+
+
+# =============================================================================
+# Home Service Booking Serializers
+# =============================================================================
+
+
+class HomeServiceBookingListSerializer(serializers.ModelSerializer):
+    """Minimal serializer for home service booking lists."""
+
+    home_service_name = serializers.CharField(source="home_service.name", read_only=True)
+    home_service_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomeServiceBooking
+        fields = [
+            "id",
+            "booking_number",
+            "home_service",
+            "home_service_name",
+            "home_service_image",
+            "date",
+            "time",
+            "total_duration",
+            "total_price",
+            "home_location",
+            "contact_number",
+            "status",
+            "created_at",
+        ]
+
+    def get_home_service_image(self, obj):
+        """Get the image URL for the home service."""
+        if obj.home_service and obj.home_service.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.home_service.image.url)
+            return obj.home_service.image.url
+        return None
+
+
+class HomeServiceBookingSerializer(serializers.ModelSerializer):
+    """Full serializer for HomeServiceBooking model."""
+
+    home_service_name = serializers.CharField(source="home_service.name", read_only=True)
+    home_service_image = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = HomeServiceBooking
+        fields = [
+            "id",
+            "booking_number",
+            "customer",
+            "home_service",
+            "home_service_name",
+            "home_service_image",
+            "date",
+            "time",
+            "subtotal",
+            "discount_amount",
+            "extra_minutes",
+            "price_for_extra_minutes",
+            "total_duration",
+            "total_price",
+            "home_location",
+            "contact_number",
+            "customer_message",
+            "staff_notes",
+            "status",
+            "status_display",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "booking_number",
+            "customer",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_home_service_image(self, obj):
+        """Get the image URL for the home service."""
+        if obj.home_service and obj.home_service.image:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(obj.home_service.image.url)
+            return obj.home_service.image.url
+        return None
+
+
+class HomeServiceBookingCreateSerializer(serializers.Serializer):
+    """
+    Serializer for creating a new home service booking.
+
+    Handles:
+    - Validation of home service existence and active status
+    - Date validation (not in the past)
+    - Booking creation with pricing
+    """
+
+    from spacenter.models import HomeService as _HomeService  # type: ignore
+
+    home_service = serializers.UUIDField()
+    date = serializers.DateField()
+    time = serializers.TimeField()
+
+    # Pricing
+    subtotal = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        help_text="Sum of service prices before discounts",
+    )
+    discount_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        default=0,
+        help_text="Total discount amount to apply",
+    )
+    extra_minutes = serializers.IntegerField(
+        required=False,
+        default=0,
+        help_text="Extra minutes to add to the service duration",
+    )
+    price_for_extra_minutes = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        default=0,
+        help_text="Price for the extra minutes",
+    )
+    total_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        help_text="Final payable amount",
+    )
+
+    # Home-specific
+    home_location = serializers.CharField(help_text="Full address / location for the service")
+    contact_number = serializers.CharField(max_length=20, help_text="Phone number for the booking")
+
+    customer_message = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate_home_service(self, value):
+        """Validate that the home service exists and is active."""
+        from spacenter.models import HomeService
+        try:
+            service = HomeService.objects.get(id=value, is_active=True)
+            return service
+        except HomeService.DoesNotExist:
+            raise serializers.ValidationError("Home service not found or not active.")
+
+    def validate_date(self, value):
+        """Validate that the date is not in the past."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        if value < today:
+            raise serializers.ValidationError("Cannot book for a past date.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """Create the home service booking."""
+        from decimal import Decimal
+
+        request = self.context.get("request")
+        customer = request.user
+
+        home_service = validated_data["home_service"]
+        extra_minutes = int(validated_data.get("extra_minutes", 0))
+        price_for_extra = Decimal(str(validated_data.get("price_for_extra_minutes", 0)))
+        discount_amount = Decimal(str(validated_data.get("discount_amount", 0)))
+
+        # Total duration = service duration + extra minutes
+        total_duration = home_service.duration_minutes + extra_minutes
+
+        # Subtotal = service current price + price for extra minutes
+        calculated_subtotal = home_service.current_price + price_for_extra
+        subtotal = validated_data.get("subtotal") or calculated_subtotal
+
+        # Final price: use client-provided or calculate
+        final_price = validated_data.get("total_price")
+        if final_price is None:
+            final_price = subtotal - discount_amount
+            if final_price < Decimal("0.00"):
+                final_price = Decimal("0.00")
+
+        booking = HomeServiceBooking.objects.create(
+            customer=customer,
+            home_service=home_service,
+            date=validated_data["date"],
+            time=validated_data["time"],
+            subtotal=subtotal,
+            discount_amount=discount_amount,
+            extra_minutes=extra_minutes,
+            price_for_extra_minutes=price_for_extra,
+            total_duration=total_duration,
+            total_price=final_price,
+            home_location=validated_data["home_location"],
+            contact_number=validated_data["contact_number"],
+            customer_message=validated_data.get("customer_message", ""),
+            status=HomeServiceBooking.BookingStatus.REQUESTED,
+        )
+
+        return booking
+
+    def to_representation(self, instance):
+        """Return full booking details after creation."""
+        return HomeServiceBookingSerializer(instance, context=self.context).data
