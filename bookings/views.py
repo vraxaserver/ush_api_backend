@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 
 from spacenter.models import Service, SpaCenter, ServiceArrangement
 
-from .models import Booking, TimeSlot, ProductOrder, OrderItem
+from .models import Booking, TimeSlot, ProductOrder, OrderItem, HomeServiceBooking
 from .serializers import (
     BookingCreateSerializer,
     BookingListSerializer,
@@ -29,6 +29,9 @@ from .serializers import (
     TimeSlotSerializer,
     ProductOrderSerializer,
     CreateProductOrderSerializer,
+    HomeServiceBookingListSerializer,
+    HomeServiceBookingSerializer,
+    HomeServiceBookingCreateSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -662,3 +665,176 @@ class ProductOrderViewSet(viewsets.ModelViewSet):
         order.save(update_fields=["payment_status", "status", "updated_at"])
 
         return Response(ProductOrderSerializer(order).data)
+
+
+# =============================================================================
+# Home Service Booking Views
+# =============================================================================
+
+
+class HomeServiceBookingViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for home service booking management.
+
+    Endpoints:
+        POST   /api/v1/bookings/home-bookings/                       - Create a new home service booking
+        GET    /api/v1/bookings/home-bookings/                       - List authenticated user's bookings
+        GET    /api/v1/bookings/home-bookings/{id}/                  - Retrieve booking details
+        PATCH  /api/v1/bookings/home-bookings/{id}/                  - Update booking (status, notes, etc.)
+        DELETE /api/v1/bookings/home-bookings/{id}/                  - Cancel booking
+        POST   /api/v1/bookings/home-bookings/{id}/confirm/          - Confirm booking (staff only)
+        POST   /api/v1/bookings/home-bookings/{id}/complete/         - Complete booking (staff only)
+        POST   /api/v1/bookings/home-bookings/update-payment-status/ - Update payment status
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "id"
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return HomeServiceBookingCreateSerializer
+        if self.action == "list":
+            return HomeServiceBookingListSerializer
+        return HomeServiceBookingSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+
+        # Staff can see all bookings, customers only see their own
+        if hasattr(user, "employee_profile") or user.is_staff:
+            queryset = HomeServiceBooking.objects.all()
+        else:
+            queryset = HomeServiceBooking.objects.filter(customer=user)
+
+        return queryset.select_related("customer", "home_service")
+
+    def perform_create(self, serializer):
+        """Create home service booking for the authenticated user."""
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        """Cancel a home service booking instead of deleting."""
+        booking = self.get_object()
+
+        if booking.status not in [
+            HomeServiceBooking.BookingStatus.REQUESTED,
+            HomeServiceBooking.BookingStatus.CONFIRMED,
+            HomeServiceBooking.BookingStatus.PAYMENT_PENDING,
+        ]:
+            return Response(
+                {"error": f"Cannot cancel a booking with status '{booking.status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        booking.status = HomeServiceBooking.BookingStatus.CANCELED
+        booking.save(update_fields=["status", "updated_at"])
+
+        return Response(
+            {"message": "Home service booking cancelled successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"])
+    def confirm(self, request, id=None):
+        """Confirm a home service booking (staff only)."""
+        booking = self.get_object()
+
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Only staff can confirm bookings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if booking.status not in [
+            HomeServiceBooking.BookingStatus.REQUESTED,
+            HomeServiceBooking.BookingStatus.PAYMENT_SUCCESS,
+        ]:
+            return Response(
+                {"error": f"Cannot confirm a booking with status '{booking.status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        booking.status = HomeServiceBooking.BookingStatus.CONFIRMED
+        booking.save(update_fields=["status", "updated_at"])
+
+        return Response(HomeServiceBookingSerializer(booking).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, id=None):
+        """Mark a home service booking as completed (staff only)."""
+        booking = self.get_object()
+
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Only staff can complete bookings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if booking.status != HomeServiceBooking.BookingStatus.CONFIRMED:
+            return Response(
+                {"error": "Only confirmed bookings can be completed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        booking.status = HomeServiceBooking.BookingStatus.COMPLETED
+        booking.save(update_fields=["status", "updated_at"])
+
+        return Response(HomeServiceBookingSerializer(booking).data)
+
+    @action(detail=False, methods=["post"], url_path="update-payment-status")
+    def update_payment_status(self, request):
+        """
+        Update home service booking status based on payment result.
+
+        POST /api/v1/bookings/home-bookings/update-payment-status/
+
+        Request body:
+            {
+                "booking_id": "<uuid>",
+                "payment_status": true  // or false
+            }
+
+        If payment_status is true, status changes from "requested" to "payment_success".
+        If payment_status is false, status changes from "requested" to "payment_pending".
+        """
+        booking_id = request.data.get("booking_id")
+        if not booking_id:
+            return Response(
+                {"error": "The 'booking_id' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payment_result = request.data.get("payment_status")
+        if payment_result is None:
+            return Response(
+                {"error": "The 'payment_status' field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            booking = HomeServiceBooking.objects.get(id=booking_id, customer=request.user)
+        except HomeServiceBooking.DoesNotExist:
+            return Response(
+                {"error": "Booking not found or does not belong to you."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if booking.status != HomeServiceBooking.BookingStatus.REQUESTED:
+            return Response(
+                {
+                    "error": (
+                        f"Cannot update payment status for booking with status '{booking.status}'. "
+                        "Only 'requested' bookings can be updated."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if payment_result:
+            booking.status = HomeServiceBooking.BookingStatus.PAYMENT_SUCCESS
+        else:
+            booking.status = HomeServiceBooking.BookingStatus.PAYMENT_PENDING
+
+        booking.save(update_fields=["status", "updated_at"])
+
+        return Response(HomeServiceBookingSerializer(booking).data)

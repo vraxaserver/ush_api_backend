@@ -23,6 +23,7 @@ SPA_CENTER_CACHE_PREFIX = "spacenter_list"
 PRODUCT_CATEGORY_CACHE_PREFIX = "product_category_list"
 SPA_PRODUCT_CACHE_PREFIX = "spa_product_list"
 ADDON_SERVICE_CACHE_PREFIX = "addon_service_list"
+HOME_SERVICE_CACHE_PREFIX = "home_service_list"
 
 # All prefixes for bulk invalidation
 ALL_CACHE_PREFIXES = [
@@ -34,6 +35,7 @@ ALL_CACHE_PREFIXES = [
     PRODUCT_CATEGORY_CACHE_PREFIX,
     SPA_PRODUCT_CACHE_PREFIX,
     ADDON_SERVICE_CACHE_PREFIX,
+    HOME_SERVICE_CACHE_PREFIX,
 ]
 
 # Default cache timeout (15 minutes)

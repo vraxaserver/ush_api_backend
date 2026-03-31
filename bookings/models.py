@@ -480,3 +480,165 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity} x {self.product.product.name} ({self.order.order_number})"
+
+
+# =============================================================================
+# Home Service Booking Model
+# =============================================================================
+
+def generate_home_booking_number():
+    """Generate a unique home service booking reference number."""
+    import random
+    import string
+    from django.utils import timezone
+
+    date_part = timezone.now().strftime("%Y%m%d")
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    return f"HB-{date_part}-{random_part}"
+
+
+class HomeServiceBooking(models.Model):
+    """
+    Booking model for home services.
+
+    Stores all booking information for services delivered at the customer's
+    home or chosen location. Similar to Booking but without time slot
+    dependency and with home-specific fields.
+    """
+
+    class BookingStatus(models.TextChoices):
+        REQUESTED = "requested", _("Requested")
+        PAYMENT_PENDING = "payment_pending", _("Payment Pending")
+        PAYMENT_SUCCESS = "payment_success", _("Payment Success")
+        CONFIRMED = "confirmed", _("Confirmed")
+        ON_HOLD = "on_hold", _("On Hold")
+        CANCELED = "canceled", _("Canceled")
+        COMPLETED = "completed", _("Completed")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Booking reference number (human-readable)
+    booking_number = models.CharField(
+        _("booking number"),
+        max_length=25,
+        unique=True,
+        db_index=True,
+        default=generate_home_booking_number,
+    )
+
+    # Customer
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="home_service_bookings",
+        verbose_name=_("customer"),
+    )
+
+    # Home service
+    home_service = models.ForeignKey(
+        "spacenter.HomeService",
+        on_delete=models.PROTECT,
+        related_name="bookings",
+        verbose_name=_("home service"),
+    )
+
+    # Schedule
+    date = models.DateField(_("date"), db_index=True)
+    time = models.TimeField(_("time"))
+
+    # Pricing
+    subtotal = models.DecimalField(
+        _("subtotal"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Sum of service prices before discounts"),
+    )
+
+    discount_amount = models.DecimalField(
+        _("discount amount"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Total discount applied"),
+    )
+
+    extra_minutes = models.PositiveIntegerField(
+        _("extra minutes"),
+        default=0,
+        help_text=_("Extra minutes added to the service duration"),
+    )
+
+    price_for_extra_minutes = models.DecimalField(
+        _("price for extra minutes"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Price charged for the extra minutes"),
+    )
+
+    total_duration = models.PositiveIntegerField(
+        _("total duration (minutes)"),
+        default=0,
+        help_text=_("Total duration in minutes (service duration + extra minutes)"),
+    )
+
+    total_price = models.DecimalField(
+        _("total price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text=_("Final payable amount after discounts"),
+    )
+
+    # Home-specific fields
+    home_location = models.TextField(
+        _("home location"),
+        help_text=_("Full address / location where service will be delivered"),
+    )
+
+    contact_number = models.CharField(
+        _("contact number"),
+        max_length=20,
+        help_text=_("Phone number to contact for the booking"),
+    )
+
+    # Customer message / notes
+    customer_message = models.TextField(
+        _("customer message"),
+        blank=True,
+        help_text=_("Special requests or notes from customer"),
+    )
+
+    # Internal notes (for staff)
+    staff_notes = models.TextField(
+        _("staff notes"),
+        blank=True,
+        help_text=_("Internal notes for staff"),
+    )
+
+    # Status tracking
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=BookingStatus.choices,
+        default=BookingStatus.REQUESTED,
+        db_index=True,
+    )
+
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("home service booking")
+        verbose_name_plural = _("home service bookings")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["customer", "status"]),
+            models.Index(fields=["home_service", "status"]),
+            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["date", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.booking_number} - {self.home_service.name}"

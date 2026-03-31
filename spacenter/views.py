@@ -21,6 +21,7 @@ from config.cache_utils import (
     CACHE_TIMEOUT,
     CITY_CACHE_PREFIX,
     COUNTRY_CACHE_PREFIX,
+    HOME_SERVICE_CACHE_PREFIX,
     PRODUCT_CATEGORY_CACHE_PREFIX,
     SERVICE_CACHE_PREFIX,
     SPA_CENTER_CACHE_PREFIX,
@@ -34,6 +35,7 @@ from .models import (
     BaseProduct,
     City,
     Country,
+    HomeService,
     ProductCategory,
     Service,
     ServiceImage,
@@ -49,6 +51,8 @@ from .serializers import (
     CitySerializer,
     CountryListSerializer,
     CountrySerializer,
+    HomeServiceListSerializer,
+    HomeServiceSerializer,
     ProductCategorySerializer,
     ServiceCreateSerializer,
     ServiceImageSerializer,
@@ -969,3 +973,125 @@ class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
         cache.set(cache_key, response.data, CACHE_TIMEOUT)
         return response
 
+
+# =============================================================================
+# Home Service Filter
+# =============================================================================
+
+class HomeServiceFilter(django_filters.FilterSet):
+    """Filter for home services."""
+
+    specialty = django_filters.UUIDFilter(field_name="specialty__id")
+    specialty_name = django_filters.CharFilter(
+        field_name="specialty__name",
+        lookup_expr="icontains",
+    )
+    is_for_male = django_filters.BooleanFilter()
+    is_for_female = django_filters.BooleanFilter()
+    is_active = django_filters.BooleanFilter()
+    has_discount = django_filters.BooleanFilter(
+        field_name="discount_price",
+        lookup_expr="isnull",
+        exclude=True,
+    )
+    min_price = django_filters.NumberFilter(field_name="price", lookup_expr="gte")
+    max_price = django_filters.NumberFilter(field_name="price", lookup_expr="lte")
+    min_duration = django_filters.NumberFilter(field_name="duration_minutes", lookup_expr="gte")
+    max_duration = django_filters.NumberFilter(field_name="duration_minutes", lookup_expr="lte")
+    country = django_filters.CharFilter(
+        field_name="country__code",
+        lookup_expr="iexact",
+        help_text="Filter by country code (e.g., UAE, SAU, QAT)",
+    )
+    city = django_filters.UUIDFilter(field_name="city__id")
+    city_name = django_filters.CharFilter(
+        field_name="city__name",
+        lookup_expr="icontains",
+        help_text="Filter by city name (partial match)",
+    )
+
+    class Meta:
+        model = HomeService
+        fields = [
+            "specialty",
+            "specialty_name",
+            "is_for_male",
+            "is_for_female",
+            "is_active",
+            "has_discount",
+            "min_price",
+            "max_price",
+            "min_duration",
+            "max_duration",
+            "country",
+            "city",
+            "city_name",
+        ]
+
+
+# =============================================================================
+# Home Service Views
+# =============================================================================
+
+class HomeServiceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing home services.
+
+    GET endpoints are public.
+    POST/PUT/DELETE require admin authentication.
+
+    GET /api/v1/spa/home-services/ - List all active home services
+    GET /api/v1/spa/home-services/?country=QAT - Filter by country
+    GET /api/v1/spa/home-services/?city={id} - Filter by city
+    GET /api/v1/spa/home-services/?specialty={id} - Filter by specialty
+    GET /api/v1/spa/home-services/{id}/ - Get home service details
+    POST /api/v1/spa/home-services/ - Create home service (Admin)
+    PUT /api/v1/spa/home-services/{id}/ - Update home service (Admin)
+    DELETE /api/v1/spa/home-services/{id}/ - Delete home service (Admin)
+    """
+
+    queryset = HomeService.objects.select_related(
+        "specialty", "country", "city", "created_by"
+    )
+
+    filterset_class = HomeServiceFilter
+    filter_backends = [
+        django_filters.DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
+    search_fields = ["name", "name_en", "name_ar", "description"]
+    ordering_fields = ["name", "price", "duration_minutes", "created_at"]
+    ordering = ["-created_at"]
+
+    def get_permissions(self):
+        """Set permissions based on action."""
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [IsAdminUser()]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return HomeServiceListSerializer
+        return HomeServiceSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.action in ["list", "retrieve"]:
+            queryset = queryset.filter(is_active=True)
+        return queryset
+
+    def perform_create(self, serializer):
+        """Auto-set created_by to the current user."""
+        serializer.save(created_by=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            cache_key = build_cache_key(HOME_SERVICE_CACHE_PREFIX, request)
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+            response = super().list(request, *args, **kwargs)
+            cache.set(cache_key, response.data, CACHE_TIMEOUT)
+            return response
+        return super().list(request, *args, **kwargs)

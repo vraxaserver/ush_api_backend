@@ -14,12 +14,14 @@ from .views import (
     PastBookingsView,
     ServiceArrangementListView,
     ServiceAvailabilityView,
+    HomeServiceBookingViewSet,
 )
 
 app_name = "bookings"
 
 router = DefaultRouter()
 router.register(r"orders", ProductOrderViewSet, basename="product-order")
+router.register(r"home-bookings", HomeServiceBookingViewSet, basename="home-service-booking")
 router.register(r"", BookingViewSet, basename="booking")
 
 urlpatterns = [

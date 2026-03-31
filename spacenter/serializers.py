@@ -20,6 +20,7 @@ from .models import (
     BaseProduct,
     City,
     Country,
+    HomeService,
     ProductCategory,
     Service,
     ServiceImage,
@@ -857,4 +858,116 @@ class SpaProductDetailSerializer(SpaProductListSerializer):
         fields = SpaProductListSerializer.Meta.fields + [
             "reserved_quantity",
             "low_stock_threshold",
+        ]
+
+
+# =============================================================================
+# Home Service Serializers
+# =============================================================================
+
+class HomeServiceSerializer(serializers.ModelSerializer):
+    """Serializer for HomeService model with translations."""
+
+    specialty_detail = SpecialtyListSerializer(source="specialty", read_only=True)
+    country_detail = CountryListSerializer(source="country", read_only=True)
+    city_detail = CityListSerializer(source="city", read_only=True)
+    current_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    has_discount = serializers.BooleanField(read_only=True)
+    discount_percentage = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = HomeService
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "description",
+            "description_en",
+            "description_ar",
+            "specialty",
+            "specialty_detail",
+            "country",
+            "country_detail",
+            "city",
+            "city_detail",
+            "duration_minutes",
+            "price",
+            "discount_price",
+            "current_price",
+            "has_discount",
+            "discount_percentage",
+            "is_for_male",
+            "is_for_female",
+            "image",
+            "created_by",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+
+    def validate(self, attrs):
+        """Validate city belongs to country and discount price."""
+        city = attrs.get("city", getattr(self.instance, "city", None))
+        country = attrs.get("country", getattr(self.instance, "country", None))
+
+        if city and country and city.country != country:
+            raise serializers.ValidationError({
+                "city": "Selected city does not belong to the selected country."
+            })
+
+        price = attrs.get("price", getattr(self.instance, "price", None))
+        discount_price = attrs.get("discount_price")
+        if discount_price and price and discount_price >= price:
+            raise serializers.ValidationError({
+                "discount_price": "Discount price must be less than price."
+            })
+
+        return attrs
+
+
+class HomeServiceListSerializer(serializers.ModelSerializer):
+    """Minimal serializer for home service lists."""
+
+    specialty_name = serializers.CharField(source="specialty.name", read_only=True)
+    country_code = serializers.CharField(source="country.code", read_only=True)
+    country_name = serializers.CharField(source="country.name", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True)
+    current_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True,
+    )
+    has_discount = serializers.BooleanField(read_only=True)
+    discount_percentage = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = HomeService
+        fields = [
+            "id",
+            "name",
+            "name_en",
+            "name_ar",
+            "specialty",
+            "specialty_name",
+            "country",
+            "country_code",
+            "country_name",
+            "city",
+            "city_name",
+            "duration_minutes",
+            "price",
+            "discount_price",
+            "current_price",
+            "has_discount",
+            "discount_percentage",
+            "is_for_male",
+            "is_for_female",
+            "image",
+            "is_active",
         ]

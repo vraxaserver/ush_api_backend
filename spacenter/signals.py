@@ -14,6 +14,7 @@ from config.cache_utils import (
     ADDON_SERVICE_CACHE_PREFIX,
     CITY_CACHE_PREFIX,
     COUNTRY_CACHE_PREFIX,
+    HOME_SERVICE_CACHE_PREFIX,
     PRODUCT_CATEGORY_CACHE_PREFIX,
     SERVICE_CACHE_PREFIX,
     SPA_CENTER_CACHE_PREFIX,
@@ -27,6 +28,7 @@ from .models import (
     BaseProduct,
     City,
     Country,
+    HomeService,
     ProductCategory,
     Service,
     ServiceArrangement,
@@ -129,3 +131,11 @@ def invalidate_base_product_cache(sender, **kwargs):
 @receiver([post_save, post_delete], sender=SpaProduct)
 def invalidate_spa_product_cache(sender, **kwargs):
     invalidate_model_cache(SPA_PRODUCT_CACHE_PREFIX)
+
+
+# ============================================================================
+# HomeService
+# ============================================================================
+@receiver([post_save, post_delete], sender=HomeService)
+def invalidate_home_service_cache(sender, **kwargs):
+    invalidate_model_cache(HOME_SERVICE_CACHE_PREFIX)
