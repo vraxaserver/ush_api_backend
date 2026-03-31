@@ -17,6 +17,7 @@ from .models import (
     BaseProduct,
     City,
     Country,
+    HomeService,
     ProductCategory,
     Service,
     ServiceArrangement,
@@ -823,3 +824,76 @@ class SpaProductAdmin(ClearCacheActionMixin, admin.ModelAdmin):
                     obj.city = spa_center.city
         super().save_model(request, obj, form, change)
 
+
+@admin.register(HomeService)
+class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
+    """Admin for HomeService model with translation support."""
+
+    list_display = [
+        "name",
+        "specialty",
+        "country",
+        "city",
+        "duration_minutes",
+        "price",
+        "discount_price",
+        "current_price_display",
+        "is_for_male",
+        "is_for_female",
+        "is_active",
+        "image_preview",
+    ]
+    list_filter = [CountryFilter, CityFilter, "is_active", "is_for_male", "is_for_female", "specialty"]
+    search_fields = ["name", "name_en", "name_ar", "description"]
+    ordering = ["-created_at"]
+    list_editable = ["is_active"]
+    autocomplete_fields = ["specialty", "country", "city"]
+    readonly_fields = ["created_by"]
+
+    fieldsets = (
+        (None, {
+            "fields": ("name", "description", "specialty")
+        }),
+        ("Location", {
+            "fields": ("country", "city")
+        }),
+        ("Pricing & Duration", {
+            "fields": ("duration_minutes", "price", "discount_price")
+        }),
+        ("Gender", {
+            "fields": ("is_for_male", "is_for_female")
+        }),
+        ("Media", {
+            "fields": ("image",)
+        }),
+        ("Status", {
+            "fields": ("is_active", "created_by")
+        }),
+    )
+
+    def current_price_display(self, obj):
+        if obj.has_discount:
+            return format_html(
+                '<span style="text-decoration: line-through; color: #999;">{}</span> '
+                '<span style="color: green; font-weight: bold;">{}</span> '
+                '<span style="color: red;">(-{}%)</span>',
+                obj.price,
+                obj.current_price,
+                obj.discount_percentage
+            )
+        return obj.price
+    current_price_display.short_description = "Current Price"
+
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 40px; max-width: 60px;" />',
+                obj.image.url
+            )
+        return "-"
+    image_preview.short_description = "Image"
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

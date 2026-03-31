@@ -12,6 +12,7 @@ from .models import (
     BaseProduct,
     City,
     Country,
+    HomeService,
     ProductCategory,
     Service,
     SpaCenter,
@@ -73,3 +74,10 @@ class BaseProductTranslationOptions(TranslationOptions):
     """Translation options for BaseProduct model."""
     
     fields = ("name", "short_description")
+
+
+@register(HomeService)
+class HomeServiceTranslationOptions(TranslationOptions):
+    """Translation options for HomeService model."""
+    
+    fields = ("name", "description")

@@ -1024,3 +1024,137 @@ class ServiceArrangement(models.Model):
             return round(discount, 0)
         return 0
 
+
+
+# =============================================================================
+# Home Service Model
+# =============================================================================
+
+class HomeService(models.Model):
+    """
+    Home Service model.
+
+    Represents services that can be provided at the customer's home/location.
+    Translatable fields: name, description
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(_("service name"), max_length=200)
+    description = models.TextField(_("description"), blank=True)
+
+    # Specialty
+    specialty = models.ForeignKey(
+        Specialty,
+        on_delete=models.PROTECT,
+        related_name="home_services",
+        verbose_name=_("specialty"),
+    )
+
+    # Location
+    country = models.ForeignKey(
+        Country,
+        on_delete=models.PROTECT,
+        related_name="home_services",
+        verbose_name=_("country"),
+    )
+    city = models.ForeignKey(
+        City,
+        on_delete=models.PROTECT,
+        related_name="home_services",
+        verbose_name=_("city"),
+    )
+
+    # Duration and pricing
+    duration_minutes = models.PositiveIntegerField(
+        _("duration (minutes)"),
+        default=60,
+    )
+    price = models.DecimalField(
+        _("price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    discount_price = models.DecimalField(
+        _("discount price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text=_("Leave blank if no discount"),
+    )
+
+    # Gender targeting
+    is_for_male = models.BooleanField(
+        _("for male"),
+        default=False,
+    )
+    is_for_female = models.BooleanField(
+        _("for female"),
+        default=True,
+    )
+
+    # Image
+    image = models.ImageField(
+        _("image"),
+        upload_to="home_services/",
+        null=True,
+        blank=True,
+    )
+
+    # Created by tracking
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_home_services",
+        verbose_name=_("created by"),
+    )
+
+    is_active = models.BooleanField(_("active"), default=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("home service")
+        verbose_name_plural = _("home services")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.city.name}, {self.country.name})"
+
+    def clean(self):
+        """Validate discount price and city belongs to country."""
+        if self.discount_price and self.price:
+            if self.discount_price >= self.price:
+                raise ValidationError(
+                    {"discount_price": _("Discount price must be less than price.")}
+                )
+
+        if self.city and self.country:
+            if self.city.country != self.country:
+                raise ValidationError(
+                    {"city": _("Selected city does not belong to the selected country.")}
+                )
+
+    @property
+    def current_price(self):
+        """Get the current price (discount price if available, otherwise price)."""
+        if self.discount_price:
+            return self.discount_price
+        return self.price
+
+    @property
+    def has_discount(self):
+        """Check if service has an active discount."""
+        return self.discount_price is not None and self.discount_price < self.price
+
+    @property
+    def discount_percentage(self):
+        """Calculate discount percentage."""
+        if self.has_discount:
+            discount = ((self.price - self.discount_price) / self.price) * 100
+            return round(discount, 0)
+        return 0

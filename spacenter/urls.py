@@ -12,6 +12,7 @@ from .views import (
     AddOnServiceViewSet,
     CityViewSet,
     CountryViewSet,
+    HomeServiceViewSet,
     ProductCategoryViewSet,
     ServiceViewSet,
     SpaCenterViewSet,
@@ -30,6 +31,7 @@ router.register(r"services", ServiceViewSet, basename="service")
 router.register(r"branches", SpaCenterViewSet, basename="spacenter")
 router.register(r"product-categories", ProductCategoryViewSet, basename="product-category")
 router.register(r"products", SpaProductViewSet, basename="product")
+router.register(r"home-services", HomeServiceViewSet, basename="home-service")
 
 urlpatterns = [
     path("", include(router.urls)),
