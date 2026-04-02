@@ -24,6 +24,13 @@ SECRET_KEY = config("SECRET_KEY", default="your-secret-key-change-in-production"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", default=False, cast=bool)
 
+# Environment: 'local' | 'dev' | 'prod'
+# When ENV is 'dev' or 'prod' and DEBUG is False, S3 is used for all file storage.
+ENV = config("ENV", default="local")
+
+# Use S3 storage when not in local mode and DEBUG is off
+USE_S3 = not DEBUG and ENV != "local"
+
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv())
 
 
@@ -262,29 +269,19 @@ LOCALE_PATHS = [
     BASE_DIR / "locale",
 ]
 
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = "/static/"
-STATIC_ROOT = "/app/staticfiles"
+# ============================================================================
+# Static & Media File Storage
+# ============================================================================
 
-# Only use STATICFILES_DIRS for local development if you really need it
-# (recommended: remove it in production container images)
-if DEBUG:
-    STATICFILES_DIRS = [BASE_DIR / "static"]
-else:
-    STATICFILES_DIRS = []
-
-# Media files (user uploads)
-if not DEBUG:
+if USE_S3:
     # ==========================================================================
-    # Production: AWS S3 Storage
+    # S3 Storage (used when ENV is 'dev' or 'prod' and DEBUG is False)
     # ==========================================================================
     AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
     AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default=AWS_REGION_NAME)
-    AWS_S3_CUSTOM_DOMAIN = config(
-        "AWS_S3_CUSTOM_DOMAIN",
-        default="",
-    )
-    # If no custom domain is set, use the default S3 URL
+    AWS_S3_CUSTOM_DOMAIN = config("AWS_S3_CUSTOM_DOMAIN", default="")
+
+    # If no custom domain is set, build the default S3 endpoint URL
     if not AWS_S3_CUSTOM_DOMAIN:
         AWS_S3_CUSTOM_DOMAIN = (
             f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
@@ -293,25 +290,39 @@ if not DEBUG:
     AWS_S3_OBJECT_PARAMETERS = {
         "CacheControl": "max-age=86400",
     }
-    AWS_DEFAULT_ACL = None
-    AWS_S3_FILE_OVERWRITE = False
-    AWS_QUERYSTRING_AUTH = False
-    AWS_LOCATION = "media"
+    AWS_DEFAULT_ACL = None          # Use bucket default (block public access via policy)
+    AWS_S3_FILE_OVERWRITE = False   # Never silently overwrite files
+    AWS_QUERYSTRING_AUTH = False    # Public read-only URLs (no signed params)
 
-    # Use S3 for media files (Django 4.2+ STORAGES dict)
+    # Key prefixes inside the bucket
+    AWS_STATIC_LOCATION = "static"
+    AWS_MEDIA_LOCATION = "media"
+
+    # Static files
+    STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_STATIC_LOCATION}/"
+    STATICFILES_DIRS = []  # No extra dirs needed when collecting to S3
+
+    # Media files
+    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_MEDIA_LOCATION}/"
+
+    # Django 4.2+ STORAGES dict — both static and media go to S3
     STORAGES = {
         "default": {
-            "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+            "BACKEND": "config.storage_backends.MediaStorage",
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "config.storage_backends.StaticStorage",
         },
     }
-    MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
+
 else:
     # ==========================================================================
-    # Development: Local file storage
+    # Local file storage (ENV=local or DEBUG=True)
     # ==========================================================================
+    STATIC_URL = "/static/"
+    STATIC_ROOT = BASE_DIR / "staticfiles"
+    STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else []
+
     MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "mediafiles"
 
