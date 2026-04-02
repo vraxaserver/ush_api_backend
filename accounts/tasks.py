@@ -1,24 +1,29 @@
 """
-Celery Tasks for Auth Microservice.
+Async Task Functions for Auth Microservice.
 
-Handles async email and SMS sending for verification.
+Email tasks run directly (SES is already async enough at this scale).
+OTP SMS tasks are dispatched to AWS SQS (ush_otp_sms_queue) for
+decoupled, async processing.
 """
 
 import logging
 
-from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
-from config.utils.sms_service import send_sms
-from config.utils.ses_mailer import ses_mailer
 
-import pdb
+from config.utils.ses_mailer import ses_mailer
+from config.utils.sms_service import send_sms
+from config.utils.sqs_service import enqueue_otp_sms
+
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3)
-def send_email_verification(self, email, code, is_password_reset=False):
+# ============================================================================
+# Email Tasks (sent directly – SES handles delivery async)
+# ============================================================================
+
+def send_email_verification(email, code, is_password_reset=False):
     """
     Send verification code via email.
 
@@ -38,7 +43,6 @@ def send_email_verification(self, email, code, is_password_reset=False):
             subject = "Email Verification Code"
             template = "emails/email_verification.html"
 
-        # Render email template
         context = {
             "code": code,
             "expiry_minutes": getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10),
@@ -47,7 +51,6 @@ def send_email_verification(self, email, code, is_password_reset=False):
         try:
             html_message = render_to_string(template, context)
         except Exception:
-            # Fallback to plain text if template not found
             html_message = f"""
             <h2>{subject}</h2>
             <p>Your verification code is: <strong>{code}</strong></p>
@@ -55,23 +58,17 @@ def send_email_verification(self, email, code, is_password_reset=False):
             <p>If you didn't request this, please ignore this email.</p>
             """
 
-        plain_message = f"Your verification code is: {code}. This code will expire in {context['expiry_minutes']} minutes."
-
-        # send_mail(
-        #     subject=subject,
-        #     message=plain_message,
-        #     from_email=settings.DEFAULT_FROM_EMAIL,
-        #     recipient_list=[email],
-        #     html_message=html_message,
-        #     fail_silently=False,
-        # )
+        plain_message = (
+            f"Your verification code is: {code}. "
+            f"This code will expire in {context['expiry_minutes']} minutes."
+        )
 
         ses_mailer.send(
             subject=subject,
             sender=settings.DEFAULT_FROM_EMAIL,
             to=[email],
             html_body=html_message,
-            text_body=plain_message
+            text_body=plain_message,
         )
 
         logger.info(f"Verification email sent to {email}")
@@ -79,40 +76,9 @@ def send_email_verification(self, email, code, is_password_reset=False):
 
     except Exception as e:
         logger.error(f"Failed to send email to {email}: {e}")
-        raise self.retry(exc=e, countdown=60)
+        return False
 
 
-@shared_task(bind=True, max_retries=3)
-def send_sms_verification(self, phone_number, code):
-    """
-    Send verification code via SMS using AWS SNS.
-
-    Args:
-        phone_number: Recipient phone number (E.164 format, e.g., +1234567890)
-        code: Verification code
-
-    Returns:
-        bool: True if SMS sent successfully
-    """
-    try:
-
-        logger.info(f"SMS Verification Code for {phone_number}: {code}")
-
-        # Send SMS
-        expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
-        message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
-        result = send_sms(phone_number, message)
-        print(result)
-
-        # logger.info(f"SMS sent to {phone_number}, MessageId: {resutl['message_id']}")
-        return True
-
-    except Exception as e:
-        logger.error(f"AWS SNS error sending to {phone_number}: {e}")
-        raise self.retry(exc=e, countdown=60)
-
-
-@shared_task
 def send_welcome_email(email, first_name):
     """
     Send welcome email to new users.
@@ -138,21 +104,12 @@ def send_welcome_email(email, first_name):
 
         plain_message = f"Welcome, {first_name}! Thank you for registering with us."
 
-        # send_mail(
-        #     subject=subject,
-        #     message=plain_message,
-        #     from_email=settings.DEFAULT_FROM_EMAIL,
-        #     recipient_list=[email],
-        #     html_message=html_message,
-        #     fail_silently=True,
-        # )
-
         ses_mailer.send(
             subject=subject,
             sender=settings.DEFAULT_FROM_EMAIL,
             to=[email],
             html_body=html_message,
-            text_body=plain_message
+            text_body=plain_message,
         )
 
         logger.info(f"Welcome email sent to {email}")
@@ -161,7 +118,6 @@ def send_welcome_email(email, first_name):
         logger.error(f"Failed to send welcome email to {email}: {e}")
 
 
-@shared_task
 def send_employee_created_email(email, first_name, temporary_password):
     """
     Send email to newly created employees with their credentials.
@@ -195,23 +151,17 @@ def send_employee_created_email(email, first_name, temporary_password):
             <p>Please change your password after your first login.</p>
             """
 
-        plain_message = f"Welcome, {first_name}! Your employee account has been created. Email: {email}, Temporary Password: {temporary_password}"
-
-        # send_mail(
-        #     subject=subject,
-        #     message=plain_message,
-        #     from_email=settings.DEFAULT_FROM_EMAIL,
-        #     recipient_list=[email],
-        #     html_message=html_message,
-        #     fail_silently=False,
-        # )
+        plain_message = (
+            f"Welcome, {first_name}! Your employee account has been created. "
+            f"Email: {email}, Temporary Password: {temporary_password}"
+        )
 
         ses_mailer.send(
             subject=subject,
             sender=settings.DEFAULT_FROM_EMAIL,
             to=[email],
             html_body=html_message,
-            text_body=plain_message
+            text_body=plain_message,
         )
 
         logger.info(f"Employee creation email sent to {email}")
@@ -220,12 +170,54 @@ def send_employee_created_email(email, first_name, temporary_password):
         logger.error(f"Failed to send employee creation email to {email}: {e}")
 
 
-@shared_task
+# ============================================================================
+# SMS Tasks (dispatched to AWS SQS ush_otp_sms_queue)
+# ============================================================================
+
+def send_sms_verification(phone_number, code):
+    """
+    Dispatch an OTP SMS verification message to AWS SQS (ush_otp_sms_queue).
+
+    The SQS consumer is responsible for actually sending the SMS via SNS.
+
+    Args:
+        phone_number: Recipient phone number (E.164 format, e.g., +1234567890)
+        code: Verification code
+
+    Returns:
+        dict: SQS dispatch result with 'success' and 'message_id' or 'error'.
+    """
+    expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
+    message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
+
+    logger.info("Dispatching OTP SMS for %s to SQS (ush_otp_sms_queue)", phone_number)
+    result = enqueue_otp_sms(phone_number, message)
+
+    if result.get("success"):
+        logger.info(
+            "OTP SMS enqueued for %s | MessageId: %s",
+            phone_number,
+            result.get("message_id"),
+        )
+    else:
+        logger.error(
+            "Failed to enqueue OTP SMS for %s: %s",
+            phone_number,
+            result.get("error"),
+        )
+
+    return result
+
+
+# ============================================================================
+# Maintenance (run directly, e.g. via management command or cron)
+# ============================================================================
+
 def cleanup_expired_verification_codes():
     """
-    Periodic task to clean up expired verification codes.
+    Clean up expired verification codes.
 
-    Should be scheduled to run daily.
+    Should be invoked via a management command or AWS EventBridge cron.
     """
     from django.utils import timezone
     from accounts.models import VerificationCode

@@ -2,7 +2,7 @@
 Cache utility functions for USH API Backend.
 
 Provides cache key management and invalidation helpers for list endpoints.
-Uses Django's cache framework (backed by Redis via django-redis).
+Uses Django's cache framework (backed by AWS ElastiCache via django-redis).
 """
 
 import hashlib

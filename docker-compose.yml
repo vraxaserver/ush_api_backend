@@ -1,28 +1,9 @@
 # docker-compose.yml
 # Run: docker-compose up -d --build
 # Note: Requires external PostgreSQL database configured in .env file
+# Note: Async task queues handled by AWS SQS (no local Redis/Celery workers needed)
 
 services:
-  # ==========================================================================
-  # Redis - Message broker for Celery
-  # ==========================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: spaush_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - spaush_network
-
   # ==========================================================================
   # Django Web Application
   # ==========================================================================
@@ -43,16 +24,11 @@ services:
     env_file:
       - .env
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CACHE_REDIS_URL=redis://redis:6379/1
+      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://localhost:6379/1}
     volumes:
       - /home/ubuntu/staticfiles:/app/staticfiles
       - /home/ubuntu/mediafiles:/app/mediafiles
       - ./logs:/app/logs
-    depends_on:
-      redis:
-        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/auth/health/" ]
       interval: 30s
@@ -61,85 +37,6 @@ services:
       start_period: 40s
     networks:
       - spaush_network
-
-  # ==========================================================================
-  # Celery Worker - Async task processing
-  # ==========================================================================
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: spaush_celery_worker
-    restart: unless-stopped
-    command: celery -A config worker -l INFO --concurrency=2
-    env_file:
-      - .env
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - CACHE_REDIS_URL=redis://redis:6379/1
-    volumes:
-      - ./logs:/app/logs
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - spaush_network
-
-  # ==========================================================================
-  # Celery Beat - Periodic task scheduler
-  # ==========================================================================
-  celery_beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: spaush_celery_beat
-    restart: unless-stopped
-    command: celery -A config beat -l INFO --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    env_file:
-      - .env
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    volumes:
-      - ./logs:/app/logs
-    depends_on:
-      redis:
-        condition: service_healthy
-      web:
-        condition: service_healthy
-    networks:
-      - spaush_network
-
-  # ==========================================================================
-  # Flower - Celery monitoring (optional, comment out if not needed)
-  # ==========================================================================
-  flower:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: spaush_flower
-    restart: unless-stopped
-    command: celery -A config flower --port=5555 --basic_auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin123}
-    ports:
-      - "5555:5555"
-    env_file:
-      - .env
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-    depends_on:
-      - redis
-      - celery_worker
-    networks:
-      - spaush_network
-
-# ==========================================================================
-# Volumes
-# ==========================================================================
-volumes:
-  redis_data:
-    name: spaush_redis_data
 
 # ==========================================================================
 # Networks

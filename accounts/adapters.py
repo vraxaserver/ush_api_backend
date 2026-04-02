@@ -22,7 +22,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         """
         Override to prevent allauth from sending any emails.
         
-        Our app handles email sending through Celery tasks in signals.py
+        Our app handles email sending via SES/SQS tasks in signals.py
         """
         # Do nothing - we handle emails ourselves
         pass

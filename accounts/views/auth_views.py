@@ -82,8 +82,8 @@ class PhoneRegisterView(generics.CreateAPIView):
             code=code,
             verification_type=VerificationCode.VerificationType.PHONE,
         )
-        # Send async via Celery
-        send_sms_verification.delay(str(user.phone_number), code)
+        # Dispatch OTP SMS to SQS (ush_otp_sms_queue)
+        send_sms_verification(str(user.phone_number), code)
 
 
 class CustomLoginView(LoginView):
@@ -204,10 +204,10 @@ class SendVerificationCodeView(APIView):
 
         # Send code
         if verification_type == "email" and user.email:
-            send_email_verification.delay(user.email, code)
+            send_email_verification(user.email, code)
             masked = self._mask_email(user.email)
         elif verification_type == "phone" and user.phone_number:
-            send_sms_verification.delay(str(user.phone_number), code)
+            send_sms_verification(str(user.phone_number), code)
             masked = self._mask_phone(str(user.phone_number))
         else:
             return Response(
@@ -353,9 +353,9 @@ class PasswordResetRequestView(APIView):
 
                 # Send code
                 if email:
-                    send_email_verification.delay(user.email, code, is_password_reset=True)
+                    send_email_verification(user.email, code, is_password_reset=True)
                 else:
-                    send_sms_verification.delay(str(user.phone_number), code)
+                    send_sms_verification(str(user.phone_number), code)
 
         return Response(
             {"message": "If an account exists, a reset code has been sent."},

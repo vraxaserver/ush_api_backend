@@ -95,8 +95,8 @@ def send_verification_on_registration(sender, instance, created, **kwargs):
                 expires_at=timezone.now() + timedelta(minutes=expiry_minutes),
             )
             
-            # Send verification email asynchronously
-            send_email_verification.delay(instance.email, code)
+            # Dispatch verification email (SES) / OTP via SQS
+            send_email_verification(instance.email, code)
             logger.info(f"Verification code created and email queued for {instance.email}")
 
         # Send SMS verification if phone is provided (and no email)
@@ -112,8 +112,8 @@ def send_verification_on_registration(sender, instance, created, **kwargs):
                 expires_at=timezone.now() + timedelta(minutes=expiry_minutes),
             )
             
-            # Send verification SMS asynchronously
-            send_sms_verification.delay(str(instance.phone_number), code)
+            # Dispatch OTP SMS to SQS (ush_otp_sms_queue)
+            send_sms_verification(str(instance.phone_number), code)
             logger.info(f"Verification code created and SMS queued for {instance.phone_number}")
 
     except Exception as e:

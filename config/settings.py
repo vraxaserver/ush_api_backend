@@ -161,7 +161,6 @@ THIRD_PARTY_APPS = [
     "dj_rest_auth",
     "dj_rest_auth.registration",
     "phonenumber_field",
-    "django_celery_beat",
     "django_filters",
     "admin_searchable_dropdown",
     "storages",
@@ -498,7 +497,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ============================================================================
-# Cache Configuration (Redis)
+# Cache Configuration (AWS ElastiCache / Redis-compatible)
 # ============================================================================
 CACHES = {
     "default": {
@@ -513,16 +512,10 @@ CACHES = {
 }
 
 # ============================================================================
-# Celery Configuration (for async email/SMS)
+# AWS SQS Configuration (async task queues)
 # ============================================================================
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = config(
-    "CELERY_RESULT_BACKEND", default="redis://localhost:6379/0"
-)
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
+AWS_SQS_GIFT_SMS_QUEUE = config("AWS_SQS_GIFT_SMS_QUEUE", default="ush_gift_sms_queue")
+AWS_SQS_OTP_SMS_QUEUE  = config("AWS_SQS_OTP_SMS_QUEUE",  default="ush_otp_sms_queue")
 
 # ============================================================================
 # Verification Settings

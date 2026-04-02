@@ -1,84 +1,51 @@
 """
-Celery Tasks for Promotions App.
+Task Functions for Promotions App.
 
-Handles async SMS sending for gift card notifications.
+Gift card SMS notifications are dispatched to AWS SQS (ush_gift_sms_queue)
+for async processing by the SQS consumer.
 """
 
 import logging
 
-from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
+
 from config.utils.sms_service import send_sms
+from config.utils.sqs_service import enqueue_gift_sms
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3)
-def send_gift_card_sms(self, gift_card_id):
+def send_gift_card_sms(gift_card_id):
     """
-    Send SMS to gift card recipient with their secret code and public page URL.
+    Dispatch a gift card SMS notification to AWS SQS (ush_gift_sms_queue).
+
+    The SQS consumer fetches the gift card and sends the SMS via SNS.
 
     Args:
         gift_card_id: UUID string of the GiftCard instance.
 
-    The SMS includes:
-    - A short message about the gifted service
-    - The 6-digit secret code
-    - The public page URL
+    Returns:
+        dict: SQS dispatch result with 'success' and 'message_id' or 'error'.
     """
-    from promotions.models import GiftCard
+    logger.info(
+        "Dispatching gift card SMS for %s to SQS (ush_gift_sms_queue)",
+        gift_card_id,
+    )
 
-    try:
-        gift_card = GiftCard.objects.select_related(
-            "service", "spa_center", "sender",
-        ).get(id=gift_card_id)
+    result = enqueue_gift_sms(str(gift_card_id))
 
-        if gift_card.status != GiftCard.GiftCardStatus.ACTIVE:
-            logger.warning(
-                "Gift card %s is not active (status: %s). Skipping SMS.",
-                gift_card_id,
-                gift_card.status,
-            )
-            return False
-
-        # Build SMS message
-        sender_name = gift_card.sender.get_full_name() or "Someone"
-        public_url = gift_card.get_public_url()
-
-        message = (
-            f"🎁 {sender_name} has gifted you a spa service: "
-            f"{gift_card.service.name} at {gift_card.spa_center.name}! "
-            f"Your secret code: {gift_card.secret_code}. "
-            f"View details & redeem: {public_url}"
-        )
-
-        # Send SMS
-        phone_number = str(gift_card.recipient_phone)
-        result = send_sms(phone_number, message)
-
+    if result.get("success"):
         logger.info(
-            "Gift card SMS sent to %s for gift card %s. Result: %s",
-            phone_number,
+            "Gift card SMS enqueued for %s | MessageId: %s",
             gift_card_id,
-            result,
+            result.get("message_id"),
         )
-
-        # Update SMS tracking
-        gift_card.sms_sent = True
-        gift_card.sms_sent_at = timezone.now()
-        gift_card.save(update_fields=["sms_sent", "sms_sent_at", "updated_at"])
-
-        return True
-
-    except GiftCard.DoesNotExist:
-        logger.error("Gift card %s not found. Cannot send SMS.", gift_card_id)
-        return False
-
-    except Exception as e:
+    else:
         logger.error(
-            "Failed to send gift card SMS for %s: %s",
+            "Failed to enqueue gift card SMS for %s: %s",
             gift_card_id,
-            str(e),
+            result.get("error"),
         )
-        raise self.retry(exc=e, countdown=60)
+
+    return result

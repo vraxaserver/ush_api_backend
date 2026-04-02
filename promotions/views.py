@@ -244,10 +244,10 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         # Activate the gift card
         gift_card.activate()
 
-        # Send SMS asynchronously
+        # Enqueue gift card SMS to SQS (ush_gift_sms_queue)
         from .tasks import send_gift_card_sms
 
-        send_gift_card_sms.delay(str(gift_card.id))
+        send_gift_card_sms(str(gift_card.id))
 
         detail_serializer = GiftCardDetailSerializer(
             gift_card, context={"request": request},

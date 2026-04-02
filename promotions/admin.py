@@ -399,6 +399,6 @@ class GiftCardAdmin(admin.ModelAdmin):
 
         count = 0
         for gift_card in queryset.filter(status=GiftCard.GiftCardStatus.ACTIVE):
-            send_gift_card_sms.delay(str(gift_card.id))
+            send_gift_card_sms(str(gift_card.id))
             count += 1
         self.message_user(request, f"SMS queued for {count} gift cards.")
