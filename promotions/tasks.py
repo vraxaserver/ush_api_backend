@@ -1,7 +1,7 @@
 """
 Task Functions for Promotions App.
 
-Gift card SMS notifications are dispatched to AWS SQS (ush_gift_sms_queue)
+Gift card SMS notifications are dispatched to AWS SQS (ush_sms_queue)
 for async processing by the SQS consumer.
 """
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 def send_gift_card_sms(gift_card_id):
     """
-    Dispatch a gift card SMS notification to AWS SQS (ush_gift_sms_queue).
+    Dispatch a gift card SMS notification to AWS SQS (ush_sms_queue).
 
     The SQS consumer fetches the gift card and sends the SMS via SNS.
 
@@ -29,7 +29,7 @@ def send_gift_card_sms(gift_card_id):
         dict: SQS dispatch result with 'success' and 'message_id' or 'error'.
     """
     logger.info(
-        "Dispatching gift card SMS for %s to SQS (ush_gift_sms_queue)",
+        "Dispatching gift card SMS for %s to SQS (ush_sms_queue)",
         gift_card_id,
     )
 

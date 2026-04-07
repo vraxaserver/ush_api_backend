@@ -2,7 +2,7 @@
 Async Task Functions for Auth Microservice.
 
 Email tasks run directly (SES is already async enough at this scale).
-OTP SMS tasks are dispatched to AWS SQS (ush_otp_sms_queue) for
+OTP SMS tasks are dispatched to AWS SQS (ush_sms_queue) for
 decoupled, async processing.
 """
 
@@ -176,7 +176,7 @@ def send_employee_created_email(email, first_name, temporary_password):
 
 def send_sms_verification(phone_number, code):
     """
-    Dispatch an OTP SMS verification message to AWS SQS (ush_otp_sms_queue).
+    Dispatch an OTP SMS verification message to AWS SQS (ush_sms_queue).
 
     The SQS consumer is responsible for actually sending the SMS via SNS.
 
@@ -190,7 +190,7 @@ def send_sms_verification(phone_number, code):
     expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
     message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
 
-    logger.info("Dispatching OTP SMS for %s to SQS (ush_otp_sms_queue)", phone_number)
+    logger.info("Dispatching OTP SMS for %s to SQS (ush_sms_queue)", phone_number)
     result = enqueue_otp_sms(phone_number, message)
 
     if result.get("success"):

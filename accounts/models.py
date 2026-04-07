@@ -138,7 +138,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.is_email_verified or self.is_phone_verified
 
     def save(self, *args, **kwargs):
-        """Override save to handle user type permissions."""
+        """Override save to handle user type permissions and empty values."""
+        # Convert empty strings to None to allow multiple 'null' values in unique indices
+        if not self.email:
+            self.email = None
+        if not self.phone_number:
+            self.phone_number = None
+
         # Employees and admins can access admin panel
         if self.user_type in [UserType.ADMIN, UserType.EMPLOYEE]:
             self.is_staff = True

@@ -16,8 +16,7 @@ from decouple import config
 logger = logging.getLogger(__name__)
 
 # ── Queue names ──────────────────────────────────────────────────────────────
-GIFT_SMS_QUEUE = "ush_gift_sms_queue"
-OTP_SMS_QUEUE  = "ush_otp_sms_queue"
+SMS_QUEUE = "ush_sms_queue"
 
 
 def _get_sqs_client():
@@ -41,7 +40,7 @@ def dispatch_to_sqs(queue_name: str, payload: dict) -> dict:
     Send a JSON payload as a message to the named SQS queue.
 
     Args:
-        queue_name: The SQS queue name (GIFT_SMS_QUEUE or OTP_SMS_QUEUE).
+        queue_name: The SQS queue name (e.g. SMS_QUEUE).
         payload:    Dict that will be serialised to JSON as the message body.
 
     Returns:
@@ -77,26 +76,35 @@ def dispatch_to_sqs(queue_name: str, payload: dict) -> dict:
 
 def enqueue_otp_sms(phone_number: str, message: str) -> dict:
     """
-    Enqueue an OTP / verification SMS to ush_otp_sms_queue.
+    Enqueue an OTP / verification SMS to ush_sms_queue.
 
     Args:
         phone_number: E.164 formatted phone number.
         message:      SMS text to send.
     """
     return dispatch_to_sqs(
-        OTP_SMS_QUEUE,
-        {"task": "send_otp_sms", "phone_number": phone_number, "message": message},
+        SMS_QUEUE,
+        {
+            "task": "send_otp_sms",
+            "sms_type": "otp",
+            "phone_number": phone_number,
+            "message": message,
+        },
     )
 
 
 def enqueue_gift_sms(gift_card_id: str) -> dict:
     """
-    Enqueue a gift card SMS notification to ush_gift_sms_queue.
+    Enqueue a gift card SMS notification to ush_sms_queue.
 
     Args:
         gift_card_id: UUID string of the GiftCard instance.
     """
     return dispatch_to_sqs(
-        GIFT_SMS_QUEUE,
-        {"task": "send_gift_card_sms", "gift_card_id": gift_card_id},
+        SMS_QUEUE,
+        {
+            "task": "send_gift_card_sms",
+            "sms_type": "gift_card",
+            "gift_card_id": gift_card_id,
+        },
     )
