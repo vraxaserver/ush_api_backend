@@ -35,7 +35,8 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
     ).select_related("arrangement")
 
     # Build booked slots response and helper structure
-    booked_slots_data = defaultdict(lambda: defaultdict(dict))
+    # Store count of bookings per (arrangement, date, hour_slot)
+    booked_slots_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
     
     for slot in booked_slots:
         arr_id = str(slot.arrangement_id)
@@ -44,10 +45,9 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
         # Get all blocked hour slots for this booking
         blocked_hours = slot.get_blocked_hour_slots()
         for hour_slot in blocked_hours:
-            booked_slots_data[arr_id][date_str][hour_slot] = "booked"
+            booked_slots_data[arr_id][date_str][hour_slot] += 1
 
     # Generate all possible time slots from spa opening to closing
-    # Handle overnight hours if needed (assuming same day for now as per original view)
     opening_hour = spa_center.default_opening_time.hour
     closing_hour = spa_center.default_closing_time.hour
     all_hour_slots = [
@@ -55,13 +55,16 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
         for h in range(opening_hour, closing_hour)
     ]
 
+    # Map arrangement IDs to their room_count for quick lookup
+    arr_room_counts = {str(arr.id): arr.room_count for arr in arrangements}
+
     # Group arrangements by type to merge availability
     arrangements_by_type = defaultdict(list)
     for arr in arrangements:
         arrangements_by_type[arr.arrangement_type].append(str(arr.id))
 
     # Calculate merged availability per arrangement type
-    # A slot is "available" if at least one arrangement of that type is free (OR condition)
+    # A slot is "available" if at least one arrangement of that type has free space (OR condition)
     merged_availability = defaultdict(lambda: defaultdict(dict))
     
     current_date = date_from
@@ -70,15 +73,11 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
         
         for arr_type, arr_ids in arrangements_by_type.items():
             for hour_slot in all_hour_slots:
-                # Check if at least one arrangement of this type is available
+                # Check if at least one arrangement of this type has free space
                 is_available = False
                 for arr_id in arr_ids:
-                    # If the slot is NOT in booked_slots_data, it's free
-                    if (
-                        arr_id not in booked_slots_data
-                        or date_str not in booked_slots_data[arr_id]
-                        or hour_slot not in booked_slots_data[arr_id][date_str]
-                    ):
+                    booked_count = booked_slots_data[arr_id][date_str].get(hour_slot, 0)
+                    if booked_count < arr_room_counts.get(arr_id, 1):
                         is_available = True
                         break
                 
@@ -94,9 +93,7 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
         for arr_type, dates in merged_availability.items()
     }
 
-    # Build arrangements list with pricing
     # Build unique arrangements list with pricing
-    # Group by (type, price) to remove duplicates
     unique_arrangements = {}
     
     for arr in arrangements:
@@ -112,7 +109,7 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 "id": str(arr.id),  # Representative ID
                 "label": arr.get_arrangement_type_display(),  # Use generic type label
                 "type": arr.arrangement_type,
-                "room_no": arr.room_no,  # Representative room
+                "room_count": arr.room_count, 
                 "base_price": str(arr.base_price),
                 "discount_price": str(arr.discount_price) if arr.discount_price else None,
                 "current_price": str(arr.current_price),
@@ -121,9 +118,11 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 "extra_minutes": arr.extra_minutes,
                 "price_for_extra_minutes": str(arr.price_for_extra_minutes) if arr.price_for_extra_minutes else None,
                 "count": 1, 
+                "total_spaces": arr.room_count,
             }
         else:
             unique_arrangements[key]["count"] += 1
+            unique_arrangements[key]["total_spaces"] += arr.room_count
 
     arrangements_data = list(unique_arrangements.values())
 

@@ -381,7 +381,7 @@ class ServiceArrangementInline(admin.TabularInline):
     fields = [
         "service",
         "arrangement_type",
-        "room_no",
+        "room_count",
         "arrangement_label",
         "base_price",
         "discount_price",
@@ -508,7 +508,7 @@ class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixi
         "spa_center",
         "service",
         "arrangement_type",
-        "room_no",
+        "room_count",
         "base_price",
         "discount_price",
         "current_price_display",
@@ -518,9 +518,9 @@ class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixi
         "is_active",
     ]
     list_filter = [ServiceArrangementServiceFilter, SpaCenterFilter, "arrangement_type", "is_active"]
-    search_fields = ["room_no", "arrangement_label", "service__name", "spa_center__name"]
+    search_fields = ["room_count", "arrangement_label", "service__name", "spa_center__name"]
     autocomplete_fields = ["spa_center", "service"]
-    ordering = ["spa_center", "service", "room_no"]
+    ordering = ["spa_center", "service", "room_count"]
     list_editable = ["is_active"]
 
     fieldsets = (
@@ -528,7 +528,7 @@ class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixi
             "fields": ("spa_center", "service")
         }),
         ("Room Details", {
-            "fields": ("arrangement_type", "room_no", "arrangement_label", "cleanup_duration")
+            "fields": ("arrangement_type", "room_count", "arrangement_label", "cleanup_duration")
         }),
         ("Pricing", {
             "fields": ("base_price", "discount_price")

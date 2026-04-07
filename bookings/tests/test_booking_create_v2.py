@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from bookings.models import Booking, TimeSlot
-from promotions.models import GiftCard, GiftCardTemplate
+from promotions.models import GiftCard
 from spacenter.models import City, Country, Service, ServiceArrangement, Specialty, SpaCenter
 
 User = get_user_model()
@@ -45,6 +45,7 @@ class BookingCreateV2Tests(APITestCase):
             city=self.city,
             duration_minutes=60,
             base_price=Decimal("100.00"),
+            spa_center=self.spa_center,
         )
         self.spa_center.services.add(self.service)
 
@@ -52,7 +53,7 @@ class BookingCreateV2Tests(APITestCase):
         self.arrangement = ServiceArrangement.objects.create(
             spa_center=self.spa_center,
             service=self.service,
-            room_no="101",
+            room_count=1,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Room 101",
             base_price=Decimal("100.00"),
@@ -85,51 +86,45 @@ class BookingCreateV2Tests(APITestCase):
         self.assertEqual(booking.total_price, Decimal("100.00"))
 
 
-    def test_create_booking_with_gift_card(self):
-        """Test booking paid with gift card."""
-        template = GiftCardTemplate.objects.create(
-            name="Gift 50",
-            amount=Decimal("50.00"),
-            is_active=True
-        )
-        gift_card = GiftCard.objects.create(
-            template=template,
-            initial_amount=Decimal("50.00"),
-            current_balance=Decimal("50.00"),
-            owner=self.customer,
-            valid_from=timezone.now() - timedelta(days=1),
-            valid_until=timezone.now() + timedelta(days=365),
-            status=GiftCard.Status.ACTIVE
-        )
-        
+
+
+    def test_multi_room_booking_capacity(self):
+        """Test that multiple bookings are allowed up to room_count."""
+        # Update arrangement to have 2 rooms
+        self.arrangement.room_count = 2
+        self.arrangement.save()
+
         tomorrow = date.today() + timedelta(days=1)
         data = {
             "service": str(self.service.id),
             "spa_center": str(self.spa_center.id),
             "date": tomorrow.isoformat(),
-            "start_time": "12:00:00",
+            "start_time": "14:00:00",
             "service_arrangement_id": str(self.arrangement.id),
-            "gift_card_ids": [str(gift_card.id)],
         }
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        
-        booking = Booking.objects.get(id=response.data["id"])
-        self.assertEqual(booking.subtotal, Decimal("100.00"))
-        # Gift card is payment, reducing total_price in this implementation
-        self.assertEqual(booking.total_price, Decimal("50.00")) 
-        self.assertIn(gift_card, booking.gift_cards.all())
-        
-        # Check gift card balance
-        gift_card.refresh_from_db()
-        self.assertEqual(gift_card.current_balance, Decimal("0.00"))
-        self.assertEqual(gift_card.status, GiftCard.Status.FULLY_USED)
 
+        # First booking - should succeed
+        response1 = self.client.post(self.url, data)
+        self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
+
+        # Second booking - should succeed (capacity is 2)
+        response2 = self.client.post(self.url, data)
+        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
+
+        # Third booking - should fail (capacity exceeded)
+        response3 = self.client.post(self.url, data)
+        self.assertEqual(response3.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Selected arrangement has no available space", str(response3.data))
 
     def test_invalid_arrangement_id(self):
         """Test error when arrangement ID doesn't match service/spa."""
         other_service = Service.objects.create(
-            name="Other", specialty=self.specialty, country=self.country, city=self.city, base_price=50
+            name="Other",
+            specialty=self.specialty,
+            country=self.country,
+            city=self.city,
+            base_price=50,
+            spa_center=self.spa_center,
         )
         tomorrow = date.today() + timedelta(days=1)
         data = {

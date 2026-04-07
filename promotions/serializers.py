@@ -237,16 +237,16 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             })
 
         # Check availability
-        overlapping = TimeSlot.objects.filter(
+        overlapping_count = TimeSlot.objects.filter(
             arrangement=arrangement,
             date=date,
             start_time__lt=end_time,
             end_time__gt=start_time,
-        ).exists()
+        ).count()
 
-        if overlapping:
+        if overlapping_count >= arrangement.room_count:
             raise serializers.ValidationError({
-                "start_time": "Selected arrangement is booked for this time."
+                "start_time": "Selected arrangement has no available space for this time."
             })
 
         # Store resolved objects
@@ -308,7 +308,7 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             "arrangement": {
                 "id": str(arrangement.id),
                 "type": arrangement.arrangement_type,
-                "room_no": arrangement.room_no,
+                "room_count": arrangement.room_count,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
             },

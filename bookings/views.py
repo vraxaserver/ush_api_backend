@@ -180,7 +180,8 @@ class ServiceAvailabilityView(APIView):
         ).select_related("arrangement")
 
         # Build booked slots response
-        booked_slots_data = defaultdict(lambda: defaultdict(dict))
+        # Store count of bookings per (arrangement, date, hour_slot)
+        booked_slots_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
         
         for slot in booked_slots:
             arr_id = str(slot.arrangement_id)
@@ -189,7 +190,7 @@ class ServiceAvailabilityView(APIView):
             # Get all blocked hour slots for this booking
             blocked_hours = slot.get_blocked_hour_slots()
             for hour_slot in blocked_hours:
-                booked_slots_data[arr_id][date_str][hour_slot] = "booked"
+                booked_slots_data[arr_id][date_str][hour_slot] += 1
 
         # Generate all possible time slots from spa opening to closing
         opening_hour = spa_center.default_opening_time.hour
@@ -199,13 +200,16 @@ class ServiceAvailabilityView(APIView):
             for h in range(opening_hour, closing_hour)
         ]
 
+        # Map arrangement IDs to their room_count for quick lookup
+        arr_room_counts = {str(arr.id): arr.room_count for arr in arrangements}
+
         # Group arrangements by type
         arrangements_by_type = defaultdict(list)
         for arr in arrangements:
             arrangements_by_type[arr.arrangement_type].append(str(arr.id))
 
         # Calculate merged availability per arrangement type
-        # A slot is "available" if at least one arrangement of that type is free (OR condition)
+        # A slot is "available" if at least one arrangement of that type has free space (OR condition)
         merged_availability = defaultdict(lambda: defaultdict(dict))
         
         current_date = date_from
@@ -214,14 +218,11 @@ class ServiceAvailabilityView(APIView):
             
             for arr_type, arr_ids in arrangements_by_type.items():
                 for hour_slot in all_hour_slots:
-                    # Check if at least one arrangement of this type is available
+                    # Check if at least one arrangement of this type has free space
                     is_available = False
                     for arr_id in arr_ids:
-                        if (
-                            arr_id not in booked_slots_data
-                            or date_str not in booked_slots_data[arr_id]
-                            or hour_slot not in booked_slots_data[arr_id][date_str]
-                        ):
+                        booked_count = booked_slots_data[arr_id][date_str].get(hour_slot, 0)
+                        if booked_count < arr_room_counts.get(arr_id, 1):
                             is_available = True
                             break
                     
@@ -254,8 +255,8 @@ class ServiceAvailabilityView(APIView):
                     "id": str(arr.id),
                     "label": arr.arrangement_label,
                     "type": arr.arrangement_type,
-                    "room_no": arr.room_no,
-                    "booked_slots": dict(booked_slots_data.get(str(arr.id), {})),
+                    "room_count": arr.room_count,
+                    "booked_slots_summary": dict(booked_slots_data.get(str(arr.id), {})),
                 }
                 for arr in arrangements
             ],

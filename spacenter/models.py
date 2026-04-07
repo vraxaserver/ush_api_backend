@@ -902,10 +902,10 @@ class ServiceArrangement(models.Model):
     )
 
     # Room identification
-    room_no = models.CharField(
-        _("room number"),
-        max_length=100,
-        help_text=_("Room label for this arrangement"),
+    room_count = models.PositiveIntegerField(
+        _("room count"),
+        default=1,
+        help_text=_("How many rooms/spaces are available for this arrangement"),
     )
 
     arrangement_type = models.CharField(
@@ -975,8 +975,8 @@ class ServiceArrangement(models.Model):
     class Meta:
         verbose_name = _("service arrangement")
         verbose_name_plural = _("service arrangements")
-        unique_together = ["spa_center", "service", "room_no"]
-        ordering = ["spa_center", "service", "room_no"]
+        unique_together = ["spa_center", "service", "arrangement_type", "arrangement_label"]
+        ordering = ["spa_center", "service", "room_count"]
         indexes = [
             models.Index(fields=["spa_center", "service", "is_active"]),
             models.Index(fields=["service", "is_active"]),

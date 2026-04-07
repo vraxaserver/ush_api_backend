@@ -517,20 +517,19 @@ class Command(BaseCommand):
         for spa in SpaCenter.objects.all():
             for svc in spa.services.all():
                 for arr_type, label_en, label_ar, multiplier in ARRANGEMENT_TYPES:
-                    room_no = f"R-{room_counter:04d}"
+                    room_count = random.randint(1, 4)
                     bp = svc.base_price * multiplier
                     dp = svc.discount_price * multiplier if svc.discount_price else None
                     extra_min = random.choice(extra_minutes_choices)
                     extra_price = Decimal(str(random.randint(25, 150)))
                     obj, created = ServiceArrangement.objects.update_or_create(
-                        spa_center=spa, service=svc, room_no=room_no,
+                        spa_center=spa, service=svc, arrangement_type=arr_type,
+                        arrangement_label=f"{label_en} – {svc.name}",
                         defaults={
-                            "arrangement_type": arr_type,
-                            "arrangement_label": f"{label_en} – {svc.name}",
+                            "room_count": room_count,
                             "cleanup_duration": 15, "base_price": bp, "discount_price": dp,
                             "extra_minutes": extra_min,
                             "price_for_extra_minutes": extra_price,
                         },
                     )
-                    room_counter += 1
                 self.stdout.write(f"  Arrangements for: {svc.name} @ {spa.name}")

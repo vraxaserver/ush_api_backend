@@ -44,7 +44,7 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
             "service",
             "service_name",
             "service_duration",
-            "room_no",
+            "room_count",
             "arrangement_type",
             "arrangement_label",
             "cleanup_duration",
@@ -74,7 +74,7 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
         model = ServiceArrangement
         fields = [
             "id",
-            "room_no",
+            "room_count",
             "arrangement_type",
             "arrangement_label",
             "service_name",
@@ -384,15 +384,16 @@ class BookingCreateSerializer(serializers.Serializer):
         if end_time > closing_time:
              raise serializers.ValidationError({"start_time": "Booking exceeds closing time."})
 
-        overlapping = TimeSlot.objects.filter(
+        # Count overlapping bookings
+        overlapping_count = TimeSlot.objects.filter(
             arrangement=selected_arrangement,
             date=date,
             start_time__lt=end_time,
             end_time__gt=start_time,
-        ).exists()
+        ).count()
         
-        if overlapping:
-            raise serializers.ValidationError({"start_time": "Selected arrangement is booked for this time."})
+        if overlapping_count >= selected_arrangement.room_count:
+            raise serializers.ValidationError({"start_time": "Selected arrangement has no available space for this time."})
 
         # Store calculated values
         attrs["service_arrangement"] = selected_arrangement
@@ -470,7 +471,7 @@ class BookingCreateSerializer(serializers.Serializer):
             "arrangement": {
                 "id": str(arrangement.id),
                 "type": arrangement.arrangement_type,
-                "room_no": arrangement.room_no,
+                "room_count": arrangement.room_count,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
             },
