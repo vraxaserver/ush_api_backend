@@ -24,7 +24,9 @@ services:
     env_file:
       - .env
     environment:
-      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://localhost:6379/1}
+      - CACHE_REDIS_URL=${CACHE_REDIS_URL:-redis://redis:6379/1}
+    depends_on:
+      - redis
     volumes:
       - /home/ubuntu/staticfiles:/app/staticfiles
       - /home/ubuntu/mediafiles:/app/mediafiles
@@ -37,6 +39,25 @@ services:
       start_period: 40s
     networks:
       - spaush_network
+
+# ==========================================================================
+# Redis (Cache & Throttling)
+# ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: spaush_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - spaush_network
+
+# ==========================================================================
+# Volumes
+# ==========================================================================
+volumes:
+  redis_data:
 
 # ==========================================================================
 # Networks
