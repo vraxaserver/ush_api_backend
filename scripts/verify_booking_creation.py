@@ -1,14 +1,15 @@
 
 import os
 import django
-import uuid
+import sys
 from datetime import date, time, timedelta
 
+sys.path.append(os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
-from spacenter.models import SpaCenter, Service, AddOnService, TherapistProfile, ServiceArrangement
+from spacenter.models import SpaCenter, Service, AddOnService, ServiceArrangement
 from bookings.models import Booking, TimeSlot
 from bookings.serializers import BookingCreateSerializer
 from rest_framework.test import APIRequestFactory
@@ -17,7 +18,7 @@ User = get_user_model()
 
 def run_test():
     print("Starting Booking Creation Logic Verification...")
-    customer, _ = User.objects.get_or_create(username='testcustomer', email='test@example.com')
+    customer, _ = User.objects.get_or_create(email='test@example.com', defaults={'first_name': 'Test', 'last_name': 'Customer'})
     spa = SpaCenter.objects.first()
     service = Service.objects.filter(is_active=True).first()
     
@@ -30,14 +31,15 @@ def run_test():
         spa_center=spa, 
         service=service, 
         arrangement_type=arrangement_type, 
-        room_no="TEST-101", 
-        defaults={"arrangement_label": "Test Room 101", "cleanup_duration": 15, "is_active": True}
+        room_count=1, 
+        defaults={"arrangement_label": "Test Room 101", "cleanup_duration": 15, "base_price": 100, "is_active": True}
     )
 
-    test_date = date(2026, 1, 26)
+    test_date = date.today() + timedelta(days=7)
     test_time = time(10, 0)
     
     payload = {
+        "service_arrangement_id": str(arrangement.id),
         "arrangement_type": arrangement_type, 
         "service": str(service.id), 
         "spa_center": str(spa.id), 
@@ -57,7 +59,7 @@ def run_test():
         print("Validation successful!")
         booking = serializer.save()
         print(f"Booking created: {booking.booking_number}")
-        print(f"Arrangement: {booking.service_arrangement.room_no}")
+        print(f"Arrangement: {booking.service_arrangement.arrangement_label}")
         
         # Test overlap
         serializer2 = BookingCreateSerializer(data=payload, context={'request': request})

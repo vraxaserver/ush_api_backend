@@ -59,7 +59,7 @@ class ServiceArrangementListView(generics.ListAPIView):
         return ServiceArrangement.objects.filter(
             service_id=service_id,
             is_active=True,
-        ).select_related("service", "spa_center").order_by("room_no")
+        ).select_related("service", "spa_center").order_by("room_count")
 
 
 # =============================================================================

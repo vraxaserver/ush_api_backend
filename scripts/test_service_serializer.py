@@ -39,10 +39,10 @@ def test_serializer():
     arrangement1, _ = ServiceArrangement.objects.get_or_create(
         service=service,
         spa_center=spa_center,
-        room_no="TEST-SER-001",
+        room_count=1,
+        arrangement_label="Test Room",
         defaults={
             "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
-            "arrangement_label": "Test Room",
             "base_price": 100,
             "is_active": True
         }
@@ -52,10 +52,10 @@ def test_serializer():
     arrangement2, _ = ServiceArrangement.objects.get_or_create(
         service=service,
         spa_center=spa_center,
-        room_no="TEST-SER-002",
+        room_count=1,
+        arrangement_label="Test Room (duplicate)",
         defaults={
             "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
-            "arrangement_label": "Test Room (duplicate)",
             "base_price": 100,
             "is_active": True
         }
