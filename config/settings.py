@@ -35,16 +35,21 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1", cast=Csv(
 
 
 # ============================================================================
-# SMS Configuration (AWS SNS)
+# AWS Infrastructure (S3, etc.)
 # ============================================================================
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
 AWS_REGION_NAME = config("AWS_REGION_NAME", default="me-center-1")
-# SMS Sender ID (optional, up to 11 alphanumeric characters)
-AWS_SNS_SENDER_ID = config("AWS_SNS_SENDER_ID", default="AuthService")
-# SMS Type: Promotional or Transactional
-AWS_SNS_SMS_TYPE = config("AWS_SNS_SMS_TYPE", default="Transactional")
-AWS_SNS_REGION = config("AWS_SNS_REGION", default="ap-southeast-1")
+
+# ============================================================================
+# SMS Configuration (KWT-SMS)
+# ============================================================================
+KWTSMS_USERNAME = config("KWTSMS_USERNAME", default="spaush")
+KWTSMS_PASSWORD = config("KWTSMS_PASSWORD", default="")
+KWTSMS_SENDER   = config("KWTSMS_SENDER",   default="KWT-SMS")
+KWTSMS_TEST_MODE = config("KWTSMS_TEST_MODE", default="0")
+
+
 
 
 
@@ -511,11 +516,7 @@ CACHES = {
     }
 }
 
-# ============================================================================
-# AWS SQS Configuration (async task queues)
-# ============================================================================
-AWS_SQS_GIFT_SMS_QUEUE = config("AWS_SQS_GIFT_SMS_QUEUE", default="ush_gift_sms_queue")
-AWS_SQS_OTP_SMS_QUEUE  = config("AWS_SQS_OTP_SMS_QUEUE",  default="ush_otp_sms_queue")
+
 
 # ============================================================================
 # Verification Settings

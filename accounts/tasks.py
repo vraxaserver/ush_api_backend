@@ -13,8 +13,8 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 
 from config.utils.ses_mailer import ses_mailer
-from config.utils.sms_service import send_sms
-from config.utils.sqs_service import enqueue_otp_sms
+from config.utils.sms_service import send_sms, send_sms_async
+
 
 logger = logging.getLogger(__name__)
 
@@ -190,23 +190,9 @@ def send_sms_verification(phone_number, code):
     expiry_minutes = getattr(settings, "VERIFICATION_CODE_EXPIRY_MINUTES", 10)
     message = f"Your verification code is: {code}. It expires in {expiry_minutes} minutes."
 
-    logger.info("Dispatching OTP SMS for %s to SQS (ush_sms_queue)", phone_number)
-    result = enqueue_otp_sms(phone_number, message)
-
-    if result.get("success"):
-        logger.info(
-            "OTP SMS enqueued for %s | MessageId: %s",
-            phone_number,
-            result.get("message_id"),
-        )
-    else:
-        logger.error(
-            "Failed to enqueue OTP SMS for %s: %s",
-            phone_number,
-            result.get("error"),
-        )
-
-    return result
+    logger.info("Sending OTP SMS for %s using send_sms_async", phone_number)
+    send_sms_async(phone_number, message)
+    return {"success": True}
 
 
 # ============================================================================
