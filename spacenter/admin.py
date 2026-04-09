@@ -248,10 +248,9 @@ class ServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
             "description": "Enable this to allow bookings of this service to count towards the loyalty program."
         }),
         ("Status", {
-            "fields": ("is_active", "sort_order", "created_by")
+            "fields": ("is_active", "sort_order")
         }),
     )
-    readonly_fields = ["created_by"]
 
     def addon_count(self, obj):
         """Count of add-on services attached."""
@@ -281,10 +280,6 @@ class ServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
         return count
     image_count.short_description = "Images"
 
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only on create
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
 
 
 @admin.register(ServiceImage)
@@ -705,8 +700,7 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
     ordering = ["-created_at"]
     list_editable = ["is_active"]
     autocomplete_fields = ["specialty", "country", "city"]
-    readonly_fields = ["created_by"]
-
+    
     fieldsets = (
         (None, {
             "fields": ("name", "description", "specialty")
@@ -724,7 +718,7 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
             "fields": ("image",)
         }),
         ("Status", {
-            "fields": ("is_active", "created_by")
+            "fields": ("is_active",)
         }),
     )
 
@@ -750,7 +744,3 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
         return "-"
     image_preview.short_description = "Image"
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)

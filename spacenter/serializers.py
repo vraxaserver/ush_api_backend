@@ -393,9 +393,6 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         images_data = validated_data.pop("images", [])
         branch_ids = validated_data.pop("branch_ids", [])
         
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            validated_data["created_by"] = request.user
         
         service = Service.objects.create(**validated_data)
         
@@ -872,12 +869,11 @@ class HomeServiceSerializer(serializers.ModelSerializer):
             "is_for_male",
             "is_for_female",
             "image",
-            "created_by",
             "is_active",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate(self, attrs):
         """Validate city belongs to country and discount price."""

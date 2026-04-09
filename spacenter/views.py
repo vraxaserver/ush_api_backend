@@ -377,7 +377,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     """
 
     queryset = Service.objects.select_related(
-        "specialty", "country", "city", "created_by"
+        "specialty", "country", "city"
     ).prefetch_related(
         "images",
         "spa_center",
@@ -961,7 +961,7 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
     """
 
     queryset = HomeService.objects.select_related(
-        "specialty", "country", "city", "created_by"
+        "specialty", "country", "city"
     )
 
     filterset_class = HomeServiceFilter
@@ -991,9 +991,6 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
-    def perform_create(self, serializer):
-        """Auto-set created_by to the current user."""
-        serializer.save(created_by=self.request.user)
 
     def list(self, request, *args, **kwargs):
         if not request.user.is_authenticated:

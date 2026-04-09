@@ -450,15 +450,6 @@ class Service(models.Model):
         verbose_name=_("spa center"),
     )
     
-    # Created by tracking
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_services",
-        verbose_name=_("created by"),
-    )
     
     # Loyalty program
     is_eligible_for_loyalty = models.BooleanField(
@@ -1071,15 +1062,6 @@ class HomeService(models.Model):
         blank=True,
     )
 
-    # Created by tracking
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_home_services",
-        verbose_name=_("created by"),
-    )
 
     is_active = models.BooleanField(_("active"), default=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)

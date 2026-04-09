@@ -281,7 +281,7 @@ class Command(BaseCommand):
         self._seed_base_products()
         self._seed_spa_products()
         self._seed_arrangements()
-        self.stdout.write(self.style.SUCCESS("\n✅ Spa center seeding complete!"))
+        self.stdout.write(self.style.SUCCESS("\nSpa center seeding complete!"))
 
     # ── Countries ──────────────────────────────────────────────
     def _seed_countries(self):
@@ -379,7 +379,7 @@ class Command(BaseCommand):
 
                     fname = f"spacenter_{obj.id}.{file_ext}"
                     obj.image.save(fname, ContentFile(img_data), save=True)
-                    self.stdout.write(f"    📷 Image set for: {obj.name}")
+                    self.stdout.write(f"    Image set for: {obj.name}")
 
     # ── Operating Hours ────────────────────────────────────────
     def _seed_operating_hours(self):
@@ -413,7 +413,7 @@ class Command(BaseCommand):
                         "duration_minutes": sd["dur"], "currency": BRANCH_TEMPLATE.get(spa.country.code, {}).get("currency", "QAR"),
                         "base_price": sd["price"], "discount_price": sd["disc"],
                         "is_for_male": (gender := random.choice(GENDER_OPTIONS))[0], "is_for_female": gender[1],
-                        "spa_center": spa, "created_by": admin, "sort_order": i + 1,
+                        "spa_center": spa, "sort_order": i + 1,
                     },
                 )
                 if addons:
@@ -478,7 +478,7 @@ class Command(BaseCommand):
                     if img_data:
                         fname = f"product_{obj.id}.jpg"
                         obj.image.save(fname, ContentFile(img_data), save=True)
-                        self.stdout.write(f"    📷 Image saved for: {obj.name}")
+                        self.stdout.write(f"    Image saved for: {obj.name}")
                     else:
                         self.stdout.write(self.style.WARNING(f"    ⚠ Download failed for: {obj.name}"))
 
