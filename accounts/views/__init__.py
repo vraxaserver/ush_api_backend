@@ -4,7 +4,6 @@ from .admin_views import (
     AllUsersListView,
     CustomerDetailView,
     CustomerListView,
-    EmployeeViewSet,
     UserStatisticsView,
 )
 from .auth_views import (
@@ -39,7 +38,6 @@ __all__ = [
     "ChangePasswordView",
     "UserProfileView",
     # Admin views
-    "EmployeeViewSet",
     "CustomerListView",
     "CustomerDetailView",
     "AllUsersListView",

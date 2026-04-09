@@ -17,8 +17,6 @@ from accounts.models import UserType
 from accounts.permissions import IsAdminUser
 from accounts.serializers import (
     AdminUserListSerializer,
-    CreateEmployeeSerializer,
-    UpdateEmployeeSerializer,
     UserSerializer,
 )
 
@@ -26,108 +24,6 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-class EmployeeViewSet(ModelViewSet):
-    """
-    ViewSet for admin to manage employee users.
-
-    Endpoints:
-    - GET /api/v1/accounts/employees/ - List employees
-    - POST /api/v1/accounts/employees/ - Create employee
-    - GET /api/v1/accounts/employees/{id}/ - Get employee detail
-    - PUT /api/v1/accounts/employees/{id}/ - Update employee
-    - PATCH /api/v1/accounts/employees/{id}/ - Partial update
-    - DELETE /api/v1/accounts/employees/{id}/ - Deactivate employee
-    """
-
-    permission_classes = [permissions.IsAuthenticated, IsAdminUser]
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["email", "first_name", "last_name", "phone_number"]
-    ordering_fields = ["date_joined", "first_name", "last_name"]
-    ordering = ["-date_joined"]
-
-    def get_queryset(self):
-        """Return only employee users."""
-        return User.objects.filter(user_type=UserType.EMPLOYEE)
-
-    def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
-        if self.action == "create":
-            return CreateEmployeeSerializer
-        elif self.action in ["update", "partial_update"]:
-            return UpdateEmployeeSerializer
-        elif self.action == "list":
-            return AdminUserListSerializer
-        return UserSerializer
-
-    def create(self, request, *args, **kwargs):
-        """Create a new employee user."""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        logger.info(
-            f"Employee created: {user.email} by admin: {request.user.email}"
-        )
-
-        return Response(
-            UserSerializer(user).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    def destroy(self, request, *args, **kwargs):
-        """Deactivate employee instead of deleting."""
-        instance = self.get_object()
-        instance.is_active = False
-        instance.save(update_fields=["is_active"])
-
-        logger.info(
-            f"Employee deactivated: {instance.email} by admin: {request.user.email}"
-        )
-
-        return Response(
-            {"message": "Employee deactivated successfully."},
-            status=status.HTTP_200_OK,
-        )
-
-    @action(detail=True, methods=["post"])
-    def activate(self, request, pk=None):
-        """Reactivate a deactivated employee."""
-        instance = self.get_object()
-        instance.is_active = True
-        instance.save(update_fields=["is_active"])
-
-        logger.info(
-            f"Employee reactivated: {instance.email} by admin: {request.user.email}"
-        )
-
-        return Response(
-            {"message": "Employee activated successfully."},
-            status=status.HTTP_200_OK,
-        )
-
-    @action(detail=True, methods=["post"])
-    def reset_password(self, request, pk=None):
-        """Reset employee password (admin action)."""
-        instance = self.get_object()
-        new_password = request.data.get("new_password")
-
-        if not new_password or len(new_password) < 8:
-            return Response(
-                {"message": "Password must be at least 8 characters."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        instance.set_password(new_password)
-        instance.save()
-
-        logger.info(
-            f"Employee password reset: {instance.email} by admin: {request.user.email}"
-        )
-
-        return Response(
-            {"message": "Password reset successfully."},
-            status=status.HTTP_200_OK,
-        )
 
 
 class CustomerListView(generics.ListAPIView):

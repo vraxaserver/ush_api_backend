@@ -93,7 +93,7 @@ class UserAdmin(BaseUserAdmin):
                 "classes": ("wide",),
                 "fields": ("groups",),
                 "description": _(
-                    "Assign user to Admin group for full access, or Manager group for spa center scoped access."
+                    "Assign user to Admin group for full access."
                 ),
             },
         ),
@@ -115,20 +115,9 @@ class UserAdmin(BaseUserAdmin):
     def get_queryset(self, request):
         """Limit queryset based on user type."""
         qs = super().get_queryset(request)
-        # Non-superusers can only see users they manage
+        # Non-superusers can only see non-superusers
         if not request.user.is_superuser:
-            if request.user.user_type == "admin":
-                # Admin users can see all except superusers
-                return qs.filter(is_superuser=False)
-            # Check if user is a Manager (has managed_spa_center)
-            if hasattr(request.user, 'managed_spa_center') and request.user.managed_spa_center:
-                # Managers can only see employees at their spa center
-                spa_center = request.user.managed_spa_center
-                return qs.filter(
-                    user_type__in=["employee", "customer"]
-                ).exclude(is_superuser=True)
-            # Regular employees can only see customers in their scope
-            return qs.filter(user_type="customer")
+            return qs.filter(is_superuser=False)
         return qs
 
     def save_model(self, request, obj, form, change):
@@ -145,11 +134,6 @@ class UserAdmin(BaseUserAdmin):
             if user.user_type == UserType.ADMIN:
                 admin_group = Group.objects.get(name="Admin")
                 user.groups.add(admin_group)
-            elif user.user_type == UserType.EMPLOYEE:
-                # Check if they have a managed_spa_center (branch manager)
-                if hasattr(user, 'managed_spa_center') and user.managed_spa_center:
-                    manager_group = Group.objects.get(name="Manager")
-                    user.groups.add(manager_group)
         except Group.DoesNotExist:
             pass  # Groups not set up yet
 
@@ -170,11 +154,7 @@ class UserAdmin(BaseUserAdmin):
         return fieldsets
 
     def has_module_permission(self, request):
-        """Hide user module for branch managers."""
-        # They need view_user permission for lookups (bookings),
-        # but shouldn't see the User list in the dashboard.
-        if hasattr(request.user, 'managed_spa_center') and request.user.managed_spa_center:
-            return False
+        """Determine if user has module permission."""
         return super().has_module_permission(request)
 
 

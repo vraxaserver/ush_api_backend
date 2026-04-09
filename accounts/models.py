@@ -21,15 +21,9 @@ class UserType(models.TextChoices):
     """User type choices."""
 
     ADMIN = "admin", _("Admin")
-    EMPLOYEE = "employee", _("Employee")
     CUSTOMER = "customer", _("Customer")
 
 
-class EmployeeRole(models.TextChoices):
-    """Employee role choices."""
-
-    BRANCH_MANAGER = "branch_manager", _("Branch Manager")
-    COUNTRY_MANAGER = "country_manager", _("Country Manager")
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -123,11 +117,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.user_type == UserType.ADMIN
 
     @property
-    def is_employee(self):
-        """Check if user is employee."""
-        return self.user_type == UserType.EMPLOYEE
-
-    @property
     def is_customer(self):
         """Check if user is customer."""
         return self.user_type == UserType.CUSTOMER
@@ -145,8 +134,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         if not self.phone_number:
             self.phone_number = None
 
-        # Employees and admins can access admin panel
-        if self.user_type in [UserType.ADMIN, UserType.EMPLOYEE]:
+        # Admins can access admin panel
+        if self.user_type == UserType.ADMIN:
             self.is_staff = True
         super().save(*args, **kwargs)
 

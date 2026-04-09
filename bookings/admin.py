@@ -8,52 +8,11 @@ from spacenter.models import SpaCenter, Service, ServiceArrangement
 from spacenter.filters import SpaCenterFilter
 
 
-def get_branch_manager_spa_center(user):
-    """
-    Get the spa center managed by this user if they are a branch manager.
-    Returns None if user is a superuser or has no assigned spa center.
-    """
-    if user.is_superuser:
-        return None
-    if hasattr(user, 'managed_spa_center'):
-        return getattr(user, 'managed_spa_center', None)
-    return None
-
-
-class BranchManagerPermissionMixin:
-    """
-    Mixin that grants branch managers permission to view/add/change models.
-    Branch managers are identified by having a managed_spa_center.
-    """
-
-    def has_module_permission(self, request):
-        """Allow branch managers to see the app in admin."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_module_permission(request)
-
-    def has_view_permission(self, request, obj=None):
-        """Allow branch managers to view objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_view_permission(request, obj)
-
-    def has_add_permission(self, request):
-        """Allow branch managers to add objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_add_permission(request)
-
-    def has_change_permission(self, request, obj=None):
-        """Allow branch managers to change objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_change_permission(request, obj)
 
 
 
 @admin.register(TimeSlot)
-class TimeSlotAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+class TimeSlotAdmin(admin.ModelAdmin):
     """Admin for TimeSlot model."""
 
     list_display = [
@@ -100,24 +59,12 @@ class TimeSlotAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        """Filter time slots by branch manager's spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(arrangement__spa_center=spa_center)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit arrangement choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "arrangement":
-                kwargs["queryset"] = ServiceArrangement.objects.filter(spa_center=spa_center)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+        """Standard queryset."""
+        return super().get_queryset(request)
 
 
 @admin.register(Booking)
-class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+class BookingAdmin(admin.ModelAdmin):
     """Admin for Booking model."""
 
     list_display = [
@@ -238,8 +185,8 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
         return format_html('<pre style="background-color: #828387; padding: 10px; border-radius: 4px; border: 1px solid #dee2e6;">{}</pre>', formatted_json)
 
     def get_queryset(self, request):
-        """Filter bookings by branch manager's spa center."""
-        qs = (
+        """Optimise queryset with select_related."""
+        return (
             super()
             .get_queryset(request)
             .select_related(
@@ -250,20 +197,6 @@ class BookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
                 "time_slot",
             )
         )
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(spa_center=spa_center)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "spa_center":
-                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
-            elif db_field.name == "service_arrangement":
-                kwargs["queryset"] = ServiceArrangement.objects.filter(spa_center=spa_center)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class OrderItemInline(admin.TabularInline):
@@ -278,7 +211,7 @@ class OrderItemInline(admin.TabularInline):
 
 
 @admin.register(ProductOrder)
-class ProductOrderAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+class ProductOrderAdmin(admin.ModelAdmin):
     """Admin for ProductOrder model."""
 
     list_display = [
@@ -361,7 +294,7 @@ class ProductOrderAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
 
 
 @admin.register(HomeServiceBooking)
-class HomeServiceBookingAdmin(BranchManagerPermissionMixin, admin.ModelAdmin):
+class HomeServiceBookingAdmin(admin.ModelAdmin):
     """Admin for HomeServiceBooking model."""
 
     list_display = [

@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
 
-from .models import EmployeeRole, SocialAuthProvider, UserType, VerificationCode
+from .models import SocialAuthProvider, UserType, VerificationCode
 
 User = get_user_model()
 
@@ -353,72 +353,6 @@ class SocialAuthProviderSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "provider", "created_at"]
 
 
-# ============================================================================
-# Admin Serializers for Employee Management
-# ============================================================================
-
-
-class CreateEmployeeSerializer(serializers.ModelSerializer):
-    """
-    Serializer for admin to create employee users.
-
-    Only admins can create employees with specific roles.
-    """
-
-    password = serializers.CharField(write_only=True, min_length=8)
-    role = serializers.ChoiceField(choices=EmployeeRole.choices, write_only=True)
-
-    class Meta:
-        model = User
-        fields = [
-            "email",
-            "phone_number",
-            "first_name",
-            "last_name",
-            "date_of_birth",
-            "password",
-            "role",
-        ]
-
-    def validate_email(self, email):
-        """Validate email uniqueness."""
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError(
-                _("A user with this email already exists.")
-            )
-        return email
-
-    def create(self, validated_data):
-        """Create employee user."""
-        role = validated_data.pop("role")
-        password = validated_data.pop("password")
-
-        user = User.objects.create_user(
-            password=password,
-            user_type=UserType.EMPLOYEE,
-            is_email_verified=True,  # Admin-created users are pre-verified
-            **validated_data,
-        )
-
-        # Role will be set via profile creation in signals
-        # Store role temporarily for profile creation
-        user._employee_role = role
-        return user
-
-
-class UpdateEmployeeSerializer(serializers.ModelSerializer):
-    """Serializer for updating employee users."""
-
-    class Meta:
-        model = User
-        fields = [
-            "email",
-            "phone_number",
-            "first_name",
-            "last_name",
-            "date_of_birth",
-            "is_active",
-        ]
 
 
 class AdminUserListSerializer(serializers.ModelSerializer):
