@@ -502,15 +502,12 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ============================================================================
-# Cache Configuration (AWS ElastiCache / Redis-compatible)
+# Cache Configuration (Local Memory)
 # ============================================================================
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("CACHE_REDIS_URL", default="redis://localhost:6379/1"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
         "KEY_PREFIX": "ush",
         "TIMEOUT": 900,  # 15 minutes default
     }

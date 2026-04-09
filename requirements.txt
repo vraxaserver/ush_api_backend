@@ -37,8 +37,6 @@ drf-spectacular>=0.26.0
 # Payment Gateway
 stripe>=14.0.0
 
-# Caching (AWS ElastiCache / Redis-compatible)
-django-redis==6.0.0
 
 # Production Server
 gunicorn>=21.0.0

@@ -11,12 +11,6 @@ if [ -n "$DB_HOST" ]; then
     echo "Database is ready!"
 fi
 
-# Wait for Redis to be ready
-echo "Waiting for Redis..."
-while ! nc -z redis 6379 2>/dev/null; do
-    sleep 1
-done
-echo "Redis is ready!"
 
 # Run migrations
 echo "Running migrations..."

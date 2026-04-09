@@ -60,16 +60,16 @@ def build_cache_key(prefix, request):
 
 def invalidate_model_cache(prefix):
     """
-    Invalidate all cached entries for a given model prefix.
-
-    Uses Django-Redis's delete_pattern to remove all keys matching the prefix.
+    Invalidate all cached entries.
+    
+    Note: Standard Django backends (like LocMemCache) do not support 
+    granular pattern-based deletion. Falling back to clearing the entire cache.
     """
-    pattern = f"*{prefix}:*"
     try:
-        cache.delete_pattern(pattern)
-        logger.info("Cache invalidated for prefix: %s", prefix)
+        cache.clear()
+        logger.info("Entire cache cleared (triggered by prefix: %s)", prefix)
     except Exception as e:
-        logger.warning("Failed to invalidate cache for prefix %s: %s", prefix, e)
+        logger.warning("Failed to clear cache: %s", e)
 
 
 def invalidate_all_caches():

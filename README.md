@@ -47,7 +47,7 @@ A comprehensive Django REST Framework microservice for spa center management wit
 - **Backend**: Django 4.2+, Django REST Framework
 - **Authentication**: djangorestframework-simplejwt, dj-rest-auth, django-allauth
 - **Database**: PostgreSQL
-- **Async Tasks**: Celery + Redis
+- **Async Tasks**: AWS SQS / SNS (Direct async dispatch)
 - **Payments**: Stripe
 - **SMS**: Twilio
 - **Translations**: django-modeltranslation
