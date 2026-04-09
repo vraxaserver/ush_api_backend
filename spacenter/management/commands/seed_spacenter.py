@@ -17,7 +17,6 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 
-from accounts.models import User, UserType
 from spacenter.models import (
     AddOnService,
     BaseProduct,
@@ -139,16 +138,16 @@ GENDER_OPTIONS = [
 ]
 
 SERVICES = [
-    {"name_en": "Classic Swedish Massage",         "name_ar": "المساج السويدي الكلاسيكي",         "spec": "Swedish Massage",     "dur": 60,  "price": Decimal("350"), "disc": Decimal("299"),  "home": True,  "home_price": Decimal("450"), "ideal_en": "Relaxation, Stress Relief",          "ideal_ar": "الاسترخاء، تخفيف التوتر",             "desc_en": "A soothing full-body massage using gentle strokes to promote relaxation and ease tension.",                      "desc_ar": "مساج مهدئ لكامل الجسم بحركات لطيفة لتعزيز الاسترخاء وتخفيف التوتر."},
-    {"name_en": "Deep Tissue Recovery",            "name_ar": "مساج استعادة الأنسجة العميقة",     "spec": "Deep Tissue Massage",  "dur": 90,  "price": Decimal("450"), "disc": None,            "home": False, "home_price": None,           "ideal_en": "Pain Relief, Athletes",              "ideal_ar": "تخفيف الألم، الرياضيين",              "desc_en": "Intensive massage targeting deep muscle layers to relieve chronic pain and stiffness.",                           "desc_ar": "مساج مكثف يستهدف طبقات العضلات العميقة لتخفيف الآلام المزمنة والتصلب."},
-    {"name_en": "Signature Aromatherapy",          "name_ar": "تجربة العلاج بالروائح المميزة",    "spec": "Aromatherapy",         "dur": 75,  "price": Decimal("400"), "disc": Decimal("349"),  "home": True,  "home_price": Decimal("500"), "ideal_en": "Relaxation, Wellness",               "ideal_ar": "الاسترخاء، العافية",                  "desc_en": "A luxurious massage blending custom essential oils for a personalised sensory journey.",                         "desc_ar": "مساج فاخر يمزج الزيوت العطرية المخصصة لرحلة حسية شخصية."},
-    {"name_en": "Volcanic Hot Stone Therapy",      "name_ar": "علاج الأحجار البركانية الساخنة",   "spec": "Hot Stone Therapy",    "dur": 90,  "price": Decimal("500"), "disc": Decimal("449"),  "home": False, "home_price": None,           "ideal_en": "Deep Relaxation, Muscle Relief",     "ideal_ar": "استرخاء عميق، راحة العضلات",          "desc_en": "Heated basalt stones placed along energy centres combined with massage techniques.",                             "desc_ar": "أحجار بازلتية ساخنة موضوعة على مراكز الطاقة مع تقنيات المساج."},
-    {"name_en": "Radiance Facial Treatment",       "name_ar": "علاج الوجه المشرق",                "spec": "Facial Treatment",     "dur": 60,  "price": Decimal("300"), "disc": None,            "home": False, "home_price": None,           "ideal_en": "Skincare, Anti-Aging",               "ideal_ar": "العناية بالبشرة، مكافحة الشيخوخة",    "desc_en": "A revitalising facial including deep cleanse, exfoliation, mask, and hydration.",                                "desc_ar": "علاج وجه منعش يشمل تنظيف عميق وتقشير وقناع وترطيب."},
-    {"name_en": "Detox Body Scrub & Wrap",         "name_ar": "تقشير ولف الجسم للتخلص من السموم", "spec": "Body Scrub & Wrap",    "dur": 90,  "price": Decimal("420"), "disc": Decimal("379"),  "home": False, "home_price": None,           "ideal_en": "Detox, Skin Renewal",                "ideal_ar": "إزالة السموم، تجديد البشرة",          "desc_en": "Full-body exfoliation followed by a mineral-rich body wrap for total detoxification.",                           "desc_ar": "تقشير كامل للجسم يتبعه لف بالمعادن لإزالة السموم بالكامل."},
-    {"name_en": "Traditional Thai Massage",        "name_ar": "المساج التايلندي التقليدي",        "spec": "Thai Massage",         "dur": 90,  "price": Decimal("380"), "disc": None,            "home": False, "home_price": None,           "ideal_en": "Flexibility, Energy",                "ideal_ar": "المرونة، الطاقة",                     "desc_en": "An ancient healing technique combining acupressure, stretching, and yoga-like postures.",                        "desc_ar": "تقنية علاجية قديمة تجمع بين الضغط والتمدد ووضعيات تشبه اليوغا."},
-    {"name_en": "Holistic Reflexology",            "name_ar": "الريفلكسولوجي الشاملة",            "spec": "Reflexology",          "dur": 45,  "price": Decimal("250"), "disc": Decimal("220"),  "home": True,  "home_price": Decimal("320"), "ideal_en": "Holistic Healing, Stress Relief",    "ideal_ar": "العلاج الشامل، تخفيف التوتر",         "desc_en": "Targeted pressure on feet and hands to restore balance and promote healing.",                                    "desc_ar": "ضغط مستهدف على القدمين واليدين لاستعادة التوازن وتعزيز الشفاء."},
-    {"name_en": "Royal Hammam Experience",         "name_ar": "تجربة الحمام الملكي",              "spec": "Body Scrub & Wrap",    "dur": 120, "price": Decimal("600"), "disc": Decimal("529"),  "home": False, "home_price": None,           "ideal_en": "Luxury, Deep Cleansing",             "ideal_ar": "الفخامة، التنظيف العميق",             "desc_en": "A premium hammam ritual with steam, black soap scrub, and ghassoul clay wrap.",                                  "desc_ar": "طقوس حمام فاخرة مع بخار وتقشير بالصابون الأسود ولف بطين الغسول."},
-    {"name_en": "Couples Harmony Massage",         "name_ar": "مساج الانسجام للأزواج",            "spec": "Swedish Massage",      "dur": 90,  "price": Decimal("700"), "disc": Decimal("599"),  "home": False, "home_price": None,           "ideal_en": "Couples, Romance",                   "ideal_ar": "الأزواج، الرومانسية",                 "desc_en": "Side-by-side massage for couples in a private suite with candles and rose petals.",                              "desc_ar": "مساج جنباً إلى جنب للأزواج في جناح خاص مع شموع وبتلات الورد."},
+    {"name_en": "Classic Swedish Massage",         "name_ar": "المساج السويدي الكلاسيكي",         "spec": "Swedish Massage",     "dur": 60,  "price": Decimal("350"), "disc": Decimal("299"),  "ideal_en": "Relaxation, Stress Relief",          "ideal_ar": "الاسترخاء، تخفيف التوتر",             "desc_en": "A soothing full-body massage using gentle strokes to promote relaxation and ease tension.",                      "desc_ar": "مساج مهدئ لكامل الجسم بحركات لطيفة لتعزيز الاسترخاء وتخفيف التوتر."},
+    {"name_en": "Deep Tissue Recovery",            "name_ar": "مساج استعادة الأنسجة العميقة",     "spec": "Deep Tissue Massage",  "dur": 90,  "price": Decimal("450"), "disc": None,            "ideal_en": "Pain Relief, Athletes",              "ideal_ar": "تخفيف الألم، الرياضيين",              "desc_en": "Intensive massage targeting deep muscle layers to relieve chronic pain and stiffness.",                           "desc_ar": "مساج مكثف يستهدف طبقات العضلات العميقة لتخفيف الآلام المزمنة والتصلب."},
+    {"name_en": "Signature Aromatherapy",          "name_ar": "تجربة العلاج بالروائح المميزة",    "spec": "Aromatherapy",         "dur": 75,  "price": Decimal("400"), "disc": Decimal("349"),  "ideal_en": "Relaxation, Wellness",               "ideal_ar": "الاسترخاء، العافية",                  "desc_en": "A luxurious massage blending custom essential oils for a personalised sensory journey.",                         "desc_ar": "مساج فاخر يمزج الزيوت العطرية المخصصة لرحلة حسية شخصية."},
+    {"name_en": "Volcanic Hot Stone Therapy",      "name_ar": "علاج الأحجار البركانية الساخنة",   "spec": "Hot Stone Therapy",    "dur": 90,  "price": Decimal("500"), "disc": Decimal("449"),  "ideal_en": "Deep Relaxation, Muscle Relief",     "ideal_ar": "استرخاء عميق، راحة العضلات",          "desc_en": "Heated basalt stones placed along energy centres combined with massage techniques.",                             "desc_ar": "أحجار بازلتية ساخنة موضوعة على مراكز الطاقة مع تقنيات المساج."},
+    {"name_en": "Radiance Facial Treatment",       "name_ar": "علاج الوجه المشرق",                "spec": "Facial Treatment",     "dur": 60,  "price": Decimal("300"), "disc": None,            "ideal_en": "Skincare, Anti-Aging",               "ideal_ar": "العناية بالبشرة، مكافحة الشيخوخة",    "desc_en": "A revitalising facial including deep cleanse, exfoliation, mask, and hydration.",                                "desc_ar": "علاج وجه منعش يشمل تنظيف عميق وتقشير وقناع وترطيب."},
+    {"name_en": "Detox Body Scrub & Wrap",         "name_ar": "تقشير ولف الجسم للتخلص من السموم", "spec": "Body Scrub & Wrap",    "dur": 90,  "price": Decimal("420"), "disc": Decimal("379"),  "ideal_en": "Detox, Skin Renewal",                "ideal_ar": "إزالة السموم، تجديد البشرة",          "desc_en": "Full-body exfoliation followed by a mineral-rich body wrap for total detoxification.",                           "desc_ar": "تقشير كامل للجسم يتبعه لف بالمعادن لإزالة السموم بالكامل."},
+    {"name_en": "Traditional Thai Massage",        "name_ar": "المساج التايلندي التقليدي",        "spec": "Thai Massage",         "dur": 90,  "price": Decimal("380"), "disc": None,            "ideal_en": "Flexibility, Energy",                "ideal_ar": "المرونة، الطاقة",                     "desc_en": "An ancient healing technique combining acupressure, stretching, and yoga-like postures.",                        "desc_ar": "تقنية علاجية قديمة تجمع بين الضغط والتمدد ووضعيات تشبه اليوغا."},
+    {"name_en": "Holistic Reflexology",            "name_ar": "الريفلكسولوجي الشاملة",            "spec": "Reflexology",          "dur": 45,  "price": Decimal("250"), "disc": Decimal("220"),  "ideal_en": "Holistic Healing, Stress Relief",    "ideal_ar": "العلاج الشامل، تخفيف التوتر",         "desc_en": "Targeted pressure on feet and hands to restore balance and promote healing.",                                    "desc_ar": "ضغط مستهدف على القدمين واليدين لاستعادة التوازن وتعزيز الشفاء."},
+    {"name_en": "Royal Hammam Experience",         "name_ar": "تجربة الحمام الملكي",              "spec": "Body Scrub & Wrap",    "dur": 120, "price": Decimal("600"), "disc": Decimal("529"),  "ideal_en": "Luxury, Deep Cleansing",             "ideal_ar": "الفخامة، التنظيف العميق",             "desc_en": "A premium hammam ritual with steam, black soap scrub, and ghassoul clay wrap.",                                  "desc_ar": "طقوس حمام فاخرة مع بخار وتقشير بالصابون الأسود ولف بطين الغسول."},
+    {"name_en": "Couples Harmony Massage",         "name_ar": "مساج الانسجام للأزواج",            "spec": "Swedish Massage",      "dur": 90,  "price": Decimal("700"), "disc": Decimal("599"),  "ideal_en": "Couples, Romance",                   "ideal_ar": "الأزواج، الرومانسية",                 "desc_en": "Side-by-side massage for couples in a private suite with candles and rose petals.",                              "desc_ar": "مساج جنباً إلى جنب للأزواج في جناح خاص مع شموع وبتلات الورد."},
 ]
 
 # Real spa service images from Pexels (free, high-quality, verified working)
@@ -282,7 +281,7 @@ class Command(BaseCommand):
         self._seed_base_products()
         self._seed_spa_products()
         self._seed_arrangements()
-        self.stdout.write(self.style.SUCCESS("\n✅ Spa center seeding complete!"))
+        self.stdout.write(self.style.SUCCESS("\nSpa center seeding complete!"))
 
     # ── Countries ──────────────────────────────────────────────
     def _seed_countries(self):
@@ -334,11 +333,8 @@ class Command(BaseCommand):
             )
             self.stdout.write(f"  {'Created' if created else 'Updated'}: {obj.name}")
 
-    # ── Branches (5 per country) ───────────────────────────────
     def _seed_branches(self):
         self.stdout.write("\nSeeding spa center branches...")
-        managers = list(User.objects.filter(user_type=UserType.EMPLOYEE).order_by("date_joined"))
-        mgr_idx = 0
 
         for country in Country.objects.all().order_by("sort_order"):
             info = BRANCH_TEMPLATE.get(country.code, {"currency": "QAR", "domain": "ushspa.com"})
@@ -362,10 +358,6 @@ class Command(BaseCommand):
                     "default_closing_time": time(22, 0),
                     "sort_order": city.sort_order,
                 }
-                if mgr_idx < len(managers):
-                    defaults["branch_manager"] = managers[mgr_idx]
-                    mgr_idx += 1
-
                 obj, created = SpaCenter.objects.update_or_create(slug=slug, defaults=defaults)
                 self.stdout.write(f"  {'Created' if created else 'Updated'}: {obj.name}")
 
@@ -387,7 +379,7 @@ class Command(BaseCommand):
 
                     fname = f"spacenter_{obj.id}.{file_ext}"
                     obj.image.save(fname, ContentFile(img_data), save=True)
-                    self.stdout.write(f"    📷 Image set for: {obj.name}")
+                    self.stdout.write(f"    Image set for: {obj.name}")
 
     # ── Operating Hours ────────────────────────────────────────
     def _seed_operating_hours(self):
@@ -400,10 +392,10 @@ class Command(BaseCommand):
                 )
             self.stdout.write(f"  Set hours for: {spa.name}")
 
-    # ── Services + Images ──────────────────────────────────────
     def _seed_services_with_images(self):
         self.stdout.write("\nSeeding services with images...")
         addons = list(AddOnService.objects.all())
+        from accounts.models import User, UserType
         admin = User.objects.filter(user_type=UserType.ADMIN).first()
 
         for spa in SpaCenter.objects.select_related("country", "city").all():
@@ -421,8 +413,7 @@ class Command(BaseCommand):
                         "duration_minutes": sd["dur"], "currency": BRANCH_TEMPLATE.get(spa.country.code, {}).get("currency", "QAR"),
                         "base_price": sd["price"], "discount_price": sd["disc"],
                         "is_for_male": (gender := random.choice(GENDER_OPTIONS))[0], "is_for_female": gender[1],
-                        "is_home_service": sd["home"], "price_for_home_service": sd["home_price"],
-                        "spa_center": spa, "created_by": admin, "sort_order": i + 1,
+                        "spa_center": spa, "sort_order": i + 1,
                     },
                 )
                 if addons:
@@ -487,7 +478,7 @@ class Command(BaseCommand):
                     if img_data:
                         fname = f"product_{obj.id}.jpg"
                         obj.image.save(fname, ContentFile(img_data), save=True)
-                        self.stdout.write(f"    📷 Image saved for: {obj.name}")
+                        self.stdout.write(f"    Image saved for: {obj.name}")
                     else:
                         self.stdout.write(self.style.WARNING(f"    ⚠ Download failed for: {obj.name}"))
 

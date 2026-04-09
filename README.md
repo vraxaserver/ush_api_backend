@@ -213,7 +213,6 @@ python manage.py runserver
 | GET | `/services/?country={code}` | Filter by country | Public |
 | GET | `/services/?city={uuid}` | Filter by city | Public |
 | GET | `/services/?category={name}` | Filter by category | Public |
-| GET | `/services/?is_home_service=true` | Home services only | Public |
 | GET | `/services/?min_price=50&max_price=200` | Filter by price | Public |
 | GET | `/services/{id}/` | Get service details | Public |
 
@@ -236,7 +235,6 @@ Query parameters:
 - `page_size`: Items per page (default: 10, max: 100)
 - `search`: Search by service name
 - `category`: Filter by category
-- `is_home_service`: Filter by home service (true/false)
 - `ordering`: Sort by `name`, `-name`, `price`, `-price`, `duration_minutes`, `sort_order`
 
 **Response:**
@@ -254,7 +252,6 @@ Query parameters:
             "category": "Massage",
             "price": "150.00",
             "duration_minutes": 60,
-            "is_home_service": true,
             "image": "https://..."
         }
     ]

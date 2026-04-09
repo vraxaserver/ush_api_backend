@@ -37,25 +37,12 @@ def create_user_profile(sender, instance, created, **kwargs):
         return
 
     # Import here to avoid circular imports
-    from profiles.models import CustomerProfile, EmployeeProfile
+    from profiles.models import CustomerProfile
 
     try:
         if instance.user_type == UserType.CUSTOMER:
             CustomerProfile.objects.get_or_create(user=instance)
             logger.info(f"Created customer profile for {instance}")
-
-        elif instance.user_type == UserType.EMPLOYEE:
-            # Get role if set during creation
-            role = getattr(instance, "_employee_role", None)
-            EmployeeProfile.objects.get_or_create(
-                user=instance,
-                defaults={"role": role or "therapist"},
-            )
-            logger.info(f"Created employee profile for {instance}")
-
-            # Add to appropriate group
-            if role:
-                assign_employee_group(instance, role)
 
     except Exception as e:
         logger.error(f"Error creating profile for {instance}: {e}")
@@ -120,57 +107,3 @@ def send_verification_on_registration(sender, instance, created, **kwargs):
         logger.error(f"Error sending verification for {instance}: {e}")
 
 
-def assign_employee_group(user, role):
-    """
-    Assign employee to appropriate Django group based on role.
-
-    Args:
-        user: User instance
-        role: Employee role (branch_manager, country_manager, therapist)
-    """
-    role_group_mapping = {
-        "branch_manager": "Branch Managers",
-        "country_manager": "Country Managers",
-        "therapist": "Therapists",
-    }
-
-    group_name = role_group_mapping.get(role)
-    if group_name:
-        group, _ = Group.objects.get_or_create(name=group_name)
-        user.groups.add(group)
-        logger.info(f"Added {user} to group {group_name}")
-
-
-def setup_employee_groups():
-    """
-    Create default employee groups with permissions.
-
-    Call this during initial setup or via management command.
-    """
-    from django.contrib.auth.models import Group, Permission
-    from django.contrib.contenttypes.models import ContentType
-
-    groups_permissions = {
-        "Branch Managers": [
-            # Add specific permissions for branch managers
-        ],
-        "Country Managers": [
-            # Add specific permissions for country managers
-        ],
-        "Therapists": [
-            # Add specific permissions for therapists
-        ],
-    }
-
-    for group_name, permissions in groups_permissions.items():
-        group, created = Group.objects.get_or_create(name=group_name)
-        if created:
-            logger.info(f"Created group: {group_name}")
-
-        # Add permissions to group
-        for perm_codename in permissions:
-            try:
-                perm = Permission.objects.get(codename=perm_codename)
-                group.permissions.add(perm)
-            except Permission.DoesNotExist:
-                logger.warning(f"Permission not found: {perm_codename}")

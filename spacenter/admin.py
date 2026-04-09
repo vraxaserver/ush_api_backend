@@ -53,47 +53,6 @@ class ClearCacheActionMixin:
         return actions
 
 
-def get_branch_manager_spa_center(user):
-    """
-    Get the spa center managed by this user if they are a branch manager.
-    Returns None if user is a superuser or has no assigned spa center.
-    """
-    if user.is_superuser:
-        return None
-    if hasattr(user, 'managed_spa_center'):
-        return getattr(user, 'managed_spa_center', None)
-    return None
-
-
-class BranchManagerPermissionMixin:
-    """
-    Mixin that grants branch managers permission to view/add/change models.
-    Branch managers are identified by having a managed_spa_center.
-    """
-
-    def has_module_permission(self, request):
-        """Allow branch managers to see the app in admin."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_module_permission(request)
-
-    def has_view_permission(self, request, obj=None):
-        """Allow branch managers to view objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_view_permission(request, obj)
-
-    def has_add_permission(self, request):
-        """Allow branch managers to add objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_add_permission(request)
-
-    def has_change_permission(self, request, obj=None):
-        """Allow branch managers to change objects."""
-        if get_branch_manager_spa_center(request.user):
-            return True
-        return super().has_change_permission(request, obj)
 
 
 @admin.register(Country)
@@ -236,7 +195,7 @@ class ServiceImageInline(admin.TabularInline):
 
 
 @admin.register(Service)
-class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, TranslationAdmin):
+class ServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for Service model with translation support."""
 
     list_display = [
@@ -256,11 +215,11 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
         "addon_count",
         "image_count",
     ]
-    list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_home_service", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
+    list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_eligible_for_loyalty"]
-    autocomplete_fields = ["specialty", "country", "city", "spa_center"]
+    autocomplete_fields = ["specialty", "country", "city"]
     
     inlines = [ServiceImageInline]
 
@@ -289,10 +248,9 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
             "description": "Enable this to allow bookings of this service to count towards the loyalty program."
         }),
         ("Status", {
-            "fields": ("is_active", "sort_order", "created_by")
+            "fields": ("is_active", "sort_order")
         }),
     )
-    readonly_fields = ["created_by"]
 
     def addon_count(self, obj):
         """Count of add-on services attached."""
@@ -322,29 +280,6 @@ class ServiceAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Translat
         return count
     image_count.short_description = "Images"
 
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only on create
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)
-
-    def get_queryset(self, request):
-        """Filter services by branch manager's spa center location."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            # Filter services by the spa center's country and city
-            return qs.filter(country=spa_center.country, city=spa_center.city)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit country/city choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "country":
-                kwargs["queryset"] = Country.objects.filter(id=spa_center.country_id)
-            elif db_field.name == "city":
-                kwargs["queryset"] = City.objects.filter(id=spa_center.city_id)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(ServiceImage)
@@ -393,24 +328,20 @@ class ServiceArrangementInline(admin.TabularInline):
     autocomplete_fields = ["service"]
 
 @admin.register(SpaCenter)
-class SpaCenterAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, TranslationAdmin):
+class SpaCenterAdmin(ClearCacheActionMixin, TranslationAdmin):
     """Admin for SpaCenter model with translation support."""
 
     list_display = [
         "name",
         "city",
         "country",
-        "branch_manager_display",
-        "default_opening_time",
-        "default_closing_time",
-        "is_active",
         "on_service",
+        "is_active",
         "sort_order",
     ]
     list_filter = [CountryFilter, CityFilter, "is_active", "on_service"]
     search_fields = ["name", "name_en", "name_ar", "address", "city__name"]
     prepopulated_fields = {"slug": ("name",)}
-    raw_id_fields = ["branch_manager"]
     autocomplete_fields = ["country", "city"]
     inlines = [SpaCenterOperatingHoursInline, ServiceArrangementInline]
     ordering = ["sort_order", "country", "name"]
@@ -438,16 +369,8 @@ class SpaCenterAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Transl
         ("Status", {
             "fields": ("is_active", "on_service", "sort_order")
         }),
-        ("Management", {
-            "fields": ("branch_manager",)
-        }),
     )
 
-    def branch_manager_display(self, obj):
-        if obj.branch_manager:
-            return obj.branch_manager.get_full_name()
-        return "-"
-    branch_manager_display.short_description = "Branch Manager"
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Filter city choices based on selected country."""
@@ -461,28 +384,6 @@ class SpaCenterAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, Transl
                 except Exception:
                     pass
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-    def get_queryset(self, request):
-        """Branch managers can only see their own spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(id=spa_center.id)
-        return qs
-
-    def has_add_permission(self, request):
-        """Branch managers cannot add new spa centers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return False
-        return super().has_add_permission(request)
-
-    def has_delete_permission(self, request, obj=None):
-        """Branch managers cannot delete spa centers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return False
-        return super().has_delete_permission(request, obj)
 
 
 @admin.register(SpaCenterOperatingHours)
@@ -501,7 +402,7 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixin, admin.ModelAdmin):
+class ServiceArrangementAdmin(ClearCacheActionMixin, admin.ModelAdmin):
     """Admin for ServiceArrangement model with pricing support."""
 
     list_display = [
@@ -553,24 +454,6 @@ class ServiceArrangementAdmin(ClearCacheActionMixin, BranchManagerPermissionMixi
             )
         return obj.base_price
     current_price_display.short_description = "Current Price"
-
-    def get_queryset(self, request):
-        """Branch managers can only see arrangements for their spa center."""
-        qs = super().get_queryset(request)
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            return qs.filter(spa_center=spa_center)
-        return qs
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Restrict spa_center and service choices for branch managers."""
-        spa_center = get_branch_manager_spa_center(request.user)
-        if spa_center:
-            if db_field.name == "spa_center":
-                kwargs["queryset"] = SpaCenter.objects.filter(id=spa_center.id)
-            elif db_field.name == "service":
-                kwargs["queryset"] = spa_center.services.filter(is_active=True)
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 # =============================================================================
@@ -779,39 +662,8 @@ class SpaProductAdmin(ClearCacheActionMixin, admin.ModelAdmin):
             return format_html('<span style="color: orange;">Low Stock</span>')
         return format_html('<span style="color: green;">In Stock</span>')
     stock_status_display.short_description = "Status"
-
-    def get_queryset(self, request):
-        """
-        Filter queryset based on user role.
-        Branch managers can only see products in their branch's location.
-        """
-        qs = super().get_queryset(request)
-        
-        # Check if user is a branch manager (not superuser/admin)
-        if not request.user.is_superuser:
-            if hasattr(request.user, 'managed_spa_center'):
-                spa_center = request.user.managed_spa_center
-                if spa_center:
-                    return qs.filter(
-                        country=spa_center.country,
-                        city=spa_center.city
-                    )
-        
-        return qs
-
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """
-        Limit country/city choices for branch managers.
-        """
-        if not request.user.is_superuser:
-            if hasattr(request.user, 'managed_spa_center'):
-                spa_center = request.user.managed_spa_center
-                if spa_center:
-                    if db_field.name == "country":
-                        kwargs["queryset"] = Country.objects.filter(id=spa_center.country_id)
-                    elif db_field.name == "city":
-                        kwargs["queryset"] = City.objects.filter(id=spa_center.city_id)
-        
+        """Standard formfield filtering."""
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
@@ -848,8 +700,7 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
     ordering = ["-created_at"]
     list_editable = ["is_active"]
     autocomplete_fields = ["specialty", "country", "city"]
-    readonly_fields = ["created_by"]
-
+    
     fieldsets = (
         (None, {
             "fields": ("name", "description", "specialty")
@@ -867,7 +718,7 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
             "fields": ("image",)
         }),
         ("Status", {
-            "fields": ("is_active", "created_by")
+            "fields": ("is_active",)
         }),
     )
 
@@ -893,7 +744,3 @@ class HomeServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
         return "-"
     image_preview.short_description = "Image"
 
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.created_by = request.user
-        super().save_model(request, obj, form, change)

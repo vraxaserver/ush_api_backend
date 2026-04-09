@@ -165,16 +165,6 @@ class SpaCenter(models.Model):
         help_text=_("Is currently operational"),
     )
     
-    # Management
-    branch_manager = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="managed_spa_center",
-        verbose_name=_("branch manager"),
-        limit_choices_to={"user_type": "employee"},
-    )
     
     sort_order = models.PositiveIntegerField(_("sort order"), default=0)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
@@ -416,21 +406,6 @@ class Service(models.Model):
     )
 
     
-    # Home service
-    is_home_service = models.BooleanField(
-        _("available for home service"),
-        default=False,
-    )
-    price_for_home_service = models.DecimalField(
-        _("price for home service"),
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text=_("Leave blank to use base price for home service"),
-    )
-    
     # Gender targeting
     is_for_male = models.BooleanField(
         _("for male"),
@@ -475,15 +450,6 @@ class Service(models.Model):
         verbose_name=_("spa center"),
     )
     
-    # Created by tracking
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_services",
-        verbose_name=_("created by"),
-    )
     
     # Loyalty program
     is_eligible_for_loyalty = models.BooleanField(
@@ -555,13 +521,6 @@ class Service(models.Model):
             discount = ((self.base_price - self.discount_price) / self.base_price) * 100
             return round(discount, 0)
         return 0
-
-    @property
-    def home_service_price(self):
-        """Get the effective home service price."""
-        if self.is_home_service:
-            return self.price_for_home_service or self.current_price
-        return None
 
 
 class ServiceImage(models.Model):
@@ -1103,15 +1062,6 @@ class HomeService(models.Model):
         blank=True,
     )
 
-    # Created by tracking
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_home_services",
-        verbose_name=_("created by"),
-    )
 
     is_active = models.BooleanField(_("active"), default=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)

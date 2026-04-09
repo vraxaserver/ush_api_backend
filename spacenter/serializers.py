@@ -12,8 +12,6 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from accounts.models import EmployeeRole, UserType
-from profiles.models import EmployeeProfile
 
 from .models import (
     AddOnService,
@@ -240,11 +238,6 @@ class ServiceSerializer(serializers.ModelSerializer):
     )
     has_discount = serializers.BooleanField(read_only=True)
     discount_percentage = serializers.IntegerField(read_only=True)
-    home_service_price = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        read_only=True,
-    )
     spa_center = serializers.SerializerMethodField()
 
     class Meta:
@@ -270,9 +263,6 @@ class ServiceSerializer(serializers.ModelSerializer):
             "current_price",
             "has_discount",
             "discount_percentage",
-            "is_home_service",
-            "price_for_home_service",
-            "home_service_price",
             "is_for_male",
             "is_for_female",
             "ideal_for",
@@ -354,8 +344,6 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             "currency",
             "base_price",
             "discount_price",
-            "is_home_service",
-            "price_for_home_service",
             "is_for_male",
             "is_for_female",
             "ideal_for",
@@ -388,13 +376,15 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         
         request = self.context.get("request")
         if request and request.user.is_authenticated:
-            # Admin must provide branch_ids
-            if request.user.is_admin:
-                branch_ids = attrs.get("branch_ids", [])
-                if not branch_ids:
-                    raise serializers.ValidationError({
-                        "branch_ids": "Admin must select at least one branch for the service."
-                    })
+            # Only admin can create services
+            if not request.user.is_admin:
+                 raise serializers.ValidationError({"error": "Only administrators can create services."})
+                 
+            branch_ids = attrs.get("branch_ids", [])
+            if not branch_ids:
+                raise serializers.ValidationError({
+                    "branch_ids": "At least one branch must be selected for the service."
+                })
         
         return attrs
 
@@ -403,9 +393,6 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
         images_data = validated_data.pop("images", [])
         branch_ids = validated_data.pop("branch_ids", [])
         
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            validated_data["created_by"] = request.user
         
         service = Service.objects.create(**validated_data)
         
@@ -419,18 +406,9 @@ class ServiceCreateSerializer(serializers.ModelSerializer):
             )
         
         # Assign to branches
-        if request and request.user.is_authenticated:
-            if request.user.is_admin:
-                # Admin provided branches
-                for branch in branch_ids:
-                    branch.services.add(service)
-            else:
-                # Branch manager - auto-assign to their branch
-                try:
-                    spa_center = request.user.managed_spa_center
-                    spa_center.services.add(service)
-                except SpaCenter.DoesNotExist:
-                    pass
+        if branch_ids:
+            for branch in branch_ids:
+                branch.services.add(service)
         
         return service
 
@@ -475,8 +453,6 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "current_price",
             "has_discount",
             "discount_percentage",
-            "is_home_service",
-            "home_service_price",
             "is_for_male",
             "is_for_female",
             "ideal_for",
@@ -546,7 +522,6 @@ class SpaCenterListSerializer(serializers.ModelSerializer):
     country_name = serializers.CharField(source="country.name", read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True)
     location = serializers.SerializerMethodField()
-    branch_manager_name = serializers.SerializerMethodField()
 
     class Meta:
         model = SpaCenter
@@ -567,7 +542,6 @@ class SpaCenterListSerializer(serializers.ModelSerializer):
             "default_closing_time",
             "is_active",
             "on_service",
-            "branch_manager_name",
         ]
 
     def get_location(self, obj):
@@ -594,7 +568,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
     )
     operating_hours = SpaCenterOperatingHoursSerializer(many=True, read_only=True)
     location = serializers.SerializerMethodField()
-    branch_manager_name = serializers.SerializerMethodField()
     full_address = serializers.CharField(read_only=True)
 
     class Meta:
@@ -628,8 +601,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
             "default_closing_time",
             "is_active",
             "on_service",
-            "branch_manager",
-            "branch_manager_name",
             "services",
             "service_ids",
             "operating_hours",
@@ -641,11 +612,6 @@ class SpaCenterDetailSerializer(serializers.ModelSerializer):
 
     def get_location(self, obj):
         return obj.location
-
-    def get_branch_manager_name(self, obj):
-        if obj.branch_manager:
-            return obj.branch_manager.get_full_name()
-        return None
 
     def validate(self, attrs):
         """Validate city belongs to country."""
@@ -689,7 +655,6 @@ class SpaCenterCreateSerializer(serializers.ModelSerializer):
             "default_closing_time",
             "is_active",
             "on_service",
-            "branch_manager",
             "sort_order",
         ]
 
@@ -904,12 +869,11 @@ class HomeServiceSerializer(serializers.ModelSerializer):
             "is_for_male",
             "is_for_female",
             "image",
-            "created_by",
             "is_active",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "created_by"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate(self, attrs):
         """Validate city belongs to country and discount price."""

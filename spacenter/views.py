@@ -14,7 +14,6 @@ from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from accounts.models import EmployeeRole
 from accounts.permissions import IsAdminUser
 from config.cache_utils import (
     ADDON_SERVICE_CACHE_PREFIX,
@@ -74,29 +73,6 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Custom Permissions
 # =============================================================================
-
-class IsAdminOrBranchManager(permissions.BasePermission):
-    """
-    Permission for admins and branch managers.
-    """
-
-    def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        
-        # Admin has full access
-        if request.user.is_admin:
-            return True
-        
-        # Branch manager has access
-        if request.user.is_employee:
-            try:
-                employee_profile = request.user.employee_profile
-                return employee_profile.role == EmployeeRole.BRANCH_MANAGER
-            except Exception:
-                pass
-        
-        return False
 
 
 # =============================================================================
@@ -175,7 +151,6 @@ class ServiceFilter(django_filters.FilterSet):
         field_name="specialty__name",
         lookup_expr="icontains",
     )
-    is_home_service = django_filters.BooleanFilter()
     is_for_male = django_filters.BooleanFilter()
     is_for_female = django_filters.BooleanFilter()
     is_active = django_filters.BooleanFilter()
@@ -211,7 +186,6 @@ class ServiceFilter(django_filters.FilterSet):
         fields = [
             "specialty",
             "specialty_name",
-            "is_home_service",
             "is_for_male",
             "is_for_female",
             "is_active",
@@ -403,7 +377,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
     """
 
     queryset = Service.objects.select_related(
-        "specialty", "country", "city", "created_by"
+        "specialty", "country", "city"
     ).prefetch_related(
         "images",
         "spa_center",
@@ -424,7 +398,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         """Set permissions based on action."""
         if self.action in ["list", "retrieve"]:
             return [permissions.AllowAny()]
-        return [IsAdminOrBranchManager()]
+        return [IsAdminUser()]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -441,26 +415,6 @@ class ServiceViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "retrieve"]:
             queryset = queryset.filter(is_active=True)
         
-        # For management actions (update, delete) - branch managers see only their branch services
-        if self.action in ["update", "partial_update", "destroy"]:
-            if user.is_authenticated and not user.is_admin:
-                try:
-                    spa_center = user.managed_spa_center
-                    queryset = queryset.filter(spa_centers=spa_center)
-                except SpaCenter.DoesNotExist:
-                    queryset = queryset.none()
-        
-        # Filter by branch manager's branch if they are viewing as authenticated
-        if self.action == "list" and user.is_authenticated:
-            # Check if 'my_branch' query param is provided
-            my_branch_only = self.request.query_params.get("my_branch", "").lower() == "true"
-            if my_branch_only and not user.is_admin:
-                try:
-                    spa_center = user.managed_spa_center
-                    queryset = queryset.filter(spa_centers=spa_center)
-                except SpaCenter.DoesNotExist:
-                    queryset = queryset.none()
-        
         return queryset.distinct()
 
     def list(self, request, *args, **kwargs):
@@ -475,7 +429,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             return response
         return super().list(request, *args, **kwargs)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrBranchManager])
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
     def add_image(self, request, pk=None):
         """Add image to a service (max 3 images)."""
         service = self.get_object()
@@ -492,7 +446,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=True, methods=["delete"], permission_classes=[IsAdminOrBranchManager])
+    @action(detail=True, methods=["delete"], permission_classes=[IsAdminUser])
     def remove_image(self, request, pk=None):
         """Remove image from service (must keep at least 1)."""
         service = self.get_object()
@@ -514,57 +468,25 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-    @action(detail=False, methods=["get"], permission_classes=[IsAdminOrBranchManager])
-    def my_branch_services(self, request):
+    @action(detail=False, methods=["get"], permission_classes=[IsAdminUser])
+    def admin_services(self, request):
         """
-        Get services for the current branch manager's branch.
-        Admin sees all services.
+        List all services for admin.
         """
-        user = request.user
-        
-        if user.is_admin:
-            queryset = self.get_queryset()
-        else:
-            try:
-                spa_center = user.managed_spa_center
-                queryset = Service.objects.filter(
-                    spa_centers=spa_center,
-                    is_active=True,
-                ).select_related("specialty").prefetch_related("images")
-            except SpaCenter.DoesNotExist:
-                return Response(
-                    {"error": "You are not assigned as a branch manager."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        
-        
-        # Apply filters
+        queryset = self.get_queryset()
         queryset = self.filter_queryset(queryset)
         
-        context = {"request": request}
-        if not user.is_admin:
-            try:
-                context["spa_center"] = user.managed_spa_center
-            except SpaCenter.DoesNotExist:
-                pass
-
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = ServiceListSerializer(page, many=True, context=context)
+            serializer = ServiceListSerializer(page, many=True, context={"request": request})
             return self.get_paginated_response(serializer.data)
         
-        serializer = ServiceListSerializer(queryset, many=True, context=context)
+        serializer = ServiceListSerializer(queryset, many=True, context={"request": request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrBranchManager])
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
     def assign_to_branch(self, request, pk=None):
         """Assign service to additional branches (Admin only)."""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin can assign services to branches."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
         service = self.get_object()
         branch_ids = request.data.get("branch_ids", [])
         
@@ -582,15 +504,9 @@ class ServiceViewSet(viewsets.ModelViewSet):
             "branches": [{"id": str(b.id), "name": b.name} for b in branches],
         })
 
-    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrBranchManager])
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
     def remove_from_branch(self, request, pk=None):
         """Remove service from a branch (Admin only)."""
-        if not request.user.is_admin:
-            return Response(
-                {"error": "Only admin can remove services from branches."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        
         service = self.get_object()
         branch_id = request.data.get("branch_id")
         
@@ -632,7 +548,7 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
     """
 
     queryset = SpaCenter.objects.select_related(
-        "country", "city", "branch_manager"
+        "country", "city"
     ).prefetch_related("services", "operating_hours")
     permission_classes = [permissions.AllowAny]
     filterset_class = SpaCenterFilter
@@ -695,12 +611,6 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         category = request.query_params.get("category")
         if category:
             services = services.filter(category__iexact=category)
-        
-        # Apply home service filter
-        is_home_service = request.query_params.get("is_home_service")
-        if is_home_service is not None:
-            is_home = is_home_service.lower() in ("true", "1", "yes")
-            services = services.filter(is_home_service=is_home)
         
         # Apply gender filters
         is_for_male = request.query_params.get("is_for_male")
@@ -1051,7 +961,7 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
     """
 
     queryset = HomeService.objects.select_related(
-        "specialty", "country", "city", "created_by"
+        "specialty", "country", "city"
     )
 
     filterset_class = HomeServiceFilter
@@ -1081,9 +991,6 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
-    def perform_create(self, serializer):
-        """Auto-set created_by to the current user."""
-        serializer.save(created_by=self.request.user)
 
     def list(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
