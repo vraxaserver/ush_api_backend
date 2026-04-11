@@ -47,11 +47,22 @@ def clear_cache_view(request):
     messages.success(request, "✅ All API caches have been cleared successfully.")
     return redirect("admin:index")
 
+
+def health_check(request):
+    """
+    Simple health check endpoint for monitoring.
+    """
+    return JsonResponse({"status": "healthy"}, status=200)
+
+
 admin.site.site_title = "USH Spa Center Admin"
 admin.site.site_header = "USH Spa Center Admin"
 admin.site.index_title = "USH Spa Center Admin"
 
 urlpatterns = [
+    # Health Check
+    path("health/", health_check, name="health-check"),
+    
     # Admin Cache Control
     path("admin/clear-cache/", clear_cache_view, name="clear-cache"),
     # Django Admin
