@@ -287,6 +287,60 @@ max-width: 400px;
 margin: 0 auto;
 }
 
+/* ===== APP DOWNLOAD & CONTACT ===== */
+.gc-app-download {
+background: var(--surface);
+border-radius: var(--radius-lg);
+padding: 24px;
+box-shadow: var(--shadow-sm);
+border: 1px solid var(--border);
+text-align: center;
+margin-top: 16px;
+}
+
+.gc-app-download__title {
+font-family: var(--font-heading);
+font-weight: 600;
+font-size: 1.15rem;
+margin-bottom: 10px;
+}
+
+.gc-app-download__text {
+color: var(--text-secondary);
+font-size: 0.9rem;
+line-height: 1.6;
+margin-bottom: 20px;
+}
+
+.gc-app-download__links {
+display: flex;
+gap: 12px;
+}
+
+.gc-app-btn {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+padding: 12px 20px;
+border-radius: 8px; /* Safe default */
+font-weight: 600;
+font-size: 0.95rem;
+text-decoration: none !important;
+transition: all 0.2s ease;
+flex: 1;
+}
+
+.gc-app-btn--primary {
+background: var(--primary, #5b21b6);
+color: #ffffff !important;
+}
+
+.gc-app-btn--whatsapp {
+background: #25D366;
+color: #ffffff !important;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {
 .gc-hero { min-height: 260px; }
@@ -295,6 +349,8 @@ margin: 0 auto;
 .gc-service__image, .gc-service__image-placeholder { height: 160px; }
 .gc-service__meta { gap: 8px; }
 .gc-service__meta-item { padding: 5px 10px; font-size: 0.78rem; }
+.gc-app-btn { padding: 10px 14px; font-size: 0.85rem; }
+.gc-app-download__links { flex-direction: column; gap: 10px; }
 }
 {% endblock %}
 
@@ -317,10 +373,29 @@ margin: 0 auto;
         style="background-image: url('{{ gift_card.service_image }}')" {% endif %}>
     </div>
     <div class="gc-hero__content">
-        <div class="container">
-            <div class="gc-hero__badge">🎁 Gift Card</div>
-            <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
-            <p class="gc-hero__subtitle">A special gift from {{ gift_card.sender_name }}</p>
+        <div class="container" style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div style="padding-bottom: 0;">
+                <div class="gc-hero__badge">🎁 Gift Card</div>
+                <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
+                <p class="gc-hero__subtitle" style="padding-bottom: 0;">A special gift from {{ gift_card.sender_name }}</p>
+            </div>
+            
+            <div style="width: 100%; z-index: 10; margin-bottom: 2rem;">
+                <div class="gc-app-download" style="margin-top: 0; text-align: center; background: var(--surface); color: var(--text); padding: 32px; border-radius: var(--radius-lg); box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+                    <h3 class="gc-app-download__title" style="color: var(--text);">Enjoy Your Gift</h3>
+                    <p class="gc-app-download__text">
+                        To start enjoying this exclusive spa experience, please download our mobile app and log in or complete your registration. Your relaxation awaits!
+                    </p>
+                    <div class="gc-app-download__links" style="justify-content: center;">
+                        <a href="#" class="gc-app-btn gc-app-btn--primary">
+                            📱 Download App
+                        </a>
+                        <a href="https://wa.me/" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--whatsapp">
+                            💬 WhatsApp Us
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
