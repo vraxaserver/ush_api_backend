@@ -274,6 +274,8 @@ class GiftCardAdmin(admin.ModelAdmin):
         "redeemed_at",
         "redeemed_by",
         "redeemed_booking",
+        "fulfilled_at",
+        "fulfilled_by",
         "created_at",
         "updated_at",
         "public_url_display",
@@ -316,7 +318,10 @@ class GiftCardAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
         ("Redemption", {
-            "fields": ("redeemed_at", "redeemed_by", "redeemed_booking"),
+            "fields": (
+                "redeemed_at", "redeemed_by", "redeemed_booking",
+                "fulfilled_at", "fulfilled_by",
+            ),
             "classes": ("collapse",),
         }),
         ("Timestamps", {
@@ -341,13 +346,16 @@ class GiftCardAdmin(admin.ModelAdmin):
             "pending_payment": "#ffc107",
             "active": "#28a745",
             "redeemed": "#17a2b8",
+            "fulfilled": "#059669",
             "expired": "#dc3545",
             "cancelled": "#343a40",
         }
         color = colors.get(obj.status, "#6c757d")
+        icon = "✨ " if obj.status == "fulfilled" else ""
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{}</span>',
+            '<span style="color: {}; font-weight: bold;">{}{}</span>',
             color,
+            icon,
             obj.get_status_display(),
         )
     status_display.short_description = "Status"
@@ -373,7 +381,27 @@ class GiftCardAdmin(admin.ModelAdmin):
         )
     public_url_display.short_description = "Public URL"
 
-    actions = ["activate_gift_cards", "cancel_gift_cards", "resend_sms"]
+    actions = ["mark_as_fulfilled", "activate_gift_cards", "cancel_gift_cards", "resend_sms"]
+
+    @admin.action(description="✨ Mark selected redeemed gift cards as Service Fulfilled")
+    def mark_as_fulfilled(self, request, queryset):
+        """Transition redeemed gift cards → Service Fulfilled."""
+        from django.utils import timezone
+
+        redeemed_qs = queryset.filter(status=GiftCard.GiftCardStatus.REDEEMED)
+        count = 0
+        for gift_card in redeemed_qs:
+            gift_card.status = GiftCard.GiftCardStatus.FULFILLED
+            gift_card.fulfilled_at = timezone.now()
+            gift_card.fulfilled_by = request.user
+            gift_card.save(update_fields=["status", "fulfilled_at", "fulfilled_by", "updated_at"])
+            count += 1
+
+        skipped = queryset.count() - count
+        msg = f"{count} gift card(s) marked as Service Fulfilled."
+        if skipped:
+            msg += f" {skipped} skipped (not in redeemed status)."
+        self.message_user(request, msg)
 
     @admin.action(description="Activate selected gift cards")
     def activate_gift_cards(self, request, queryset):

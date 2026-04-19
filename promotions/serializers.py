@@ -639,6 +639,7 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     )
     redeemed_booking_date = serializers.SerializerMethodField()
     redeemed_booking_time = serializers.SerializerMethodField()
+    fulfilled_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = GiftCard
@@ -676,6 +677,8 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
             "redeemed_at",
             "redeemed_booking_date",
             "redeemed_booking_time",
+            "fulfilled_at",
+            "fulfilled_by_name",
         ]
         read_only_fields = fields
 
@@ -709,6 +712,12 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
         """Return the booking start time from the redeemed booking's time slot."""
         if obj.redeemed_booking and obj.redeemed_booking.time_slot:
             return str(obj.redeemed_booking.time_slot.start_time)
+        return None
+
+    def get_fulfilled_by_name(self, obj):
+        """Return the name of the staff who marked the service as fulfilled."""
+        if obj.fulfilled_by:
+            return obj.fulfilled_by.get_full_name() or str(obj.fulfilled_by)
         return None
 
     def get_spa_center_image(self, obj):

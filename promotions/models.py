@@ -325,6 +325,7 @@ class GiftCard(models.Model):
         PENDING_PAYMENT = "pending_payment", _("Pending Payment")
         ACTIVE = "active", _("Active")
         REDEEMED = "redeemed", _("Redeemed")
+        FULFILLED = "fulfilled", _("Service Fulfilled")
         EXPIRED = "expired", _("Expired")
         CANCELLED = "cancelled", _("Cancelled")
 
@@ -453,6 +454,21 @@ class GiftCard(models.Model):
         blank=True,
         related_name="gift_card_redemptions",
         verbose_name=_("redeemed in booking"),
+    )
+    fulfilled_at = models.DateTimeField(
+        _("fulfilled at"),
+        null=True,
+        blank=True,
+        help_text=_("Timestamp when the recipient visited the spa and enjoyed the service"),
+    )
+    fulfilled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fulfilled_gift_cards",
+        verbose_name=_("fulfilled by"),
+        help_text=_("Staff member who marked the service as fulfilled"),
     )
 
     # Expiry
@@ -583,5 +599,29 @@ class GiftCard(models.Model):
         self.redeemed_by = redeemed_by_user
         self.save(update_fields=[
             "status", "redeemed_at", "redeemed_by", "updated_at",
+        ])
+        return True, None
+
+    def fulfill(self, fulfilled_by_user=None):
+        """
+        Mark the gift card as fulfilled — the recipient has visited the spa
+        and enjoyed the service.
+
+        Only valid when the current status is REDEEMED.
+
+        Args:
+            fulfilled_by_user: Optional User instance (staff) marking it fulfilled.
+
+        Returns:
+            (success, error_message) tuple.
+        """
+        if self.status != self.GiftCardStatus.REDEEMED:
+            return False, _("Only redeemed gift cards can be marked as fulfilled.")
+
+        self.status = self.GiftCardStatus.FULFILLED
+        self.fulfilled_at = timezone.now()
+        self.fulfilled_by = fulfilled_by_user
+        self.save(update_fields=[
+            "status", "fulfilled_at", "fulfilled_by", "updated_at",
         ])
         return True, None

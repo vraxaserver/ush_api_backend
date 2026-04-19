@@ -892,3 +892,50 @@ class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
             "service", "spa_center", "spa_center__city", "spa_center__country",
             "sender", "service_arrangement",
         )
+
+
+class GiftCardFulfillView(APIView):
+    """
+    Mark a redeemed gift card as Service Fulfilled.
+
+    Called by spa staff once the recipient has visited the spa and enjoyed
+    the service. Transitions the gift card from REDEEMED → FULFILLED.
+
+    POST /api/v1/promotions/gift-cards/{public_token}/fulfill/
+    Requires authentication (staff or admin).
+
+    Request body (optional):
+        {} — no body required, authenticated user is recorded as the fulfiller.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, public_token):
+        try:
+            gift_card = GiftCard.objects.select_related(
+                "service", "spa_center",
+            ).get(public_token=public_token)
+        except GiftCard.DoesNotExist:
+            return Response(
+                {"success": False, "message": "Gift card not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        success, error = gift_card.fulfill(fulfilled_by_user=request.user)
+
+        if not success:
+            return Response(
+                {"success": False, "message": str(error)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            "success": True,
+            "message": "🎉 Service marked as fulfilled. Thank you for providing an amazing experience!",
+            "public_token": str(gift_card.public_token),
+            "status": gift_card.status,
+            "status_display": gift_card.get_status_display(),
+            "fulfilled_at": gift_card.fulfilled_at,
+            "service_name": gift_card.service.name,
+            "spa_center_name": gift_card.spa_center.name,
+        })

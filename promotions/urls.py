@@ -9,6 +9,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    GiftCardFulfillView,
     GiftCardViewSet,
     LoyaltyRewardViewSet,
     LoyaltyStatusView,
@@ -27,4 +28,9 @@ router.register(r"my-gift-cards", UserGiftCardViewSet, basename="my-gift-card")
 urlpatterns = [
     path("", include(router.urls)),
     path("loyalty/status/", LoyaltyStatusView.as_view(), name="loyalty-status"),
+    path(
+        "gift-cards/<str:public_token>/fulfill/",
+        GiftCardFulfillView.as_view(),
+        name="gift-card-fulfill",
+    ),
 ]

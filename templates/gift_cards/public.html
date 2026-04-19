@@ -636,8 +636,39 @@ z-index: 1;
     </div>
   </div>
 
-  <!-- BOOKING DETAILS (shown when redeemed) -->
-  {% if gift_card.status == 'redeemed' %}
+  <!-- STATUS -->
+  <div class="gc-section animate-in animate-in-delay-4">
+    <div class="gc-status">
+      <div class="gc-status__label">Status</div>
+      {% if gift_card.status == 'active' %}
+      <span class="badge badge-success">✅ Active &amp; Ready to Redeem</span>
+      {% elif gift_card.status == 'redeemed' %}
+      <span class="badge badge-info">🎁 Redeemed — Awaiting Your Visit</span>
+      {% elif gift_card.status == 'fulfilled' %}
+      <span style="display:inline-block; background: linear-gradient(135deg,#059669,#10b981); color:#fff; padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:700; letter-spacing:0.5px;">
+        ✨ Service Fulfilled
+      </span>
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary);">
+        We hope you had a wonderful experience! 🌿
+      </div>
+      {% elif gift_card.status == 'expired' %}
+      <span class="badge badge-warning">⏰ Expired</span>
+      {% elif gift_card.status == 'cancelled' %}
+      <span class="badge badge-error">❌ Cancelled</span>
+      {% else %}
+      <span class="badge badge-info">{{ gift_card.status }}</span>
+      {% endif %}
+
+      {% if gift_card.expires_at %}
+      <div style="margin-top:10px;font-size:0.82rem;color:var(--text-light);">
+        Expires: {{ gift_card.expires_at }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- BOOKING DETAILS (shown when redeemed or fulfilled) -->
+  {% if gift_card.status == 'redeemed' or gift_card.status == 'fulfilled' %}
   <div class="gc-section animate-in animate-in-delay-4">
     <div class="gc-section__title">
       <span class="gc-section__title-icon">📅</span>
@@ -672,6 +703,16 @@ z-index: 1;
           <div>
             <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Appointment Time</div>
             <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_booking_time }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if gift_card.status == 'fulfilled' and gift_card.fulfilled_at %}
+        <div style="margin-top:6px; padding:12px; background:linear-gradient(135deg,rgba(5,150,105,0.08),rgba(16,185,129,0.05)); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-sm); display:flex; align-items:center; gap:12px;">
+          <span style="font-size: 1.2rem;">✨</span>
+          <div>
+            <div style="font-size: 0.72rem; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; font-weight:700;">Service Completed</div>
+            <div style="font-weight: 600; color: var(--text);">{{ gift_card.fulfilled_at }}</div>
           </div>
         </div>
         {% endif %}
