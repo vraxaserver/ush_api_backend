@@ -19,6 +19,7 @@ from .models import (
     LoyaltyReward,
     LoyaltyTracker
 )
+from django.db import models
 
 from .serializers import (
     GiftCardCreateSerializer,
@@ -507,6 +508,39 @@ class GiftCardRedeemBookingView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
 
+    def _get_or_create_recipient_user(self, gift_card):
+        """
+        Get or create a user for the gift card recipient.
+        If created, set a random password and send an SMS.
+        """
+        from accounts.models import User, UserType
+        from config.utils.sms_service import send_sms_async
+        
+        phone_number = gift_card.recipient_phone
+        user = User.objects.filter(phone_number=phone_number).first()
+        
+        if not user:
+            # Create user
+            password = User.objects.make_random_password()
+            user = User.objects.create_user(
+                phone_number=phone_number,
+                password=password,
+                first_name=gift_card.recipient_name or "Recipient",
+                last_name="GiftUser",
+                user_type=UserType.CUSTOMER,
+                is_phone_verified=True
+            )
+            
+            # Send SMS with password
+            message = (
+                f"Welcome to USH Spa! An account has been created for you. "
+                f"Your temporary password is: {password}. "
+                f"You can now login and manage your gift cards."
+            )
+            send_sms_async(str(phone_number), message)
+            
+        return user
+
     def post(self, request):
         from bookings.models import Booking, TimeSlot
         from django.db import transaction
@@ -667,9 +701,12 @@ class GiftCardRedeemBookingView(APIView):
                     },
                 }
 
+                # Get or create recipient user
+                recipient_user = self._get_or_create_recipient_user(gift_card)
+
                 # Create booking
                 booking = Booking.objects.create(
-                    customer=gift_card.sender,  # Use sender as customer for now
+                    customer=recipient_user,
                     spa_center=spa_center,
                     service=service,
                     service_arrangement=arrangement,
@@ -689,9 +726,10 @@ class GiftCardRedeemBookingView(APIView):
                 # Redeem the gift card
                 gift_card.status = GiftCard.GiftCardStatus.REDEEMED
                 gift_card.redeemed_at = timezone.now()
+                gift_card.redeemed_by = recipient_user
                 gift_card.redeemed_booking = booking
                 gift_card.save(update_fields=[
-                    "status", "redeemed_at", "redeemed_booking", "updated_at",
+                    "status", "redeemed_at", "redeemed_by", "redeemed_booking", "updated_at",
                 ])
 
             return Response({
@@ -778,7 +816,35 @@ class GiftCardRedeemView(APIView):
             "service", "spa_center", "sender", "service_arrangement",
         ).get(public_token=public_token)
 
-        success, error = gift_card.redeem(secret_code=secret_code)
+        # Get or create recipient user
+        # Note: We use the same helper logic here. Since it's on another class, 
+        # we can either duplicate or move it to a shared place. 
+        # For simplicity in this file, I'll re-implement or call it if I moved it.
+        # I'll move it to a mixin or just repeat for now as it's small.
+        from accounts.models import User, UserType
+        from config.utils.sms_service import send_sms_async
+        
+        phone_number = gift_card.recipient_phone
+        recipient_user = User.objects.filter(phone_number=phone_number).first()
+        
+        if not recipient_user:
+            password = User.objects.make_random_password()
+            recipient_user = User.objects.create_user(
+                phone_number=phone_number,
+                password=password,
+                first_name=gift_card.recipient_name or "Recipient",
+                last_name="GiftUser",
+                user_type=UserType.CUSTOMER,
+                is_phone_verified=True
+            )
+            message = (
+                f"Welcome to USH Spa! An account has been created for you. "
+                f"Your temporary password is: {password}. "
+                f"You can now login and manage your gift cards."
+            )
+            send_sms_async(str(phone_number), message)
+
+        success, error = gift_card.redeem(secret_code=secret_code, redeemed_by_user=recipient_user)
 
         if not success:
             return Response(
@@ -797,3 +863,28 @@ class GiftCardRedeemView(APIView):
             "spa_center_name": gift_card.spa_center.name,
             "redeemed_at": gift_card.redeemed_at,
         })
+
+
+class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for Gift Cards received or redeemed by the authenticated user.
+    """
+
+    serializer_class = GiftCardDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        django_filters.DjangoFilterBackend,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["status"]
+    ordering_fields = ["created_at", "status"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        return GiftCard.objects.filter(
+            models.Q(redeemed_by=user) | models.Q(recipient_phone=user.phone_number)
+        ).select_related(
+            "service", "spa_center", "spa_center__city", "spa_center__country",
+            "sender", "service_arrangement",
+        )

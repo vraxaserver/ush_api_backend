@@ -401,6 +401,11 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         allow_blank=True,
         help_text="Optional personal message to the recipient",
     )
+    expires_at = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
+        help_text="Optional expiry date for redemption",
+    )
 
     class Meta:
         model = GiftCard
@@ -413,6 +418,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             "recipient_phone",
             "recipient_name",
             "gift_message",
+            "expires_at",
         ]
 
     def validate_service_id(self, value):
@@ -498,6 +504,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             recipient_phone=validated_data["recipient_phone"],
             recipient_name=validated_data.get("recipient_name", ""),
             gift_message=validated_data.get("gift_message", ""),
+            expires_at=validated_data.get("expires_at"),
         )
 
         return gift_card

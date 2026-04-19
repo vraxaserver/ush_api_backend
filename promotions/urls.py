@@ -13,6 +13,7 @@ from .views import (
     LoyaltyRewardViewSet,
     LoyaltyStatusView,
     LoyaltyTrackerViewSet,
+    UserGiftCardViewSet,
 )
 
 app_name = "promotions"
@@ -21,6 +22,7 @@ router = DefaultRouter()
 router.register(r"loyalty-trackers", LoyaltyTrackerViewSet, basename="loyalty-tracker")
 router.register(r"loyalty-rewards", LoyaltyRewardViewSet, basename="loyalty-reward")
 router.register(r"gift-cards", GiftCardViewSet, basename="gift-card")
+router.register(r"my-gift-cards", UserGiftCardViewSet, basename="my-gift-card")
 
 urlpatterns = [
     path("", include(router.urls)),

@@ -61,6 +61,7 @@ admin.site.index_title = "USH Spa Center Admin"
 
 urlpatterns = [
     # Health Check
+    path("", health_check, name="root-health-check"),
     path("health/", health_check, name="health-check"),
     
     # Admin Cache Control

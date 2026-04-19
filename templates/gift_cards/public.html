@@ -510,6 +510,13 @@ color: #ffffff !important;
             <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-light);">
                 Expires: {{ gift_card.expires_at|date:"M d, Y" }}
             </div>
+            
+            {% if gift_card.status == 'active' %}
+            <div style="margin-top: 15px; padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); color: #92400e; font-size: 0.9rem; text-align: left;">
+                ⏳ <strong>Redeem by {{ gift_card.expires_at|date:"M d, Y" }}</strong><br>
+                Please redeem this gift before the expiry date to enjoy your spa experience.
+            </div>
+            {% endif %}
             {% endif %}
         </div>
     </div>
