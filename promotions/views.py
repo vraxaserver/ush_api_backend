@@ -521,7 +521,8 @@ class GiftCardRedeemBookingView(APIView):
         
         if not user:
             # Create user
-            password = User.objects.make_random_password()
+            from django.utils.crypto import get_random_string
+            password = get_random_string(12)
             user = User.objects.create_user(
                 phone_number=phone_number,
                 password=password,
@@ -828,7 +829,8 @@ class GiftCardRedeemView(APIView):
         recipient_user = User.objects.filter(phone_number=phone_number).first()
         
         if not recipient_user:
-            password = User.objects.make_random_password()
+            from django.utils.crypto import get_random_string
+            password = get_random_string(12)
             recipient_user = User.objects.create_user(
                 phone_number=phone_number,
                 password=password,
