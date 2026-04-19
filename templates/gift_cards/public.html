@@ -1,356 +1,457 @@
 {% extends "gift_cards/base.html" %}
 
 {% block title %}Your Gift Card — {{ gift_card.service_name }}{% endblock %}
-{% block meta_description %}You've received a spa gift card for {{ gift_card.service_name }} at {{
-gift_card.spa_center_name }}{% endblock %}
+{% block meta_description %}You've received a spa gift card for {{ gift_card.service_name }} at {{ gift_card.spa_center_name }}{% endblock %}
 
 {% block extra_styles %}
 /* ===== HERO ===== */
 .gc-hero {
-position: relative;
-overflow: hidden;
-min-height: 320px;
-display: flex;
-align-items: flex-end;
+  position: relative;
+  overflow: hidden;
+  min-height: 320px;
+  display: flex;
+  align-items: flex-end;
 }
 
 .gc-hero__bg {
-position: absolute;
-inset: 0;
-background-size: cover;
-background-position: center;
-background-color: #5b21b6;
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-color: #5b21b6;
 }
 
 .gc-hero__bg::after {
-content: '';
-position: absolute;
-inset: 0;
-background: var(--gradient-hero);
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-hero);
 }
 
 .gc-hero__content {
-position: relative;
-z-index: 1;
-width: 100%;
-padding: 40px 0 32px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 40px 0 32px;
 }
 
 .gc-hero__badge {
-display: inline-flex;
-align-items: center;
-gap: 6px;
-background: rgba(255,255,255,0.18);
-backdrop-filter: blur(8px);
-color: #fff;
-padding: 6px 16px;
-border-radius: 50px;
-font-size: 0.8rem;
-font-weight: 600;
-margin-bottom: 16px;
-letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
 }
 
 .gc-hero__title {
-font-family: var(--font-heading);
-font-size: 2rem;
-font-weight: 700;
-color: #fff;
-margin-bottom: 6px;
-line-height: 1.2;
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
 
 .gc-hero__subtitle {
-color: rgba(255,255,255,0.8);
-font-size: 0.95rem;
-padding-bottom: 20px;
+  color: rgba(255,255,255,0.8);
+  font-size: 0.95rem;
+  padding-bottom: 20px;
 }
 
 /* ===== GIFT MESSAGE CARD ===== */
 .gc-message {
-margin: -40px auto 0;
-position: relative;
-z-index: 2;
-padding: 28px;
+  margin: -40px auto 0;
+  position: relative;
+  z-index: 2;
+  padding: 28px;
 }
 
 .gc-message__icon {
-width: 48px;
-height: 48px;
-background: var(--gradient-warm);
-border-radius: 50%;
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 1.5rem;
-margin-bottom: 14px;
-box-shadow: 0 4px 16px rgba(245,158,11,0.3);
+  width: 48px;
+  height: 48px;
+  background: var(--gradient-warm);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(245,158,11,0.3);
 }
 
 .gc-message__from {
-font-family: var(--font-heading);
-font-weight: 600;
-font-size: 1rem;
-color: var(--primary-dark);
-margin-bottom: 8px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--primary-dark);
+  margin-bottom: 8px;
 }
 
 .gc-message__text {
-font-size: 0.95rem;
-color: var(--text-secondary);
-font-style: italic;
-line-height: 1.7;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  line-height: 1.7;
 }
 
 /* ===== DETAILS SECTION ===== */
 .gc-section {
-padding: 28px 0;
+  padding: 28px 0;
 }
 
 .gc-section__title {
-font-family: var(--font-heading);
-font-size: 1.15rem;
-font-weight: 600;
-color: var(--text);
-margin-bottom: 16px;
-display: flex;
-align-items: center;
-gap: 8px;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .gc-section__title-icon {
-width: 32px;
-height: 32px;
-background: #ede9fe;
-border-radius: var(--radius-sm);
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 1rem;
+  width: 32px;
+  height: 32px;
+  background: #ede9fe;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
 }
 
 /* ===== SERVICE CARD ===== */
 .gc-service {
-border-radius: var(--radius-lg);
-overflow: hidden;
-background: var(--surface);
-box-shadow: var(--shadow-sm);
-border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .gc-service__image {
-width: 100%;
-height: 200px;
-object-fit: cover;
-display: block;
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
 }
 
 .gc-service__image-placeholder {
-width: 100%;
-height: 200px;
-background: var(--gradient-primary);
-display: flex;
-align-items: center;
-justify-content: center;
-font-size: 3rem;
+  width: 100%;
+  height: 200px;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
 }
 
 .gc-service__body {
-padding: 20px;
+  padding: 20px;
 }
 
 .gc-service__name {
-font-family: var(--font-heading);
-font-size: 1.2rem;
-font-weight: 600;
-margin-bottom: 8px;
+  font-family: var(--font-heading);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 .gc-service__desc {
-color: var(--text-secondary);
-font-size: 0.9rem;
-line-height: 1.6;
-margin-bottom: 16px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 16px;
 }
 
 .gc-service__meta {
-display: flex;
-flex-wrap: wrap;
-gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .gc-service__meta-item {
-display: flex;
-align-items: center;
-gap: 6px;
-padding: 6px 12px;
-background: var(--surface-alt);
-border-radius: var(--radius-sm);
-font-size: 0.82rem;
-color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
 
 .gc-service__meta-item strong {
-color: var(--text);
-font-weight: 600;
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* ===== SPA CENTER ===== */
 .gc-spa {
-background: var(--surface);
-border-radius: var(--radius-lg);
-padding: 20px;
-box-shadow: var(--shadow-sm);
-border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .gc-spa__name {
-font-family: var(--font-heading);
-font-weight: 600;
-font-size: 1.05rem;
-margin-bottom: 12px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin-bottom: 12px;
 }
 
 .gc-spa__info {
-display: flex;
-flex-direction: column;
-gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .gc-spa__info-row {
-display: flex;
-align-items: flex-start;
-gap: 10px;
-font-size: 0.88rem;
-color: var(--text-secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
 }
 
 .gc-spa__info-icon {
-width: 22px;
-text-align: center;
-flex-shrink: 0;
-margin-top: 2px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 /* ===== STATUS ===== */
 .gc-status {
-text-align: center;
-padding: 20px;
-background: var(--surface);
-border-radius: var(--radius-lg);
-box-shadow: var(--shadow-sm);
-border: 1px solid var(--border);
+  text-align: center;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .gc-status__label {
-font-size: 0.8rem;
-color: var(--text-light);
-text-transform: uppercase;
-letter-spacing: 0.5px;
-margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 /* ===== CTA ===== */
 .gc-cta {
-padding: 32px 0 40px;
-text-align: center;
+  padding: 32px 0 40px;
+  text-align: center;
 }
 
 .gc-cta__note {
-font-size: 0.82rem;
-color: var(--text-light);
-margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--text-light);
+  margin-top: 12px;
 }
 
 /* ===== NOT AVAILABLE ===== */
 .gc-unavailable {
-text-align: center;
-padding: 80px 20px;
+  text-align: center;
+  padding: 80px 20px;
 }
 
 .gc-unavailable__icon {
-font-size: 3.5rem;
-margin-bottom: 20px;
+  font-size: 3.5rem;
+  margin-bottom: 20px;
 }
 
 .gc-unavailable__title {
-font-family: var(--font-heading);
-font-size: 1.5rem;
-font-weight: 600;
-margin-bottom: 10px;
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
 .gc-unavailable__text {
-color: var(--text-secondary);
-font-size: 0.95rem;
-max-width: 400px;
-margin: 0 auto;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 /* ===== APP DOWNLOAD & CONTACT ===== */
 .gc-app-download {
-background: var(--surface);
-border-radius: var(--radius-lg);
-padding: 24px;
-box-shadow: var(--shadow-sm);
-border: 1px solid var(--border);
-text-align: center;
-margin-top: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  text-align: center;
+  margin-top: 16px;
 }
 
 .gc-app-download__title {
-font-family: var(--font-heading);
-font-weight: 600;
-font-size: 1.15rem;
-margin-bottom: 10px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin-bottom: 10px;
 }
 
 .gc-app-download__text {
-color: var(--text-secondary);
-font-size: 0.9rem;
-line-height: 1.6;
-margin-bottom: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 20px;
 }
 
 .gc-app-download__links {
-display: flex;
-gap: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 .gc-app-btn {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-gap: 8px;
-padding: 12px 20px;
-border-radius: 8px; /* Safe default */
-font-weight: 600;
-font-size: 0.95rem;
-text-decoration: none !important;
-transition: all 0.2s ease;
-flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  flex: 1;
 }
 
 .gc-app-btn--primary {
-background: var(--primary, #5b21b6);
-color: #ffffff !important;
+  background: var(--primary, #5b21b6);
+  color: #ffffff !important;
 }
 
 .gc-app-btn--whatsapp {
-background: #25D366;
-color: #ffffff !important;
+  background: #25D366;
+  color: #ffffff !important;
+}
+
+/* ===== COUNTDOWN TIMER ===== */
+.gc-expiry-banner {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,77,77,0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.gc-expiry-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,77,77,0.05) 0%, transparent 70%);
+  animation: pulse-bg 3s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+
+.gc-expiry-banner__label {
+  font-size: 0.8rem;
+  color: #ff9999;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+.gc-countdown {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Courier New', Courier, monospace;
+  position: relative;
+  z-index: 1;
+}
+
+.gc-countdown__unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+}
+
+.gc-countdown__value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #ff4d4d;
+  text-shadow: 0 0 20px rgba(255,77,77,0.6), 0 0 40px rgba(255,77,77,0.3);
+  background: rgba(255,255,255,0.05);
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,77,77,0.3);
+  line-height: 1;
+  min-width: 56px;
+  display: block;
+  text-align: center;
+  transition: color 0.3s;
+}
+
+.gc-countdown__sep {
+  font-size: 2rem;
+  font-weight: 700;
+  color: rgba(255,77,77,0.5);
+  line-height: 1;
+  padding-bottom: 20px;
+  align-self: flex-end;
+  margin-bottom: 20px;
+}
+
+.gc-countdown__name {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.4);
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.gc-expiry-banner__date {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.4);
+  margin-top: 14px;
+  position: relative;
+  z-index: 1;
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 480px) {
-.gc-hero { min-height: 260px; }
-.gc-hero__title { font-size: 1.6rem; }
-.gc-message { margin-top: -32px; padding: 22px; }
-.gc-service__image, .gc-service__image-placeholder { height: 160px; }
-.gc-service__meta { gap: 8px; }
-.gc-service__meta-item { padding: 5px 10px; font-size: 0.78rem; }
-.gc-app-btn { padding: 10px 14px; font-size: 0.85rem; }
-.gc-app-download__links { flex-direction: column; gap: 10px; }
+  .gc-hero { min-height: 260px; }
+  .gc-hero__title { font-size: 1.6rem; }
+  .gc-message { margin-top: -32px; padding: 22px; }
+  .gc-service__image, .gc-service__image-placeholder { height: 160px; }
+  .gc-service__meta { gap: 8px; }
+  .gc-service__meta-item { padding: 5px 10px; font-size: 0.78rem; }
+  .gc-app-btn { padding: 10px 14px; font-size: 0.85rem; }
+  .gc-app-download__links { flex-direction: column; gap: 10px; }
+  .gc-countdown__value { font-size: 1.5rem; padding: 8px 10px; min-width: 44px; }
+  .gc-countdown { gap: 5px; }
+  .gc-countdown__unit { min-width: 50px; }
 }
 {% endblock %}
 
@@ -379,7 +480,7 @@ color: #ffffff !important;
                 <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
                 <p class="gc-hero__subtitle" style="padding-bottom: 0;">A special gift from {{ gift_card.sender_name }}</p>
             </div>
-            
+
             <div style="width: 100%; z-index: 10; margin-bottom: 2rem;">
                 <div class="gc-app-download" style="margin-top: 0; text-align: center; background: var(--surface); color: var(--text); padding: 32px; border-radius: var(--radius-lg); box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
                     <h3 class="gc-app-download__title" style="color: var(--text);">Enjoy Your Gift</h3>
@@ -401,6 +502,36 @@ color: #ffffff !important;
 </section>
 
 <div class="container">
+
+    <!-- ===== EXPIRY COUNTDOWN (TOP) ===== -->
+    {% if gift_card.status == 'active' and gift_card.expires_at %}
+    <div class="gc-expiry-banner animate-in">
+        <div class="gc-expiry-banner__label">⏳ Your gift will expire in</div>
+        <div id="gc-countdown" class="gc-countdown">
+            <div class="gc-countdown__unit">
+                <span id="gc-days" class="gc-countdown__value">00</span>
+                <span class="gc-countdown__name">Days</span>
+            </div>
+            <span class="gc-countdown__sep">:</span>
+            <div class="gc-countdown__unit">
+                <span id="gc-hours" class="gc-countdown__value">00</span>
+                <span class="gc-countdown__name">Hrs</span>
+            </div>
+            <span class="gc-countdown__sep">:</span>
+            <div class="gc-countdown__unit">
+                <span id="gc-minutes" class="gc-countdown__value">00</span>
+                <span class="gc-countdown__name">Mins</span>
+            </div>
+            <span class="gc-countdown__sep">:</span>
+            <div class="gc-countdown__unit">
+                <span id="gc-seconds" class="gc-countdown__value">00</span>
+                <span class="gc-countdown__name">Sec</span>
+            </div>
+        </div>
+        <div class="gc-expiry-banner__date">Redeem before {{ gift_card.expires_at|date:"N j, Y, g:i A" }}</div>
+    </div>
+    {% endif %}
+
     <!-- GIFT MESSAGE -->
     {% if gift_card.gift_message %}
     <div class="gc-message glass-card animate-in animate-in-delay-1">
@@ -483,7 +614,8 @@ color: #ffffff !important;
                         <a href="tel:{{ gift_card.spa_center_phone }}"
                             style="color: var(--primary); text-decoration: none;">
                             {{ gift_card.spa_center_phone }}
-                        </a></span>
+                        </a>
+                    </span>
                 </div>
                 {% endif %}
             </div>
@@ -495,7 +627,7 @@ color: #ffffff !important;
         <div class="gc-status">
             <div class="gc-status__label">Status</div>
             {% if gift_card.status == 'active' %}
-            <span class="badge badge-success">✅ Active & Ready to Redeem</span>
+            <span class="badge badge-success">✅ Active &amp; Ready to Redeem</span>
             {% elif gift_card.status == 'redeemed' %}
             <span class="badge badge-info">🎉 Redeemed</span>
             {% elif gift_card.status == 'expired' %}
@@ -510,13 +642,6 @@ color: #ffffff !important;
             <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-light);">
                 Expires: {{ gift_card.expires_at|date:"M d, Y" }}
             </div>
-            
-            {% if gift_card.status == 'active' %}
-            <div style="margin-top: 15px; padding: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-sm); color: #92400e; font-size: 0.9rem; text-align: left;">
-                ⏳ <strong>Redeem by {{ gift_card.expires_at|date:"M d, Y" }}</strong><br>
-                Please redeem this gift before the expiry date to enjoy your spa experience.
-            </div>
-            {% endif %}
             {% endif %}
         </div>
     </div>
@@ -530,6 +655,50 @@ color: #ffffff !important;
         <p class="gc-cta__note">You'll need your 6-digit secret code sent via SMS</p>
     </div>
     {% endif %}
+
 </div>
+{% endif %}
+
+{% if gift_card.status == 'active' and gift_card.expires_at %}
+<script>
+(function () {
+    var expiryTimestamp = {{ gift_card.expires_at|date:"U" }} * 1000;
+
+    function pad(n) {
+        return n < 10 ? '0' + n : '' + n;
+    }
+
+    function tick() {
+        var now = Date.now();
+        var diff = expiryTimestamp - now;
+
+        var el = document.getElementById('gc-countdown');
+        if (!el) return;
+
+        if (diff <= 0) {
+            el.innerHTML = '<div style="color:#ff4d4d;font-weight:700;font-size:1.2rem;letter-spacing:2px;">EXPIRED</div>';
+            return;
+        }
+
+        var days    = Math.floor(diff / 86400000);
+        var hours   = Math.floor((diff % 86400000) / 3600000);
+        var minutes = Math.floor((diff % 3600000)  / 60000);
+        var seconds = Math.floor((diff % 60000)    / 1000);
+
+        var d = document.getElementById('gc-days');
+        var h = document.getElementById('gc-hours');
+        var m = document.getElementById('gc-minutes');
+        var s = document.getElementById('gc-seconds');
+
+        if (d) d.textContent = pad(days);
+        if (h) h.textContent = pad(hours);
+        if (m) m.textContent = pad(minutes);
+        if (s) s.textContent = pad(seconds);
+    }
+
+    tick();
+    setInterval(tick, 1000);
+})();
+</script>
 {% endif %}
 {% endblock %}
