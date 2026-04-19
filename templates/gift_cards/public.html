@@ -636,6 +636,51 @@ z-index: 1;
     </div>
   </div>
 
+  <!-- BOOKING DETAILS (shown when redeemed) -->
+  {% if gift_card.status == 'redeemed' %}
+  <div class="gc-section animate-in animate-in-delay-4">
+    <div class="gc-section__title">
+      <span class="gc-section__title-icon">📅</span>
+      Booking Details
+    </div>
+    <div style="background: var(--surface); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border);">
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+
+        {% if gift_card.redeemed_at %}
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
+          <span style="font-size: 1.2rem;">🎉</span>
+          <div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Redeemed On</div>
+            <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_at }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if gift_card.redeemed_booking_date %}
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
+          <span style="font-size: 1.2rem;">📆</span>
+          <div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Appointment Date</div>
+            <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_booking_date }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if gift_card.redeemed_booking_time %}
+        <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
+          <span style="font-size: 1.2rem;">🕐</span>
+          <div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Appointment Time</div>
+            <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_booking_time }}</div>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 {% endif %}
 

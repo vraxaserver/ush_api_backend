@@ -325,6 +325,8 @@ class GiftCardPublicView(APIView):
                 "spa_center__country",
                 "sender",
                 "service_arrangement",
+                "redeemed_booking",
+                "redeemed_booking__time_slot",
             ),
             public_token=public_token,
         )
@@ -522,7 +524,7 @@ class GiftCardRedeemBookingView(APIView):
         if not user:
             # Create user
             from django.utils.crypto import get_random_string
-            password = get_random_string(12)
+            password = get_random_string(6)
             user = User.objects.create_user(
                 phone_number=phone_number,
                 password=password,
@@ -830,7 +832,7 @@ class GiftCardRedeemView(APIView):
         
         if not recipient_user:
             from django.utils.crypto import get_random_string
-            password = get_random_string(12)
+            password = get_random_string(6)
             recipient_user = User.objects.create_user(
                 phone_number=phone_number,
                 password=password,

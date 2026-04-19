@@ -637,6 +637,8 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     spa_center_closing_time = serializers.TimeField(
         source="spa_center.default_closing_time", read_only=True,
     )
+    redeemed_booking_date = serializers.SerializerMethodField()
+    redeemed_booking_time = serializers.SerializerMethodField()
 
     class Meta:
         model = GiftCard
@@ -671,6 +673,9 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
             "is_locked",
             "expires_at",
             "created_at",
+            "redeemed_at",
+            "redeemed_booking_date",
+            "redeemed_booking_time",
         ]
         read_only_fields = fields
 
@@ -693,6 +698,18 @@ class GiftCardPublicSerializer(serializers.ModelSerializer):
     def get_is_valid(self, obj):
         """Check if the gift card is currently valid and redeemable."""
         return obj.is_redeemable
+
+    def get_redeemed_booking_date(self, obj):
+        """Return the booking date from the redeemed booking's time slot."""
+        if obj.redeemed_booking and obj.redeemed_booking.time_slot:
+            return str(obj.redeemed_booking.time_slot.date)
+        return None
+
+    def get_redeemed_booking_time(self, obj):
+        """Return the booking start time from the redeemed booking's time slot."""
+        if obj.redeemed_booking and obj.redeemed_booking.time_slot:
+            return str(obj.redeemed_booking.time_slot.start_time)
+        return None
 
     def get_spa_center_image(self, obj):
         """Return the URL of the spa center's primary image."""
