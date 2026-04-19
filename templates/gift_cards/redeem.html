@@ -1,6 +1,8 @@
 {% extends "gift_cards/base.html" %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}Redeem Gift Card — {{ gift_card.service_name }}{% endblock %}
+{% block title %}{% trans "Redeem Gift Card" %} — {{ gift_card.service_name }}{% endblock %}
 
 {% block extra_styles %}
 /* ===== REDEEM PAGE ===== */
@@ -117,6 +119,7 @@
     gap: 8px;
     justify-content: center;
     margin: 20px 0;
+    direction: ltr; /* Always LTR for code inputs */
 }
 
 .gc-code-input {
@@ -150,7 +153,7 @@
     background: #f0fdf4;
 }
 
-/* ===== DATE PICKER ===== */
+/* ===== CALENDAR ===== */
 .gc-calendar {
     margin: 16px 0;
 }
@@ -160,6 +163,7 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+    flex-direction: {% if LANGUAGE_BIDI %}row-reverse{% else %}row{% endif %};
 }
 
 .gc-calendar__month {
@@ -266,6 +270,7 @@
     cursor: pointer;
     transition: all 0.2s;
     background: var(--surface);
+    direction: ltr;
 }
 
 .gc-time-slot:hover:not(.disabled):not(.selected) {
@@ -415,11 +420,12 @@
 {% endblock %}
 
 {% block content %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
 <!-- LOADING OVERLAY -->
 <div class="gc-loading" id="loadingOverlay">
     <div class="gc-loading__card">
         <div class="gc-loading__spinner"></div>
-        <p>Processing your booking...</p>
+        <p>{% trans "Processing your booking..." %}</p>
     </div>
 </div>
 
@@ -427,13 +433,13 @@
 <div class="gc-success" id="successSection">
     <div class="container">
         <div class="gc-success__icon">🎉</div>
-        <h1 class="gc-success__title">Booking Confirmed!</h1>
+        <h1 class="gc-success__title">{% trans "Booking Confirmed!" %}</h1>
         <p class="gc-success__text" id="successMessage">
-            Your spa booking has been created successfully.
+            {% trans "Your spa booking has been created successfully." %}
         </p>
         <div class="gc-summary" id="successSummary"></div>
         <a href="/gift-cards/public/{{ gift_card.public_token }}/" class="btn btn-outline" style="margin-top: 20px;">
-            ← Back to Gift Card
+            {% if LANGUAGE_BIDI %}→{% else %}←{% endif %} {% trans "Back to Gift Card" %}
         </a>
     </div>
 </div>
@@ -444,26 +450,26 @@
     <section class="gc-redeem-hero">
         <div class="container">
             <a href="/gift-cards/public/{{ gift_card.public_token }}/" class="gc-redeem-hero__back">
-                ← Back to Gift Card
+                {% if LANGUAGE_BIDI %}→{% else %}←{% endif %} {% trans "Back to Gift Card" %}
             </a>
-            <h1 class="gc-redeem-hero__title">Redeem Your Gift</h1>
-            <p class="gc-redeem-hero__sub">{{ gift_card.service_name }} at {{ gift_card.spa_center_name }}</p>
+            <h1 class="gc-redeem-hero__title">{% trans "Redeem Your Gift" %}</h1>
+            <p class="gc-redeem-hero__sub">{{ gift_card.service_name }} {% trans "at" %} {{ gift_card.spa_center_name }}</p>
 
             <!-- Steps -->
             <div class="gc-steps">
                 <div class="gc-step active" id="step1Indicator">
                     <span class="gc-step__num">1</span>
-                    <span>Code</span>
+                    <span>{% trans "Code" %}</span>
                 </div>
                 <div class="gc-step__line"></div>
                 <div class="gc-step" id="step2Indicator">
                     <span class="gc-step__num">2</span>
-                    <span>Date</span>
+                    <span>{% trans "Date" %}</span>
                 </div>
                 <div class="gc-step__line"></div>
                 <div class="gc-step" id="step3Indicator">
                     <span class="gc-step__num">3</span>
-                    <span>Confirm</span>
+                    <span>{% trans "Confirm" %}</span>
                 </div>
             </div>
         </div>
@@ -473,9 +479,9 @@
         <div class="gc-form-area">
             <!-- STEP 1: SECRET CODE -->
             <div id="step1Panel" class="gc-panel animate-in">
-                <div class="gc-panel__title">🔑 Enter Your Secret Code</div>
+                <div class="gc-panel__title">🔑 {% trans "Enter Your Secret Code" %}</div>
                 <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 8px;">
-                    Enter the 6-digit code sent to your phone via SMS.
+                    {% trans "Enter the 6-digit code sent to your phone via SMS." %}
                 </p>
                 <div class="gc-code-inputs" id="codeInputs">
                     <input type="text" maxlength="1" class="gc-code-input" data-index="0" inputmode="numeric" pattern="[0-9]" autocomplete="off">
@@ -487,20 +493,20 @@
                 </div>
                 <div class="gc-alert gc-alert-error" id="codeError"></div>
                 <button class="btn btn-primary btn-block" id="verifyCodeBtn" disabled>
-                    Verify Code →
+                    {% trans "Verify Code" %} {% if LANGUAGE_BIDI %}←{% else %}→{% endif %}
                 </button>
             </div>
 
             <!-- STEP 2: DATE & TIME -->
             <div id="step2Panel" class="gc-panel hidden">
-                <div class="gc-panel__title">📅 Choose Date & Time</div>
+                <div class="gc-panel__title">📅 {% trans "Choose Date & Time" %}</div>
 
                 <!-- Calendar -->
                 <div class="gc-calendar">
                     <div class="gc-calendar__header">
-                        <button class="gc-calendar__btn" id="prevMonth">‹</button>
+                        <button class="gc-calendar__btn" id="prevMonth">{% if LANGUAGE_BIDI %}›{% else %}‹{% endif %}</button>
                         <span class="gc-calendar__month" id="calendarMonth"></span>
-                        <button class="gc-calendar__btn" id="nextMonth">›</button>
+                        <button class="gc-calendar__btn" id="nextMonth">{% if LANGUAGE_BIDI %}‹{% else %}›{% endif %}</button>
                     </div>
                     <div class="gc-calendar__days" id="calendarGrid"></div>
                 </div>
@@ -509,58 +515,58 @@
 
                 <!-- Time Slots -->
                 <div id="timeSlotsSection" class="hidden">
-                    <div class="gc-panel__title" style="margin-top: 8px;">⏰ Available Times</div>
+                    <div class="gc-panel__title" style="margin-top: 8px;">⏰ {% trans "Available Times" %}</div>
                     <div id="timeSlotsContainer">
-                        <div class="gc-no-slots">Select a date to view available times</div>
+                        <div class="gc-no-slots">{% trans "Select a date to view available times" %}</div>
                     </div>
                 </div>
 
                 <div class="gc-alert gc-alert-error" id="dateError"></div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="btn btn-outline" id="backToStep1" style="flex: 0 0 auto;">←</button>
+                    <button class="btn btn-outline" id="backToStep1" style="flex: 0 0 auto;">{% if LANGUAGE_BIDI %}→{% else %}←{% endif %}</button>
                     <button class="btn btn-primary btn-block" id="confirmDateBtn" disabled>
-                        Continue →
+                        {% trans "Continue" %} {% if LANGUAGE_BIDI %}←{% else %}→{% endif %}
                     </button>
                 </div>
             </div>
 
             <!-- STEP 3: CONFIRM -->
             <div id="step3Panel" class="gc-panel hidden">
-                <div class="gc-panel__title">✅ Confirm Your Booking</div>
+                <div class="gc-panel__title">✅ {% trans "Confirm Your Booking" %}</div>
                 <div class="gc-summary">
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Service</span>
+                        <span class="gc-summary__label">{% trans "Service" %}</span>
                         <span class="gc-summary__value">{{ gift_card.service_name }}</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Location</span>
+                        <span class="gc-summary__label">{% trans "Location" %}</span>
                         <span class="gc-summary__value">{{ gift_card.spa_center_name }}</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Date</span>
+                        <span class="gc-summary__label">{% trans "Date" %}</span>
                         <span class="gc-summary__value" id="confirmDate">—</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Time</span>
+                        <span class="gc-summary__label">{% trans "Time" %}</span>
                         <span class="gc-summary__value" id="confirmTime">—</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Duration</span>
-                        <span class="gc-summary__value">{{ gift_card.total_duration }} min</span>
+                        <span class="gc-summary__label">{% trans "Duration" %}</span>
+                        <span class="gc-summary__value">{{ gift_card.total_duration }} {% trans "min" %}</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Price</span>
-                        <span class="gc-summary__value" style="color: var(--success);">FREE (Gift Card)</span>
+                        <span class="gc-summary__label">{% trans "Price" %}</span>
+                        <span class="gc-summary__value" style="color: var(--success);">{% trans "FREE (Gift Card)" %}</span>
                     </div>
                 </div>
 
                 <div class="gc-alert gc-alert-error" id="confirmError"></div>
 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="btn btn-outline" id="backToStep2" style="flex: 0 0 auto;">←</button>
+                    <button class="btn btn-outline" id="backToStep2" style="flex: 0 0 auto;">{% if LANGUAGE_BIDI %}→{% else %}←{% endif %}</button>
                     <button class="btn btn-primary btn-block" id="confirmRedeemBtn">
-                        🎉 Confirm Booking
+                        🎉 {% trans "Confirm Booking" %}
                     </button>
                 </div>
             </div>
@@ -577,6 +583,7 @@
     // Config
     const PUBLIC_TOKEN = '{{ gift_card.public_token }}';
     const BASE_API = '/gift-cards/api';
+    const CURRENT_LANG = '{{ LANGUAGE_CODE }}';
 
     // State
     let secretCode = '';
@@ -662,7 +669,7 @@
     // ===== VERIFY CODE =====
     verifyCodeBtn.addEventListener('click', async () => {
         verifyCodeBtn.disabled = true;
-        verifyCodeBtn.innerHTML = '<span class="spinner"></span> Verifying...';
+        verifyCodeBtn.innerHTML = '<span class="spinner"></span> {% trans "Verifying..." %}';
         hideAlert('codeError');
 
         try {
@@ -677,17 +684,17 @@
                 codeInputs.forEach(i => i.classList.add('success'));
                 setTimeout(() => goToStep(2), 400);
             } else {
-                showAlert('codeError', data.message || 'Invalid code. Please try again.');
+                showAlert('codeError', data.message || '{% trans "Invalid code. Please try again." %}');
                 codeInputs.forEach(i => { i.classList.add('error'); i.value = ''; });
                 codeInputs[0].focus();
                 secretCode = '';
             }
         } catch (err) {
-            showAlert('codeError', 'Network error. Please try again.');
+            showAlert('codeError', '{% trans "Network error. Please try again." %}');
         }
 
         verifyCodeBtn.disabled = false;
-        verifyCodeBtn.innerHTML = 'Verify Code →';
+        verifyCodeBtn.innerHTML = '{% trans "Verify Code" %} {% if LANGUAGE_BIDI %}←{% else %}→{% endif %}';
     });
 
     // ===== CALENDAR =====
@@ -698,13 +705,17 @@
         today.setHours(0, 0, 0, 0);
 
         document.getElementById('calendarMonth').textContent =
-            currentMonth.toLocaleString('en', { month: 'long', year: 'numeric' });
+            currentMonth.toLocaleString(CURRENT_LANG, { month: 'long', year: 'numeric' });
 
         const grid = document.getElementById('calendarGrid');
         grid.innerHTML = '';
 
         // Day labels
-        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => {
+        const days = CURRENT_LANG === 'ar' 
+            ? ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س']
+            : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        days.forEach(d => {
             const label = document.createElement('div');
             label.className = 'gc-calendar__day-label';
             label.textContent = d;
@@ -763,7 +774,7 @@
     document.getElementById('prevMonth').addEventListener('click', () => {
         const today = new Date();
         const prev = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-        if (prev.getFullYear() >= today.getFullYear() && prev.getMonth() >= today.getMonth()) {
+        if (prev.getFullYear() > today.getFullYear() || (prev.getFullYear() === today.getFullYear() && prev.getMonth() >= today.getMonth())) {
             currentMonth = prev;
             renderCalendar();
         }
@@ -780,6 +791,7 @@
             const resp = await fetch(`${BASE_API}/availability/${PUBLIC_TOKEN}/`);
             if (resp.ok) {
                 availabilityData = await resp.json();
+                if (selectedDate) renderTimeSlots();
             }
         } catch (err) {
             console.error('Failed to fetch availability:', err);
@@ -792,7 +804,7 @@
         section.classList.remove('hidden');
 
         if (!selectedDate || !availabilityData) {
-            container.innerHTML = '<div class="gc-no-slots">Loading availability...</div>';
+            container.innerHTML = '<div class="gc-no-slots">{% trans "Loading availability..." %}</div>';
             return;
         }
 
@@ -802,7 +814,7 @@
         const times = Object.entries(daySlots);
 
         if (times.length === 0) {
-            container.innerHTML = '<div class="gc-no-slots">No available slots for this date</div>';
+            container.innerHTML = '<div class="gc-no-slots">{% trans "No available slots for this date" %}</div>';
             return;
         }
 
@@ -841,7 +853,7 @@
     // ===== CONFIRM =====
     function updateConfirmSummary() {
         document.getElementById('confirmDate').textContent =
-            selectedDate ? selectedDate.toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+            selectedDate ? selectedDate.toLocaleDateString(CURRENT_LANG, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '—';
         document.getElementById('confirmTime').textContent = selectedTime || '—';
     }
 
@@ -875,30 +887,30 @@
                 redeemFlow.classList.add('hidden');
                 successSection.classList.add('show');
                 document.getElementById('successMessage').textContent =
-                    data.message || 'Your spa booking has been created successfully!';
+                    data.message || '{% trans "Your spa booking has been created successfully." %}';
 
                 const summary = document.getElementById('successSummary');
                 summary.innerHTML = `
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Booking #</span>
+                        <span class="gc-summary__label">{% trans "Booking #" %}</span>
                         <span class="gc-summary__value">${data.booking_number || '—'}</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Date</span>
+                        <span class="gc-summary__label">{% trans "Date" %}</span>
                         <span class="gc-summary__value">${document.getElementById('confirmDate').textContent}</span>
                     </div>
                     <div class="gc-summary__row">
-                        <span class="gc-summary__label">Time</span>
+                        <span class="gc-summary__label">{% trans "Time" %}</span>
                         <span class="gc-summary__value">${selectedTime}</span>
                     </div>
                 `;
             } else {
-                showAlert('confirmError', data.message || data.error || 'Failed to create booking.');
+                showAlert('confirmError', data.message || data.error || '{% trans "Failed to create booking." %}');
                 confirmRedeemBtn.disabled = false;
             }
         } catch (err) {
             loadingOverlay.classList.remove('show');
-            showAlert('confirmError', 'Network error. Please try again.');
+            showAlert('confirmError', '{% trans "Network error. Please try again." %}');
             confirmRedeemBtn.disabled = false;
         }
     });

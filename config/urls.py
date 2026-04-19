@@ -86,6 +86,9 @@ urlpatterns = [
     # Gift Card Public Pages & API (outside /api/v1/ namespace)
     path("gift-cards/", include("promotions.gift_card_urls")),
 
+    # i18n
+    path("i18n/", include("django.conf.urls.i18n")),
+
     # API Documentation
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

@@ -1,8 +1,9 @@
 {% extends "gift_cards/base.html" %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}Your Gift Card — {{ gift_card.service_name }}{% endblock %}
-{% block meta_description %}You've received a spa gift card for {{ gift_card.service_name }} at {{
-gift_card.spa_center_name }}{% endblock %}
+{% block title %}{% trans "Your Gift Card" %} — {{ gift_card.service_name }}{% endblock %}
+{% block meta_description %}{% blocktrans with service=gift_card.service_name spa=gift_card.spa_center_name %}You've received a spa gift card for {{ service }} at {{ spa }}{% endblocktrans %}{% endblock %}
 
 {% block extra_styles %}
 /* ===== HERO ===== */
@@ -462,9 +463,9 @@ z-index: 1;
 <div class="container">
   <div class="gc-unavailable animate-in">
     <div class="gc-unavailable__icon">🔒</div>
-    <h1 class="gc-unavailable__title">Gift Card Not Available</h1>
+    <h1 class="gc-unavailable__title">{% trans "Gift Card Not Available" %}</h1>
     <p class="gc-unavailable__text">
-      This gift card is not available yet. It will become accessible once the payment has been completed.
+      {% trans "This gift card is not available yet. It will become accessible once the payment has been completed." %}
     </p>
   </div>
 </div>
@@ -477,25 +478,24 @@ z-index: 1;
   <div class="gc-hero__content">
     <div class="container" style="display: flex; flex-direction: column; gap: 1.5rem;">
       <div style="padding-bottom: 0;">
-        <div class="gc-hero__badge">🎁 Gift Card</div>
+        <div class="gc-hero__badge">🎁 {% trans "Gift Card" %}</div>
         <h1 class="gc-hero__title">{{ gift_card.service_name }}</h1>
-        <p class="gc-hero__subtitle" style="padding-bottom: 0;">A special gift from {{ gift_card.sender_name }}</p>
+        <p class="gc-hero__subtitle" style="padding-bottom: 0;">{% blocktrans with sender=gift_card.sender_name %}A special gift from {{ sender }}{% endblocktrans %}</p>
       </div>
 
       <div style="width: 100%; z-index: 10; margin-bottom: 2rem;">
         <div class="gc-app-download"
           style="margin-top: 0; text-align: center; background: var(--surface); color: var(--text); padding: 32px; border-radius: var(--radius-lg); box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
-          <h3 class="gc-app-download__title" style="color: var(--text);">Enjoy Your Gift</h3>
+          <h3 class="gc-app-download__title" style="color: var(--text);">{% trans "Enjoy Your Gift" %}</h3>
           <p class="gc-app-download__text">
-            To start enjoying this exclusive spa experience, please download our mobile app and log in or complete your
-            registration. Your relaxation awaits!
+            {% trans "To start enjoying this exclusive spa experience, please download our mobile app and log in or complete your registration. Your relaxation awaits!" %}
           </p>
           <div class="gc-app-download__links" style="justify-content: center;">
             <a href="#" class="gc-app-btn gc-app-btn--primary">
-              📱 Download App
+              📱 {% trans "Download App" %}
             </a>
             <a href="https://wa.me/" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--whatsapp">
-              💬 WhatsApp Us
+              💬 {% trans "WhatsApp Us" %}
             </a>
           </div>
         </div>
@@ -513,7 +513,7 @@ z-index: 1;
   <div class="gc-message glass-card animate-in animate-in-delay-1">
     <div class="gc-message__icon">💌</div>
     {% if gift_card.recipient_name %}
-    <div class="gc-message__from">Dear {{ gift_card.recipient_name }},</div>
+    <div class="gc-message__from">{% blocktrans with recipient=gift_card.recipient_name %}Dear {{ recipient }},{% endblocktrans %}</div>
     {% endif %}
     <p class="gc-message__text">"{{ gift_card.gift_message }}"</p>
   </div>
@@ -523,7 +523,7 @@ z-index: 1;
   <div class="gc-section animate-in animate-in-delay-2">
     <div class="gc-section__title">
       <span class="gc-section__title-icon">✨</span>
-      Service Details
+      {% trans "Service Details" %}
     </div>
     <div class="gc-service">
       {% if gift_card.service_image %}
@@ -539,7 +539,7 @@ z-index: 1;
         {% endif %}
         <div class="gc-service__meta">
           <div class="gc-service__meta-item">
-            ⏱ <strong>{{ gift_card.total_duration }} min</strong>
+            ⏱ <strong>{{ gift_card.total_duration }} {% trans "min" %}</strong>
           </div>
           {% if gift_card.service_arrangement_type %}
           <div class="gc-service__meta-item">
@@ -548,7 +548,7 @@ z-index: 1;
           {% endif %}
           {% if gift_card.extra_minutes %}
           <div class="gc-service__meta-item">
-            ➕ <strong>{{ gift_card.extra_minutes }} min</strong> extra
+            ➕ <strong>{{ gift_card.extra_minutes }} {% trans "min" %}</strong> {% trans "extra" %}
           </div>
           {% endif %}
           <div class="gc-service__meta-item">
@@ -563,38 +563,38 @@ z-index: 1;
   {% if gift_card.is_redeemable %}
   <div class="gc-cta animate-in animate-in-delay-4">
     <a href="/gift-cards/redeem/{{ gift_card.public_token }}/" class="btn btn-primary btn-block">
-      🎁 Redeem This Gift
+      🎁 {% trans "Redeem This Gift" %}
     </a>
-    <p class="gc-cta__note">You'll need your 6-digit secret code sent via SMS</p>
+    <p class="gc-cta__note">{% trans "You'll need your 6-digit secret code sent via SMS" %}</p>
   </div>
   {% endif %}
 
   <!-- ===== EXPIRY COUNTDOWN (TOP) ===== -->
   {% if gift_card.status == 'active' and gift_card.expires_at %}
   <div class="gc-expiry-banner animate-in">
-    <div class="gc-expiry-banner__label">⏳ Your gift will expire in</div>
+    <div class="gc-expiry-banner__label">⏳ {% trans "Your gift will expire in" %}</div>
     <div id="gc-countdown" class="gc-countdown">
       <div class="gc-countdown__unit">
         <span id="gc-days" class="gc-countdown__value">00</span>
-        <span class="gc-countdown__name">Days</span>
+        <span class="gc-countdown__name">{% trans "Days" %}</span>
       </div>
       <span class="gc-countdown__sep">:</span>
       <div class="gc-countdown__unit">
         <span id="gc-hours" class="gc-countdown__value">00</span>
-        <span class="gc-countdown__name">Hrs</span>
+        <span class="gc-countdown__name">{% trans "Hrs" %}</span>
       </div>
       <span class="gc-countdown__sep">:</span>
       <div class="gc-countdown__unit">
         <span id="gc-minutes" class="gc-countdown__value">00</span>
-        <span class="gc-countdown__name">Mins</span>
+        <span class="gc-countdown__name">{% trans "Mins" %}</span>
       </div>
       <span class="gc-countdown__sep">:</span>
       <div class="gc-countdown__unit">
         <span id="gc-seconds" class="gc-countdown__value">00</span>
-        <span class="gc-countdown__name">Sec</span>
+        <span class="gc-countdown__name">{% trans "Sec" %}</span>
       </div>
     </div>
-    <div class="gc-expiry-banner__date">Redeem before {{ gift_card.expires_at|date:"N j, Y, g:i A" }}</div>
+    <div class="gc-expiry-banner__date">{% blocktrans with date=gift_card.expires_at|date:"N j, Y, g:i A" %}Redeem before {{ date }}{% endblocktrans %}</div>
   </div>
   {% endif %}
 
@@ -602,7 +602,7 @@ z-index: 1;
   <div class="gc-section animate-in animate-in-delay-3">
     <div class="gc-section__title">
       <span class="gc-section__title-icon">🏢</span>
-      Location
+      {% trans "Location" %}
     </div>
     <div class="gc-spa">
       <div class="gc-spa__name">{{ gift_card.spa_center_name }}</div>
@@ -639,29 +639,29 @@ z-index: 1;
   <!-- STATUS -->
   <div class="gc-section animate-in animate-in-delay-4">
     <div class="gc-status">
-      <div class="gc-status__label">Status</div>
+      <div class="gc-status__label">{% trans "Status" %}</div>
       {% if gift_card.status == 'active' %}
-      <span class="badge badge-success">✅ Active &amp; Ready to Redeem</span>
+      <span class="badge badge-success">✅ {% trans "Active & Ready to Redeem" %}</span>
       {% elif gift_card.status == 'redeemed' %}
-      <span class="badge badge-info">🎁 Redeemed — Awaiting Your Visit</span>
+      <span class="badge badge-info">🎁 {% trans "Redeemed — Awaiting Your Visit" %}</span>
       {% elif gift_card.status == 'fulfilled' %}
       <span style="display:inline-block; background: linear-gradient(135deg,#059669,#10b981); color:#fff; padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:700; letter-spacing:0.5px;">
-        ✨ Service Fulfilled
+        ✨ {% trans "Service Fulfilled" %}
       </span>
       <div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary);">
-        We hope you had a wonderful experience! 🌿
+        {% trans "We hope you had a wonderful experience! 🌿" %}
       </div>
       {% elif gift_card.status == 'expired' %}
-      <span class="badge badge-warning">⏰ Expired</span>
+      <span class="badge badge-warning">⏰ {% trans "Expired" %}</span>
       {% elif gift_card.status == 'cancelled' %}
-      <span class="badge badge-error">❌ Cancelled</span>
+      <span class="badge badge-error">❌ {% trans "Cancelled" %}</span>
       {% else %}
       <span class="badge badge-info">{{ gift_card.status }}</span>
       {% endif %}
 
       {% if gift_card.expires_at %}
       <div style="margin-top:10px;font-size:0.82rem;color:var(--text-light);">
-        Expires: {{ gift_card.expires_at }}
+        {% trans "Expires" %}: {{ gift_card.expires_at }}
       </div>
       {% endif %}
     </div>
@@ -672,7 +672,7 @@ z-index: 1;
   <div class="gc-section animate-in animate-in-delay-4">
     <div class="gc-section__title">
       <span class="gc-section__title-icon">📅</span>
-      Booking Details
+      {% trans "Booking Details" %}
     </div>
     <div style="background: var(--surface); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border);">
       <div style="display: flex; flex-direction: column; gap: 14px;">
@@ -681,7 +681,7 @@ z-index: 1;
         <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
           <span style="font-size: 1.2rem;">🎉</span>
           <div>
-            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Redeemed On</div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{% trans "Redeemed On" %}</div>
             <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_at }}</div>
           </div>
         </div>
@@ -691,7 +691,7 @@ z-index: 1;
         <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
           <span style="font-size: 1.2rem;">📆</span>
           <div>
-            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Appointment Date</div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{% trans "Appointment Date" %}</div>
             <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_booking_date }}</div>
           </div>
         </div>
@@ -701,7 +701,7 @@ z-index: 1;
         <div style="display: flex; align-items: center; gap: 12px; font-size: 0.9rem; color: var(--text-secondary);">
           <span style="font-size: 1.2rem;">🕐</span>
           <div>
-            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">Appointment Time</div>
+            <div style="font-size: 0.72rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">{% trans "Appointment Time" %}</div>
             <div style="font-weight: 600; color: var(--text);">{{ gift_card.redeemed_booking_time }}</div>
           </div>
         </div>
@@ -711,7 +711,7 @@ z-index: 1;
         <div style="margin-top:6px; padding:12px; background:linear-gradient(135deg,rgba(5,150,105,0.08),rgba(16,185,129,0.05)); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-sm); display:flex; align-items:center; gap:12px;">
           <span style="font-size: 1.2rem;">✨</span>
           <div>
-            <div style="font-size: 0.72rem; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; font-weight:700;">Service Completed</div>
+            <div style="font-size: 0.72rem; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; font-weight:700;">{% trans "Service Completed" %}</div>
             <div style="font-weight: 600; color: var(--text);">{{ gift_card.fulfilled_at }}</div>
           </div>
         </div>
@@ -742,7 +742,7 @@ z-index: 1;
       if (!el) return;
 
       if (diff <= 0) {
-        el.innerHTML = '<div style="color:#ff4d4d;font-weight:700;font-size:1.2rem;letter-spacing:2px;">EXPIRED</div>';
+        el.innerHTML = '<div style="color:#ff4d4d;font-weight:700;font-size:1.2rem;letter-spacing:2px;">{% trans "EXPIRED" %}</div>';
         return;
       }
 

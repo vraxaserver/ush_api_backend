@@ -1,0 +1,224 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-19 12:30+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+msgid "Gift Card"
+msgstr "بطاقة هدية"
+
+msgid "Redeem your spa gift card"
+msgstr "استرد بطاقة هدية السبا الخاصة بك"
+
+msgid "All rights reserved."
+msgstr "جميع الحقوق محفوظة."
+
+msgid "Your Gift Card"
+msgstr "بطاقة الهدية الخاصة بك"
+
+#, python-format
+msgid "You've received a spa gift card for %(service)s at %(spa)s"
+msgstr "لقد تلقيت بطاقة هدية سبا لـ %(service)s في %(spa)s"
+
+msgid "Gift Card Not Available"
+msgstr "بطاقة الهدية غير متوفرة"
+
+msgid "This gift card is not available yet. It will become accessible once the payment has been completed."
+msgstr "هذه البطاقة ليست متاحة بعد. ستصبح متاحة بمجرد اكتمال عملية الدفع."
+
+#, python-format
+msgid "A special gift from %(sender)s"
+msgstr "هدية خاصة من %(sender)s"
+
+msgid "Enjoy Your Gift"
+msgstr "استمتع بهديتك"
+
+msgid "To start enjoying this exclusive spa experience, please download our mobile app and log in or complete your registration. Your relaxation awaits!"
+msgstr "لبدء الاستمتاع بتجربة السبا الحصرية هذه، يرجى تنزيل تطبيقنا وتسجيل الدخول أو إكمال تسجيلك. استرخاؤك في انتظارك!"
+
+msgid "Download App"
+msgstr "تنزيل التطبيق"
+
+msgid "WhatsApp Us"
+msgstr "تواصل معنا عبر واتساب"
+
+#, python-format
+msgid "Dear %(recipient)s,"
+msgstr "عزيزي %(recipient)s،"
+
+msgid "Service Details"
+msgstr "تفاصيل الخدمة"
+
+msgid "min"
+msgstr "دقيقة"
+
+msgid "extra"
+msgstr "إضافي"
+
+msgid "Redeem This Gift"
+msgstr "استرداد هذه الهدية"
+
+msgid "You'll need your 6-digit secret code sent via SMS"
+msgstr "ستحتاج إلى الرمز السري المكون من 6 أرقام المرسل عبر الرسائل النصية"
+
+msgid "Your gift will expire in"
+msgstr "ستنتهي صلاحية هديتك خلال"
+
+msgid "Days"
+msgstr "أيام"
+
+msgid "Hrs"
+msgstr "ساعات"
+
+msgid "Mins"
+msgstr "دقائق"
+
+msgid "Sec"
+msgstr "ثواني"
+
+#, python-format
+msgid "Redeem before %(date)s"
+msgstr "الاسترداد قبل %(date)s"
+
+msgid "Location"
+msgstr "الموقع"
+
+msgid "Status"
+msgstr "الحالة"
+
+msgid "Active & Ready to Redeem"
+msgstr "نشطة وجاهزة للاسترداد"
+
+msgid "Redeemed — Awaiting Your Visit"
+msgstr "تم الاسترداد — في انتظار زيارتك"
+
+msgid "Service Fulfilled"
+msgstr "تم تقديم الخدمة"
+
+msgid "We hope you had a wonderful experience! 🌿"
+msgstr "نأمل أن تكون قد استمتعت بتجربة رائعة! 🌿"
+
+msgid "Expired"
+msgstr "منتهية الصلاحية"
+
+msgid "Cancelled"
+msgstr "ملغاة"
+
+msgid "Expires"
+msgstr "تنتهي في"
+
+msgid "Booking Details"
+msgstr "تفاصيل الحجز"
+
+msgid "Redeemed On"
+msgstr "تم الاسترداد في"
+
+msgid "Appointment Date"
+msgstr "تاريخ الموعد"
+
+msgid "Appointment Time"
+msgstr "وقت الموعد"
+
+msgid "Service Completed"
+msgstr "اكتملت الخدمة"
+
+msgid "EXPIRED"
+msgstr "منتهية الصلاحية"
+
+msgid "Redeem Gift Card"
+msgstr "استرداد بطاقة الهدية"
+
+msgid "Processing your booking..."
+msgstr "جاري معالجة حجزك..."
+
+msgid "Booking Confirmed!"
+msgstr "تم تأكيد الحجز!"
+
+msgid "Your spa booking has been created successfully."
+msgstr "تم إنشاء حجز السبا الخاص بك بنجاح."
+
+msgid "Back to Gift Card"
+msgstr "العودة إلى بطاقة الهدية"
+
+msgid "at"
+msgstr "في"
+
+msgid "Code"
+msgstr "الرمز"
+
+msgid "Date"
+msgstr "التاريخ"
+
+msgid "Confirm"
+msgstr "تأكيد"
+
+msgid "Enter Your Secret Code"
+msgstr "أدخل رمزك السري"
+
+msgid "Enter the 6-digit code sent to your phone via SMS."
+msgstr "أدخل الرمز المكون من 6 أرقام المرسل إلى هاتفك عبر الرسائل النصية القصيرة."
+
+msgid "Verify Code"
+msgstr "التحقق من الرمز"
+
+msgid "Choose Date & Time"
+msgstr "اختر التاريخ والوقت"
+
+msgid "Available Times"
+msgstr "الأوقات المتاحة"
+
+msgid "Select a date to view available times"
+msgstr "اختر تاريخاً لعرض الأوقات المتاحة"
+
+msgid "Continue"
+msgstr "متابعة"
+
+msgid "Confirm Your Booking"
+msgstr "تأكيد حجزك"
+
+msgid "Service"
+msgstr "الخدمة"
+
+msgid "Time"
+msgstr "الوقت"
+
+msgid "Duration"
+msgstr "المدة"
+
+msgid "Price"
+msgstr "السعر"
+
+msgid "FREE (Gift Card)"
+msgstr "مجاناً (بطاقة هدية)"
+
+msgid "Confirm Booking"
+msgstr "تأكيد الحجز"
+
+msgid "Verifying..."
+msgstr "جاري التحقق..."
+
+msgid "Invalid code. Please try again."
+msgstr "رمز غير صالح. يرجى المحاولة مرة أخرى."
+
+msgid "Network error. Please try again."
+msgstr "خطأ في الشبكة. يرجى المحاولة مرة أخرى."
+
+msgid "Loading availability..."
+msgstr "جاري تحميل المواعيد المتاحة..."
+
+msgid "No available slots for this date"
+msgstr "لا توجد مواعيد متاحة لهذا التاريخ"
+
+msgid "Booking #"
+msgstr "رقم الحجز #"
+
+msgid "Failed to create booking."
+msgstr "فشل إنشاء الحجز."
