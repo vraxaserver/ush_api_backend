@@ -171,7 +171,7 @@ class SpaCenter(models.Model):
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
-    history = HistoricalRecords()
+
 
     class Meta:
         verbose_name = _("spa center")
@@ -470,7 +470,7 @@ class Service(models.Model):
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
-    history = HistoricalRecords()
+
 
     class Meta:
         verbose_name = _("service")

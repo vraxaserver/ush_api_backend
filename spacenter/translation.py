@@ -81,3 +81,9 @@ class HomeServiceTranslationOptions(TranslationOptions):
     """Translation options for HomeService model."""
     
     fields = ("name", "description")
+
+
+# Register simple-history after modeltranslation has added fields
+from simple_history import register as register_history
+register_history(Service, inherit=True)
+register_history(SpaCenter, inherit=True)
