@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from simple_history.models import HistoricalRecords
 
 
 
@@ -264,6 +265,8 @@ class Booking(models.Model):
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("booking")

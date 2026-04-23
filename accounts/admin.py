@@ -7,7 +7,9 @@ Customizes Django admin for user and profile management.
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
+from django.contrib.admin.models import LogEntry
 from django.utils.translation import gettext_lazy as _
+from simple_history.admin import SimpleHistoryAdmin
 
 from spacenter.models import SpaCenter
 
@@ -15,7 +17,7 @@ from .models import SocialAuthProvider, User, UserType, VerificationCode
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
     """Custom admin for User model."""
 
     list_display = [
@@ -24,6 +26,7 @@ class UserAdmin(BaseUserAdmin):
         "first_name",
         "last_name",
         "user_type",
+        "spa_center",
         "get_groups",
         "is_active",
         "is_verified",
@@ -31,6 +34,7 @@ class UserAdmin(BaseUserAdmin):
     ]
     list_filter = [
         "user_type",
+        "spa_center",
         "groups",
         "is_active",
         "is_staff",
@@ -50,7 +54,7 @@ class UserAdmin(BaseUserAdmin):
         ),
         (
             _("User Type"),
-            {"fields": ("user_type",)},
+            {"fields": ("user_type", "spa_center")},
         ),
         (
             _("Verification"),
@@ -82,6 +86,7 @@ class UserAdmin(BaseUserAdmin):
                     "first_name",
                     "last_name",
                     "user_type",
+                    "spa_center",
                     "password1",
                     "password2",
                 ),
@@ -185,3 +190,28 @@ class SocialAuthProviderAdmin(admin.ModelAdmin):
     list_filter = ["provider", "created_at"]
     search_fields = ["user__email", "provider_user_id"]
     readonly_fields = ["provider_user_id", "created_at", "updated_at"]
+
+
+@admin.register(LogEntry)
+class LogEntryAdmin(admin.ModelAdmin):
+    """Admin for Django LogEntry to show all admin actions."""
+
+    list_display = [
+        "action_time",
+        "user",
+        "content_type",
+        "object_repr",
+        "action_flag",
+    ]
+    list_filter = ["action_time", "action_flag"]
+    search_fields = ["object_repr", "change_message"]
+    date_hierarchy = "action_time"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

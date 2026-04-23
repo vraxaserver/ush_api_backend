@@ -18,6 +18,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
+from simple_history.models import HistoricalRecords
 
 
 # =============================================================================
@@ -97,6 +98,8 @@ class LoyaltyTracker(models.Model):
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("loyalty tracker")
@@ -244,6 +247,8 @@ class LoyaltyReward(models.Model):
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("loyalty reward")
@@ -503,6 +508,8 @@ class GiftCard(models.Model):
 
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("gift card")

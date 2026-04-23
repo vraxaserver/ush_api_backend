@@ -9,8 +9,10 @@ from django.contrib import admin, messages
 from django.db.models import Sum
 from django.utils.html import format_html
 from modeltranslation.admin import TranslationAdmin
+from simple_history.admin import SimpleHistoryAdmin
 
 from config.cache_utils import invalidate_all_caches
+from config.admin_mixins import SpaCenterRestrictedAdminMixin
 
 from .models import (
     AddOnService,
@@ -195,7 +197,7 @@ class ServiceImageInline(admin.TabularInline):
 
 
 @admin.register(Service)
-class ServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
+class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, TranslationAdmin):
     """Admin for Service model with translation support."""
 
     list_display = [
@@ -328,8 +330,10 @@ class ServiceArrangementInline(admin.TabularInline):
     autocomplete_fields = ["service"]
 
 @admin.register(SpaCenter)
-class SpaCenterAdmin(ClearCacheActionMixin, TranslationAdmin):
+class SpaCenterAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, TranslationAdmin):
     """Admin for SpaCenter model with translation support."""
+    
+    spa_center_field = "id"
 
     list_display = [
         "name",
@@ -402,7 +406,7 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
 
 
 @admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(ClearCacheActionMixin, admin.ModelAdmin):
+class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, admin.ModelAdmin):
     """Admin for ServiceArrangement model with pricing support."""
 
     list_display = [

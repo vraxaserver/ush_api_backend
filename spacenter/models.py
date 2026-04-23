@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from simple_history.models import HistoricalRecords
 
 
 class Country(models.Model):
@@ -169,6 +170,8 @@ class SpaCenter(models.Model):
     sort_order = models.PositiveIntegerField(_("sort order"), default=0)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("spa center")
@@ -466,6 +469,8 @@ class Service(models.Model):
     sort_order = models.PositiveIntegerField(_("sort order"), default=0)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("service")
@@ -930,6 +935,8 @@ class ServiceArrangement(models.Model):
     is_active = models.BooleanField(_("active"), default=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = _("service arrangement")

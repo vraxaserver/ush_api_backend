@@ -169,6 +169,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "admin_searchable_dropdown",
     "storages",
+    "simple_history",
 ]
 
 LOCAL_APPS = [
@@ -194,6 +195,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

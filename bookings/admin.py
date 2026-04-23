@@ -3,6 +3,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
+from config.admin_mixins import SpaCenterRestrictedAdminMixin
+from simple_history.admin import SimpleHistoryAdmin
 from .models import Booking, TimeSlot, ProductOrder, OrderItem, HomeServiceBooking
 from spacenter.models import SpaCenter, Service, ServiceArrangement
 from spacenter.filters import SpaCenterFilter
@@ -12,8 +14,10 @@ from spacenter.filters import SpaCenterFilter
 
 
 @admin.register(TimeSlot)
-class TimeSlotAdmin(admin.ModelAdmin):
+class TimeSlotAdmin(SpaCenterRestrictedAdminMixin, admin.ModelAdmin):
     """Admin for TimeSlot model."""
+    
+    spa_center_field = "arrangement__spa_center"
 
     list_display = [
         "arrangement",
@@ -64,7 +68,7 @@ class TimeSlotAdmin(admin.ModelAdmin):
 
 
 @admin.register(Booking)
-class BookingAdmin(admin.ModelAdmin):
+class BookingAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     """Admin for Booking model."""
 
     list_display = [

@@ -4,6 +4,8 @@ Promotions (Gift Cards & Loyalty Program) Admin Configuration.
 
 from django.contrib import admin
 from django.utils.html import format_html
+from config.admin_mixins import SpaCenterRestrictedAdminMixin
+from simple_history.admin import SimpleHistoryAdmin
 
 from .models import (
     GiftCard,
@@ -53,8 +55,10 @@ class LoyaltyRewardInline(admin.TabularInline):
 
 
 @admin.register(LoyaltyTracker)
-class LoyaltyTrackerAdmin(admin.ModelAdmin):
+class LoyaltyTrackerAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     """Admin for LoyaltyTracker – shows loyalty progress per customer per service."""
+    
+    spa_center_field = "service__spa_center"
 
     list_display = [
         "customer",
@@ -139,8 +143,10 @@ class LoyaltyTrackerAdmin(admin.ModelAdmin):
 
 
 @admin.register(LoyaltyReward)
-class LoyaltyRewardAdmin(admin.ModelAdmin):
+class LoyaltyRewardAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     """Admin for LoyaltyReward – shows earned free-booking rewards."""
+    
+    spa_center_field = "service__spa_center"
 
     list_display = [
         "customer",
@@ -230,7 +236,7 @@ class LoyaltyRewardAdmin(admin.ModelAdmin):
 # =============================================================================
 
 @admin.register(GiftCard)
-class GiftCardAdmin(admin.ModelAdmin):
+class GiftCardAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     """Admin for GiftCard – shows gifted services and their redemption status."""
 
     list_display = [

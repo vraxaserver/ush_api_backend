@@ -13,6 +13,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
+from simple_history.models import HistoricalRecords
 
 from .managers import UserManager
 
@@ -21,6 +22,7 @@ class UserType(models.TextChoices):
     """User type choices."""
 
     ADMIN = "admin", _("Admin")
+    BRANCH_MANAGER = "branch_manager", _("Branch Manager")
     CUSTOMER = "customer", _("Customer")
 
 
@@ -70,6 +72,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         default=UserType.CUSTOMER,
         db_index=True,
     )
+    spa_center = models.ForeignKey(
+        "spacenter.SpaCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="managers",
+        verbose_name=_("assigned spa center"),
+    )
 
     # Verification status
     is_email_verified = models.BooleanField(_("email verified"), default=False)
@@ -85,6 +95,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
 
     objects = UserManager()
+    history = HistoricalRecords()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
@@ -122,6 +133,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.user_type == UserType.CUSTOMER
 
     @property
+    def is_branch_manager(self):
+        """Check if user is branch manager."""
+        return self.user_type == UserType.BRANCH_MANAGER
+
+    @property
     def is_verified(self):
         """Check if user has at least one verified contact method."""
         return self.is_email_verified or self.is_phone_verified
@@ -134,8 +150,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         if not self.phone_number:
             self.phone_number = None
 
-        # Admins can access admin panel
-        if self.user_type == UserType.ADMIN:
+        # Admins and Branch Managers can access admin panel
+        if self.user_type in [UserType.ADMIN, UserType.BRANCH_MANAGER]:
             self.is_staff = True
         super().save(*args, **kwargs)
 
