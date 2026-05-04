@@ -576,6 +576,8 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
     spa_center_phone = serializers.CharField(source="spa_center.phone", read_only=True)
     public_url = serializers.SerializerMethodField()
     is_redeemable = serializers.BooleanField(read_only=True)
+    booking_date = serializers.SerializerMethodField()
+    booking_time = serializers.SerializerMethodField()
 
     class Meta:
         model = GiftCard
@@ -605,6 +607,8 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
             "currency",
             "status",
             "is_redeemable",
+            "booking_date",
+            "booking_time",
             "public_url",
             "public_token",
             "sms_sent",
@@ -639,6 +643,20 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
 
     def get_public_url(self, obj):
         return obj.get_public_url()
+
+    def get_booking_date(self, obj):
+        """Return the date of the booking associated with this gift card."""
+        booking = obj.gift_card_bookings.first()
+        if booking:
+            return booking.booking_date
+        return None
+
+    def get_booking_time(self, obj):
+        """Return the start time of the booking associated with this gift card."""
+        booking = obj.gift_card_bookings.first()
+        if booking:
+            return booking.booking_time
+        return None
 
 
 class GiftCardPublicSerializer(serializers.ModelSerializer):

@@ -894,6 +894,8 @@ class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related(
             "service", "spa_center", "spa_center__city", "spa_center__country",
             "sender", "service_arrangement",
+        ).prefetch_related(
+            "gift_card_bookings", "gift_card_bookings__time_slot",
         )
 
 
@@ -920,6 +922,8 @@ class SentGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related(
             "service", "spa_center", "spa_center__city", "spa_center__country",
             "service_arrangement",
+        ).prefetch_related(
+            "gift_card_bookings", "gift_card_bookings__time_slot",
         )
 
 
