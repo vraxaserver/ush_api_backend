@@ -18,7 +18,7 @@ from .models import SocialAuthProvider, User, UserType, VerificationCode
 
 # All admin registrations are commented out to remove the accounts app from the admin interface.
 
-# @admin.register(User)
+@admin.register(User)
 class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
     """Custom admin for User model."""
 
@@ -165,7 +165,7 @@ class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
         return False
 
 
-# @admin.register(VerificationCode)
+@admin.register(VerificationCode)
 class VerificationCodeAdmin(admin.ModelAdmin):
     """Admin for verification codes."""
 
@@ -187,7 +187,7 @@ class VerificationCodeAdmin(admin.ModelAdmin):
         return False
 
 
-# @admin.register(SocialAuthProvider)
+@admin.register(SocialAuthProvider)
 class SocialAuthProviderAdmin(admin.ModelAdmin):
     """Admin for social auth providers."""
 
@@ -200,7 +200,7 @@ class SocialAuthProviderAdmin(admin.ModelAdmin):
         return False
 
 
-# @admin.register(LogEntry)
+@admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
     """Admin for Django LogEntry to show all admin actions."""
 
