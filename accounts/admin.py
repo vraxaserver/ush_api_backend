@@ -16,7 +16,9 @@ from spacenter.models import SpaCenter
 from .models import SocialAuthProvider, User, UserType, VerificationCode
 
 
-@admin.register(User)
+# All admin registrations are commented out to remove the accounts app from the admin interface.
+
+# @admin.register(User)
 class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
     """Custom admin for User model."""
 
@@ -160,10 +162,10 @@ class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
 
     def has_module_permission(self, request):
         """Determine if user has module permission."""
-        return super().has_module_permission(request)
+        return False
 
 
-@admin.register(VerificationCode)
+# @admin.register(VerificationCode)
 class VerificationCodeAdmin(admin.ModelAdmin):
     """Admin for verification codes."""
 
@@ -181,8 +183,11 @@ class VerificationCodeAdmin(admin.ModelAdmin):
     readonly_fields = ["code", "created_at"]
     ordering = ["-created_at"]
 
+    def has_module_permission(self, request):
+        return False
 
-@admin.register(SocialAuthProvider)
+
+# @admin.register(SocialAuthProvider)
 class SocialAuthProviderAdmin(admin.ModelAdmin):
     """Admin for social auth providers."""
 
@@ -191,8 +196,11 @@ class SocialAuthProviderAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "provider_user_id"]
     readonly_fields = ["provider_user_id", "created_at", "updated_at"]
 
+    def has_module_permission(self, request):
+        return False
 
-@admin.register(LogEntry)
+
+# @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
     """Admin for Django LogEntry to show all admin actions."""
 
@@ -215,3 +223,13 @@ class LogEntryAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def has_module_permission(self, request):
+        return False
+
+
+# Unregister Group to completely hide auth-related section from admin index
+try:
+    admin.site.unregister(Group)
+except admin.sites.NotRegistered:
+    pass
