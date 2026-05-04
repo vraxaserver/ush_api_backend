@@ -14,6 +14,7 @@ from .views import (
     LoyaltyRewardViewSet,
     LoyaltyStatusView,
     LoyaltyTrackerViewSet,
+    SentGiftCardViewSet,
     UserGiftCardViewSet,
 )
 
@@ -24,6 +25,7 @@ router.register(r"loyalty-trackers", LoyaltyTrackerViewSet, basename="loyalty-tr
 router.register(r"loyalty-rewards", LoyaltyRewardViewSet, basename="loyalty-reward")
 router.register(r"gift-cards", GiftCardViewSet, basename="gift-card")
 router.register(r"my-gift-cards", UserGiftCardViewSet, basename="my-gift-card")
+router.register(r"my-sent-gift-cards", SentGiftCardViewSet, basename="my-sent-gift-card")
 
 urlpatterns = [
     path("", include(router.urls)),

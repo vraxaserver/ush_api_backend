@@ -19,8 +19,6 @@ from .models import (
     LoyaltyReward,
     LoyaltyTracker
 )
-from django.db import models
-
 from .serializers import (
     GiftCardCreateSerializer,
     GiftCardDetailSerializer,
@@ -871,7 +869,10 @@ class GiftCardRedeemView(APIView):
 
 class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for Gift Cards received or redeemed by the authenticated user.
+    ViewSet for Gift Cards received by the authenticated user.
+
+    Lists gift cards where the recipient phone matches the
+    authenticated user's phone number (i.e. gifts I received).
     """
 
     serializer_class = GiftCardDetailSerializer
@@ -887,10 +888,36 @@ class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return GiftCard.objects.filter(
-            models.Q(redeemed_by=user) | models.Q(recipient_phone=user.phone_number)
+            recipient_phone=user.phone_number,
         ).select_related(
             "service", "spa_center", "spa_center__city", "spa_center__country",
             "sender", "service_arrangement",
+        )
+
+
+class SentGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for Gift Cards sent by the authenticated user.
+
+    Lists all gift cards where the authenticated user is the sender.
+    """
+
+    serializer_class = GiftCardDetailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [
+        django_filters.DjangoFilterBackend,
+        filters.OrderingFilter,
+    ]
+    filterset_fields = ["status"]
+    ordering_fields = ["created_at", "status"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        return GiftCard.objects.filter(
+            sender=self.request.user,
+        ).select_related(
+            "service", "spa_center", "spa_center__city", "spa_center__country",
+            "service_arrangement",
         )
 
 

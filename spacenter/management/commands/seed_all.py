@@ -14,11 +14,9 @@ from django.core.management.base import BaseCommand
 SEED_COMMANDS = [
     ("seed_users", "👤 Users (accounts)"),
     ("seed_spacenter", "🏢 Spa Centers, Services & Products (spacenter)"),
+    ("seed_products_homeservices", "🛍️  Products & Home Services (spacenter)"),
     ("seed_profiles", "📋 Profiles & Schedules (profiles)"),
     ("seed_slides", "🖼️  Slides (profiles)"),
-    # ("seed_promotions", "🎁 Promotions – Gift Cards & Loyalty"),
-    # ("seed_bookings", "📅 Bookings & Product Orders"),
-    # ("seed_payments", "💳 Payments"),
 ]
 
 
