@@ -26,7 +26,7 @@ class BookingCreateV2Tests(APITestCase):
 
         # Create spa center
         self.user_manager = User.objects.create_user(
-            email="manager@example.com", password="password123", user_type="employee"
+            email="manager@example.com", password="password123", user_type="employee", phone_number="+97455001006"
         )
         self.spa_center = SpaCenter.objects.create(
             name="Main Spa",
@@ -61,7 +61,7 @@ class BookingCreateV2Tests(APITestCase):
 
         # Create customer
         self.customer = User.objects.create_user(
-            email="customer@example.com", password="password123", user_type="customer"
+            email="customer@example.com", password="password123", user_type="customer", phone_number="+97455001007"
         )
         self.client.force_authenticate(user=self.customer)
 

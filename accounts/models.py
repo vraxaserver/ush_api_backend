@@ -54,8 +54,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     phone_number = PhoneNumberField(
         _("phone number"),
         unique=True,
-        null=True,
-        blank=True,
+        null=False,
+        blank=False,
         db_index=True,
     )
 
@@ -106,8 +106,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         ordering = ["-date_joined"]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(email__isnull=False) | models.Q(phone_number__isnull=False),
-                name="email_or_phone_required",
+                check=models.Q(phone_number__isnull=False),
+                name="phone_required",
             )
         ]
 
@@ -147,8 +147,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         # Convert empty strings to None to allow multiple 'null' values in unique indices
         if not self.email:
             self.email = None
-        if not self.phone_number:
-            self.phone_number = None
 
         # Admins and Branch Managers can access admin panel
         if self.user_type in [UserType.ADMIN, UserType.BRANCH_MANAGER]:

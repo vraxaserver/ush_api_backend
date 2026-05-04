@@ -17,8 +17,8 @@ class UserManager(BaseUserManager):
 
     def create_user(
         self,
+        phone_number,
         email=None,
-        phone_number=None,
         password=None,
         **extra_fields,
     ):
@@ -37,8 +37,8 @@ class UserManager(BaseUserManager):
         Raises:
             ValueError: If neither email nor phone is provided
         """
-        if not email and not phone_number:
-            raise ValueError(_("Users must have either an email or phone number"))
+        if not phone_number:
+            raise ValueError(_("Users must have a phone number"))
 
         if email:
             email = self.normalize_email(email)
@@ -56,7 +56,7 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, phone_number, email=None, password=None, **extra_fields):
         """
         Create and save a superuser.
 
@@ -82,10 +82,11 @@ class UserManager(BaseUserManager):
         if extra_fields.get("is_superuser") is not True:
             raise ValueError(_("Superuser must have is_superuser=True."))
 
-        return self.create_user(email=email, password=password, **extra_fields)
+        return self.create_user(phone_number=phone_number, email=email, password=password, **extra_fields)
 
     def create_employee(
         self,
+        phone_number,
         email,
         password=None,
         role=None,
@@ -96,6 +97,7 @@ class UserManager(BaseUserManager):
         Create and save an employee user.
 
         Args:
+            phone_number: Employee's phone number
             email: Employee's email address
             password: Employee's password
             role: Employee's role (branch_manager, country_manager, therapist)
@@ -108,7 +110,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", True)
         extra_fields["user_type"] = "employee"
 
-        user = self.create_user(email=email, password=password, **extra_fields)
+        user = self.create_user(phone_number=phone_number, email=email, password=password, **extra_fields)
 
         # Note: Employee profile with role is created via signals
         return user

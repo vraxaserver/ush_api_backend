@@ -83,7 +83,7 @@ class CustomRegisterSerializer(RegisterSerializer):
 
     username = None  # Remove username field
     email = serializers.EmailField(required=False, allow_blank=True)
-    phone_number = PhoneNumberField(required=False, allow_blank=True)
+    phone_number = PhoneNumberField(required=True)
     first_name = serializers.CharField(max_length=150, required=True)
     last_name = serializers.CharField(max_length=150, required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
@@ -133,9 +133,9 @@ class CustomRegisterSerializer(RegisterSerializer):
         email = data.get("email")
         phone_number = data.get("phone_number")
 
-        if not email and not phone_number:
+        if not phone_number:
             raise serializers.ValidationError(
-                _("Either email or phone number is required.")
+                _("Phone number is required.")
             )
 
         if data.get("password1") != data.get("password2"):
@@ -164,7 +164,7 @@ class CustomRegisterSerializer(RegisterSerializer):
 
         # Set user fields
         user.email = self.cleaned_data.get("email") or None
-        user.phone_number = self.cleaned_data.get("phone_number") or None
+        user.phone_number = self.cleaned_data.get("phone_number")
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data["last_name"]
         user.date_of_birth = self.cleaned_data.get("date_of_birth")

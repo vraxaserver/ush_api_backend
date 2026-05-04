@@ -9,7 +9,7 @@ from accounts.models import User, UserType
 
 # Admin
 ADMIN_USERS = [
-    {"email": "admin@ushspa.com", "first_name": "Super", "last_name": "Admin", "password": "Admin@12345", "is_staff": True, "is_superuser": True},
+    {"email": "admin@ushspa.com", "first_name": "Super", "last_name": "Admin", "password": "Admin@12345", "is_staff": True, "is_superuser": True, "phone_number": "+97455001000"},
 ]
 
 
