@@ -439,14 +439,27 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Spa center not found or is inactive.")
         return value
 
-    def validate_service_arrangement_id(self, value):
-        """Ensure the service arrangement exists and is active."""
-        from spacenter.models import ServiceArrangement
+    def validate_recipient_phone(self, value):
+        """
+        Normalize phone number by adding '+' if missing and validate it.
+        """
+        phone_str = str(value).strip()
+        if not phone_str.startswith("+"):
+            phone_str = f"+{phone_str}"
+
+        import phonenumbers
         try:
-            ServiceArrangement.objects.get(id=value, is_active=True)
-        except ServiceArrangement.DoesNotExist:
-            raise serializers.ValidationError("Service arrangement not found or is inactive.")
-        return value
+            # We use None as region because we expect E.164 (with country code)
+            # or we assume the prepended + makes it globally parsable if it has country code.
+            # If the user provides 974..., we prepend + to get +974...
+            parsed_phone = phonenumbers.parse(phone_str, None)
+            if not phonenumbers.is_valid_number(parsed_phone):
+                raise serializers.ValidationError("Please provide a valid mobile number with country code.")
+            
+            # Standardize to E.164 string format
+            return phonenumbers.format_number(parsed_phone, phonenumbers.PhoneNumberFormat.E164)
+        except Exception:
+            raise serializers.ValidationError("Please provide a valid mobile number with country code.")
 
     def validate(self, attrs):
         """Ensure arrangement belongs to the selected service and spa center offers the service."""
