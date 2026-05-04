@@ -5,60 +5,10 @@ Customizes Django admin for profile management.
 """
 
 from django.contrib import admin
-from django.db import models
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TranslationAdmin
 
-from .models import CustomerProfile, Slide
-
-
-@admin.register(CustomerProfile)
-class CustomerProfileAdmin(admin.ModelAdmin):
-    """Admin for customer profiles."""
-
-    list_display = [
-        "user",
-        "city",
-        "country",
-        "gender",
-        "dob",
-        "preferred_language",
-        "created_at",
-    ]
-    list_filter = ["country", "gender", "preferred_language", "created_at"]
-    search_fields = ["user__email", "user__first_name", "user__last_name", "city"]
-    readonly_fields = ["created_at", "updated_at"]
-
-    fieldsets = (
-        (None, {"fields": ("user",)}),
-        (
-            _("Profile"),
-            {"fields": ("avatar", "bio", "gender", "dob")},
-        ),
-        (
-            _("Address"),
-            {
-                "fields": (
-                    "address_line_1",
-                    "address_line_2",
-                    "city",
-                    "state",
-                    "postal_code",
-                    "country",
-                )
-            },
-        ),
-        (
-            _("Preferences"),
-            {"fields": ("preferred_language", "notification_preferences")},
-        ),
-        (
-            _("Timestamps"),
-            {"fields": ("created_at", "updated_at")},
-        ),
-    )
-
-
+from .models import Slide
 
 
 @admin.register(Slide)

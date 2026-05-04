@@ -16,8 +16,6 @@ from spacenter.models import SpaCenter
 from .models import SocialAuthProvider, User, UserType, VerificationCode
 
 
-# All admin registrations are commented out to remove the accounts app from the admin interface.
-
 @admin.register(User)
 class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
     """Custom admin for User model."""
@@ -160,10 +158,6 @@ class UserAdmin(SimpleHistoryAdmin, BaseUserAdmin):
         
         return fieldsets
 
-    def has_module_permission(self, request):
-        """Determine if user has module permission."""
-        return False
-
 
 @admin.register(VerificationCode)
 class VerificationCodeAdmin(admin.ModelAdmin):
@@ -182,22 +176,6 @@ class VerificationCodeAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "user__phone_number", "code"]
     readonly_fields = ["code", "created_at"]
     ordering = ["-created_at"]
-
-    def has_module_permission(self, request):
-        return False
-
-
-@admin.register(SocialAuthProvider)
-class SocialAuthProviderAdmin(admin.ModelAdmin):
-    """Admin for social auth providers."""
-
-    list_display = ["user", "provider", "created_at"]
-    list_filter = ["provider", "created_at"]
-    search_fields = ["user__email", "provider_user_id"]
-    readonly_fields = ["provider_user_id", "created_at", "updated_at"]
-
-    def has_module_permission(self, request):
-        return False
 
 
 @admin.register(LogEntry)
@@ -224,12 +202,20 @@ class LogEntryAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    def has_module_permission(self, request):
-        return False
 
+# Unregister SimpleJWT Token Blacklist models
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+from django.contrib.auth.models import Group
+from allauth.account.models import EmailAddress
+from allauth.socialaccount.models import SocialAccount, SocialApp, SocialToken
 
-# Unregister Group to completely hide auth-related section from admin index
 try:
+    admin.site.unregister(BlacklistedToken)
+    admin.site.unregister(OutstandingToken)
     admin.site.unregister(Group)
+    admin.site.unregister(EmailAddress)
+    admin.site.unregister(SocialAccount)
+    admin.site.unregister(SocialApp)
+    admin.site.unregister(SocialToken)
 except admin.sites.NotRegistered:
     pass
