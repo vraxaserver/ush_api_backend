@@ -344,6 +344,17 @@ class GiftCard(models.Model):
         verbose_name=_("sender"),
     )
 
+    # Recipient (system user – found or created by phone number at gift creation)
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_gift_cards",
+        verbose_name=_("recipient"),
+        help_text=_("System user who is the intended recipient of this gift card"),
+    )
+
     # Recipient (identified by phone number only – may or may not be a system user)
     recipient_phone = PhoneNumberField(
         _("recipient phone number"),
@@ -517,6 +528,7 @@ class GiftCard(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["sender", "status"]),
+            models.Index(fields=["recipient", "status"]),
             models.Index(fields=["recipient_phone", "status"]),
             models.Index(fields=["public_token"]),
             models.Index(fields=["status", "created_at"]),
@@ -600,10 +612,10 @@ class GiftCard(models.Model):
                 f"Invalid code. {remaining} attempt(s) remaining."
             )
 
-        # Successful redemption
+        # Successfully redeemed
         self.status = self.GiftCardStatus.REDEEMED
         self.redeemed_at = timezone.now()
-        self.redeemed_by = redeemed_by_user
+        self.redeemed_by = redeemed_by_user or self.recipient
         self.save(update_fields=[
             "status", "redeemed_at", "redeemed_by", "updated_at",
         ])

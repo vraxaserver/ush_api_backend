@@ -242,6 +242,7 @@ class GiftCardAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     list_display = [
         "short_id",
         "sender",
+        "recipient",
         "recipient_phone",
         "recipient_name",
         "service",
@@ -272,6 +273,7 @@ class GiftCardAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     readonly_fields = [
         "id",
         "sender",
+        "recipient",
         "secret_code",
         "public_token",
         "sms_sent",
@@ -286,13 +288,14 @@ class GiftCardAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
         "updated_at",
         "public_url_display",
     ]
-    autocomplete_fields = ["sender", "service", "spa_center", "service_arrangement"]
+    autocomplete_fields = ["sender", "recipient", "service", "spa_center", "service_arrangement"]
 
     fieldsets = (
         ("Gift Card Info", {
             "fields": (
                 "id",
                 "sender",
+                "recipient",
                 "recipient_phone",
                 "recipient_name",
                 "gift_message",

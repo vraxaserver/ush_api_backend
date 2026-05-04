@@ -479,7 +479,8 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create a gift card with provided fields."""
+        """Create a gift card with provided fields, auto-creating recipient user if needed."""
+        from accounts.models import User, UserType
         from spacenter.models import Service, ServiceArrangement, SpaCenter
 
         service_id = validated_data.pop("service_id")
@@ -492,8 +493,40 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         spa_center = SpaCenter.objects.get(id=spa_center_id)
         arrangement = ServiceArrangement.objects.get(id=arrangement_id)
 
+        # Find or create recipient user by phone number
+        recipient_phone = validated_data["recipient_phone"]
+        recipient_name = validated_data.get("recipient_name", "")
+        recipient_user = User.objects.filter(phone_number=recipient_phone).first()
+
+        if not recipient_user:
+            from django.utils.crypto import get_random_string
+
+            password = get_random_string(6)
+            recipient_user = User.objects.create_user(
+                phone_number=recipient_phone,
+                password=password,
+                first_name=recipient_name or "Recipient",
+                last_name="GiftUser",
+                user_type=UserType.CUSTOMER,
+                is_phone_verified=True,
+            )
+
+            # Send SMS with temporary credentials
+            try:
+                from config.utils.sms_service import send_sms_async
+
+                message = (
+                    f"Welcome to USH Spa! An account has been created for you. "
+                    f"Your temporary password is: {password}. "
+                    f"You can now login and manage your gift cards."
+                )
+                send_sms_async(str(recipient_phone), message)
+            except Exception:
+                pass  # Don't fail gift card creation if SMS fails
+
         gift_card = GiftCard.objects.create(
             sender=self.context["request"].user,
+            recipient=recipient_user,
             service=service,
             spa_center=spa_center,
             service_arrangement=arrangement,
@@ -501,8 +534,8 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             total_duration=total_duration,
             amount=service.current_price,
             currency=service.currency,
-            recipient_phone=validated_data["recipient_phone"],
-            recipient_name=validated_data.get("recipient_name", ""),
+            recipient_phone=recipient_phone,
+            recipient_name=recipient_name,
             gift_message=validated_data.get("gift_message", ""),
             expires_at=validated_data.get("expires_at"),
         )
@@ -514,6 +547,7 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for gift cards – for authenticated sender."""
 
     sender_name = serializers.SerializerMethodField()
+    recipient_user_name = serializers.SerializerMethodField()
     service_name = serializers.CharField(source="service.name", read_only=True)
     service_description = serializers.CharField(source="service.description", read_only=True)
     service_duration = serializers.IntegerField(source="service.duration_minutes", read_only=True)
@@ -535,6 +569,8 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "sender_name",
+            "recipient",
+            "recipient_user_name",
             "recipient_phone",
             "recipient_name",
             "gift_message",
@@ -569,6 +605,11 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
 
     def get_sender_name(self, obj):
         return obj.sender.get_full_name() or str(obj.sender)
+
+    def get_recipient_user_name(self, obj):
+        if obj.recipient:
+            return obj.recipient.get_full_name() or str(obj.recipient)
+        return None
 
     def get_service_image(self, obj):
         """Return the URL of the primary service image (or first available)."""

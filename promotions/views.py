@@ -818,21 +818,20 @@ class GiftCardRedeemView(APIView):
         ).get(public_token=public_token)
 
         # Get or create recipient user
-        # Note: We use the same helper logic here. Since it's on another class, 
-        # we can either duplicate or move it to a shared place. 
-        # For simplicity in this file, I'll re-implement or call it if I moved it.
-        # I'll move it to a mixin or just repeat for now as it's small.
         from accounts.models import User, UserType
         from config.utils.sms_service import send_sms_async
         
-        phone_number = gift_card.recipient_phone
-        recipient_user = User.objects.filter(phone_number=phone_number).first()
+        recipient_user = gift_card.recipient
+        if not recipient_user:
+            # Fallback for legacy gift cards without recipient FK
+            phone_number = gift_card.recipient_phone
+            recipient_user = User.objects.filter(phone_number=phone_number).first()
         
         if not recipient_user:
             from django.utils.crypto import get_random_string
             password = get_random_string(6)
             recipient_user = User.objects.create_user(
-                phone_number=phone_number,
+                phone_number=gift_card.recipient_phone,
                 password=password,
                 first_name=gift_card.recipient_name or "Recipient",
                 last_name="GiftUser",
@@ -844,7 +843,11 @@ class GiftCardRedeemView(APIView):
                 f"Your temporary password is: {password}. "
                 f"You can now login and manage your gift cards."
             )
-            send_sms_async(str(phone_number), message)
+            send_sms_async(str(gift_card.recipient_phone), message)
+            
+            # Link it to the gift card for future use
+            gift_card.recipient = recipient_user
+            gift_card.save(update_fields=["recipient", "updated_at"])
 
         success, error = gift_card.redeem(secret_code=secret_code, redeemed_by_user=recipient_user)
 
@@ -886,9 +889,8 @@ class UserGiftCardViewSet(viewsets.ReadOnlyModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        user = self.request.user
         return GiftCard.objects.filter(
-            recipient_phone=user.phone_number,
+            recipient=self.request.user,
         ).select_related(
             "service", "spa_center", "spa_center__city", "spa_center__country",
             "sender", "service_arrangement",
