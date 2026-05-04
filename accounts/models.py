@@ -98,7 +98,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     history = HistoricalRecords()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+    REQUIRED_FIELDS = ["phone_number", "first_name", "last_name"]
 
     class Meta:
         verbose_name = _("user")
