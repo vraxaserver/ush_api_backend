@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from phonenumber_field.serializerfields import PhoneNumberField
 from rest_framework import serializers
 
-from .models import SocialAuthProvider, UserType, VerificationCode
+from .models import DataDeletionRequest, SocialAuthProvider, UserType, VerificationCode
 
 User = get_user_model()
 
@@ -434,3 +434,17 @@ def generate_verification_code(length=None):
     if length is None:
         length = getattr(settings, "VERIFICATION_CODE_LENGTH", 6)
     return "".join(random.choices(string.digits, k=length))
+
+
+class DataDeletionRequestSerializer(serializers.ModelSerializer):
+    """Serializer for requesting data deletion."""
+
+    class Meta:
+        model = DataDeletionRequest
+        fields = ["id", "reason", "status", "requested_at"]
+        read_only_fields = ["id", "status", "requested_at"]
+
+    def create(self, validated_data):
+        """Link the request to the current user."""
+        validated_data["user"] = self.context["request"].user
+        return super().create(validated_data)

@@ -31,6 +31,7 @@ from accounts.serializers import (
     VerificationCodeSerializer,
     VerifyCodeSerializer,
     generate_verification_code,
+    DataDeletionRequestSerializer,
 )
 from accounts.tasks import send_email_verification, send_sms_verification
 
@@ -464,3 +465,39 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class DataDeletionRequestView(generics.CreateAPIView):
+    """
+    Request data deletion.
+
+    POST /api/v1/auth/user/delete-request/
+    """
+
+    serializer_class = DataDeletionRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        # Check if there is already a pending request
+        from accounts.models import DataDeletionRequest
+        if DataDeletionRequest.objects.filter(
+            user=request.user,
+            status=DataDeletionRequest.Status.PENDING
+        ).exists():
+            return Response(
+                {"message": "You already have a pending deletion request."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            {
+                "message": "Your deletion request has been submitted successfully and is being reviewed by our team.",
+                "request_id": serializer.data["id"]
+            },
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )

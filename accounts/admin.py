@@ -13,7 +13,7 @@ from simple_history.admin import SimpleHistoryAdmin
 
 from spacenter.models import SpaCenter
 
-from .models import SocialAuthProvider, User, UserType, VerificationCode
+from .models import DataDeletionRequest, SocialAuthProvider, User, UserType, VerificationCode
 
 
 @admin.register(User)
@@ -176,6 +176,34 @@ class VerificationCodeAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "user__phone_number", "code"]
     readonly_fields = ["code", "created_at"]
     ordering = ["-created_at"]
+
+
+@admin.register(DataDeletionRequest)
+class DataDeletionRequestAdmin(admin.ModelAdmin):
+    """Admin for user data deletion requests."""
+
+    list_display = [
+        "user",
+        "status",
+        "requested_at",
+        "processed_at",
+    ]
+    list_filter = ["status", "requested_at", "processed_at"]
+    search_fields = ["user__email", "user__phone_number", "reason", "notes"]
+    readonly_fields = ["requested_at"]
+    ordering = ["-requested_at"]
+    
+    fieldsets = (
+        (None, {"fields": ("user", "reason", "status")}),
+        (_("Processing"), {"fields": ("processed_at", "notes")}),
+        (_("Timestamps"), {"fields": ("requested_at",)}),
+    )
+
+    def save_model(self, request, obj, form, change):
+        """Handle status changes."""
+        if obj.status == DataDeletionRequest.Status.COMPLETED and not obj.processed_at:
+            obj.processed_at = timezone.now()
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(LogEntry)

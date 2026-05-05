@@ -263,3 +263,40 @@ class SocialAuthProvider(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.provider}"
+
+
+class DataDeletionRequest(models.Model):
+    """
+    Track requests from users to delete their personal data.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", _("Pending")
+        PROCESSING = "processing", _("Processing")
+        COMPLETED = "completed", _("Completed")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="deletion_requests",
+    )
+    reason = models.TextField(_("reason for deletion"), blank=True, null=True)
+    status = models.CharField(
+        _("status"),
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    requested_at = models.DateTimeField(_("requested at"), auto_now_add=True)
+    processed_at = models.DateTimeField(_("processed at"), null=True, blank=True)
+    notes = models.TextField(_("admin notes"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("data deletion request")
+        verbose_name_plural = _("data deletion requests")
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        return f"Deletion Request: {self.user} ({self.status})"

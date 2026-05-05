@@ -23,6 +23,7 @@ from accounts.views import (
     SendVerificationCodeView,
     UserProfileView,
     VerifyCodeView,
+    DataDeletionRequestView,
 )
 
 
@@ -62,4 +63,5 @@ urlpatterns = [
     path("password/change/", ChangePasswordView.as_view(), name="password-change"),
     # User Profile
     path("user/", UserProfileView.as_view(), name="user-profile"),
+    path("user/delete-request/", DataDeletionRequestView.as_view(), name="user-delete-request"),
 ]

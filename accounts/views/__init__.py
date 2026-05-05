@@ -20,6 +20,7 @@ from .auth_views import (
     SendVerificationCodeView,
     UserProfileView,
     VerifyCodeView,
+    DataDeletionRequestView,
 )
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "PasswordResetConfirmView",
     "ChangePasswordView",
     "UserProfileView",
+    "DataDeletionRequestView",
     # Admin views
     "CustomerListView",
     "CustomerDetailView",
