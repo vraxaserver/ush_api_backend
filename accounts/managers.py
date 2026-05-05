@@ -8,6 +8,20 @@ from django.contrib.auth.models import BaseUserManager
 from django.utils.translation import gettext_lazy as _
 
 
+def normalize_phone_number(phone_number):
+    """
+    Normalize phone number by ensuring it starts with '+'.
+
+    Allows phone numbers with or without the '+' prefix.
+    """
+    if phone_number:
+        phone_str = str(phone_number)
+        if not phone_str.startswith("+"):
+            phone_str = f"+{phone_str}"
+        return phone_str
+    return phone_number
+
+
 class UserManager(BaseUserManager):
     """
     Custom user manager for User model.
@@ -39,6 +53,8 @@ class UserManager(BaseUserManager):
         """
         if not phone_number:
             raise ValueError(_("Users must have a phone number"))
+
+        phone_number = normalize_phone_number(phone_number)
 
         if email:
             email = self.normalize_email(email)
@@ -131,7 +147,7 @@ class UserManager(BaseUserManager):
         """
         if "@" in identifier:
             return self.filter(email__iexact=identifier).first()
-        return self.filter(phone_number=identifier).first()
+        return self.filter(phone_number=normalize_phone_number(identifier)).first()
 
     def active_users(self):
         """Return queryset of active users."""

@@ -13,7 +13,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin, messages
 from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import include, path
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -55,6 +55,13 @@ def health_check(request):
     return JsonResponse({"status": "healthy"}, status=200)
 
 
+def privacy_policy(request):
+    """
+    Public privacy policy page.
+    """
+    return render(request, "legal/privacy_policy.html")
+
+
 admin.site.site_title = "USH Spa Center Admin"
 admin.site.site_header = "USH Spa Center Admin"
 admin.site.index_title = "USH Spa Center Admin"
@@ -63,6 +70,9 @@ urlpatterns = [
     # Health Check
     path("", health_check, name="root-health-check"),
     path("health/", health_check, name="health-check"),
+
+    # Public Legal Pages
+    path("privacy-policy/", privacy_policy, name="privacy-policy"),
     
     # Admin Cache Control
     path("admin/clear-cache/", clear_cache_view, name="clear-cache"),

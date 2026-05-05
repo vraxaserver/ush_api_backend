@@ -22,6 +22,42 @@ from .models import SocialAuthProvider, UserType, VerificationCode
 User = get_user_model()
 
 
+def normalize_phone_number(phone_number):
+    """
+    Normalize phone number by ensuring it starts with '+'.
+
+    Allows users to provide phone numbers with or without the '+' prefix.
+    For example, both '+97451235119' and '97451235119' will be accepted.
+
+    Args:
+        phone_number: Phone number string or PhoneNumber object.
+
+    Returns:
+        The phone number with '+' prefix ensured.
+    """
+    if phone_number:
+        phone_str = str(phone_number)
+        if not phone_str.startswith("+"):
+            phone_str = f"+{phone_str}"
+        return phone_str
+    return phone_number
+
+
+class FlexiblePhoneNumberField(PhoneNumberField):
+    """
+    PhoneNumberField that auto-prepends '+' if missing.
+
+    This allows users to submit phone numbers with or without the '+' prefix.
+    The normalization happens in to_internal_value, before the parent
+    PhoneNumberField validates the format.
+    """
+
+    def to_internal_value(self, data):
+        if data and isinstance(data, str) and not data.startswith("+"):
+            data = f"+{data}"
+        return super().to_internal_value(data)
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     User serializer for retrieving user details.
@@ -83,7 +119,7 @@ class CustomRegisterSerializer(RegisterSerializer):
 
     username = None  # Remove username field
     email = serializers.EmailField(required=False, allow_blank=True)
-    phone_number = PhoneNumberField(required=True)
+    phone_number = FlexiblePhoneNumberField(required=True)
     first_name = serializers.CharField(max_length=150, required=True)
     last_name = serializers.CharField(max_length=150, required=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
@@ -101,7 +137,8 @@ class CustomRegisterSerializer(RegisterSerializer):
         return email
 
     def validate_phone_number(self, phone_number):
-        """Validate phone number uniqueness."""
+        """Validate phone number uniqueness (normalizes '+' prefix)."""
+        phone_number = normalize_phone_number(phone_number)
         if phone_number:
             if User.objects.filter(phone_number=phone_number).exists():
                 raise serializers.ValidationError(
@@ -181,13 +218,18 @@ class CustomLoginSerializer(LoginSerializer):
 
     username = None  # Remove username field
     email = serializers.CharField(required=False, allow_blank=True)
-    phone_number = PhoneNumberField(required=False, allow_blank=True)
+    phone_number = FlexiblePhoneNumberField(required=False, allow_blank=True)
 
     def validate(self, attrs):
         """Validate login credentials."""
         email = attrs.get("email")
         phone_number = attrs.get("phone_number")
         password = attrs.get("password")
+
+        # Normalize phone number (allow login with or without '+' prefix)
+        if phone_number:
+            phone_number = normalize_phone_number(phone_number)
+            attrs["phone_number"] = phone_number
 
         if not email and not phone_number:
             raise serializers.ValidationError(
@@ -226,7 +268,7 @@ class CustomLoginSerializer(LoginSerializer):
 class PhoneRegistrationSerializer(serializers.Serializer):
     """Serializer for phone-only registration."""
 
-    phone_number = PhoneNumberField(required=True)
+    phone_number = FlexiblePhoneNumberField(required=True)
     email = serializers.CharField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=150, required=True)
     last_name = serializers.CharField(max_length=150, required=True)
@@ -235,7 +277,8 @@ class PhoneRegistrationSerializer(serializers.Serializer):
     password_confirm = serializers.CharField(write_only=True, min_length=8)
 
     def validate_phone_number(self, phone_number):
-        """Validate phone number uniqueness."""
+        """Validate phone number uniqueness (normalizes '+' prefix)."""
+        phone_number = normalize_phone_number(phone_number)
         if User.objects.filter(phone_number=phone_number).exists():
             raise serializers.ValidationError(
                 _("A user with this phone number already exists.")
@@ -294,10 +337,14 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     """Serializer for password reset requests."""
 
     email = serializers.EmailField(required=False)
-    phone_number = PhoneNumberField(required=False)
+    phone_number = FlexiblePhoneNumberField(required=False)
 
     def validate(self, data):
         """Validate that either email or phone is provided."""
+        # Normalize phone number (allow with or without '+' prefix)
+        if data.get("phone_number"):
+            data["phone_number"] = normalize_phone_number(data["phone_number"])
+
         if not data.get("email") and not data.get("phone_number"):
             raise serializers.ValidationError(
                 _("Either email or phone number is required.")
