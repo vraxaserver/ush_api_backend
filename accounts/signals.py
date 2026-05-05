@@ -15,7 +15,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from datetime import timedelta
 
-from .models import User, UserType, VerificationCode
+from .models import DataDeletionRequest, User, UserType, VerificationCode
 
 logger = logging.getLogger(__name__)
 
@@ -107,3 +107,27 @@ def send_verification_on_registration(sender, instance, created, **kwargs):
         logger.error(f"Error sending verification for {instance}: {e}")
 
 
+@receiver(post_save, sender=DataDeletionRequest)
+def handle_data_deletion_request(sender, instance, created, **kwargs):
+    """
+    Deactivate user and blacklist tokens when a deletion request is created.
+    """
+    if not created:
+        return
+
+    if instance.status == DataDeletionRequest.Status.PENDING:
+        user = instance.user
+        
+        # Deactivate user
+        User.objects.filter(pk=user.pk).update(is_active=False)
+        logger.info(f"User {user} deactivated due to data deletion request.")
+
+        # Blacklist tokens
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+            OutstandingToken.objects.filter(user=user).delete()
+            logger.info(f"Blacklisted tokens for user {user}.")
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning(f"Could not blacklist tokens for user {user}: {e}")

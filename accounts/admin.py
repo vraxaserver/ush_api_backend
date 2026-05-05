@@ -188,10 +188,30 @@ class DataDeletionRequestAdmin(admin.ModelAdmin):
         "requested_at",
         "processed_at",
     ]
+    list_editable = ["status"]
     list_filter = ["status", "requested_at", "processed_at"]
     search_fields = ["user__email", "user__phone_number", "reason", "notes"]
     readonly_fields = ["requested_at"]
     ordering = ["-requested_at"]
+    actions = ["mark_processing", "mark_completed", "mark_cancelled"]
+
+    def mark_processing(self, request, queryset):
+        for obj in queryset:
+            obj.status = DataDeletionRequest.Status.PROCESSING
+            self.save_model(request, obj, None, True)
+    mark_processing.short_description = _("Mark selected as Processing")
+
+    def mark_completed(self, request, queryset):
+        for obj in queryset:
+            obj.status = DataDeletionRequest.Status.COMPLETED
+            self.save_model(request, obj, None, True)
+    mark_completed.short_description = _("Mark selected as Completed")
+
+    def mark_cancelled(self, request, queryset):
+        for obj in queryset:
+            obj.status = DataDeletionRequest.Status.CANCELLED
+            self.save_model(request, obj, None, True)
+    mark_cancelled.short_description = _("Mark selected as Cancelled")
     
     fieldsets = (
         (None, {"fields": ("user", "reason", "status")}),
@@ -200,9 +220,27 @@ class DataDeletionRequestAdmin(admin.ModelAdmin):
     )
 
     def save_model(self, request, obj, form, change):
-        """Handle status changes."""
-        if obj.status == DataDeletionRequest.Status.COMPLETED and not obj.processed_at:
-            obj.processed_at = timezone.now()
+        """Handle status changes and user activation."""
+        if change:
+            # Handle user activation status based on deletion request status
+            user = obj.user
+            if obj.status == DataDeletionRequest.Status.CANCELLED:
+                User.objects.filter(pk=user.pk).update(is_active=True)
+            elif obj.status in [DataDeletionRequest.Status.PENDING, DataDeletionRequest.Status.PROCESSING]:
+                # If moved back to active request status, ensure user is inactive
+                User.objects.filter(pk=user.pk).update(is_active=False)
+                
+                # Also blacklist tokens if moved back to active request
+                try:
+                    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+                    OutstandingToken.objects.filter(user=user).delete()
+                except Exception:
+                    pass
+
+            # Set processing timestamp
+            if obj.status == DataDeletionRequest.Status.COMPLETED and not obj.processed_at:
+                obj.processed_at = timezone.now()
+        
         super().save_model(request, obj, form, change)
 
 

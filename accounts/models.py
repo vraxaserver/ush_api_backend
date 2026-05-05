@@ -265,6 +265,10 @@ class SocialAuthProvider(models.Model):
         return f"{self.user} - {self.provider}"
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class DataDeletionRequest(models.Model):
     """
     Track requests from users to delete their personal data.
