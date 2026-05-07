@@ -278,7 +278,6 @@ from allauth.socialaccount.models import SocialAccount, SocialApp, SocialToken
 try:
     admin.site.unregister(BlacklistedToken)
     admin.site.unregister(OutstandingToken)
-    admin.site.unregister(Group)
     admin.site.unregister(EmailAddress)
     admin.site.unregister(SocialAccount)
     admin.site.unregister(SocialApp)
