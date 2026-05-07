@@ -1,0 +1,15 @@
+
+Default language - en-US
+
+**USH Spa – Enhanced Payment Experience**
+Thank you for using the USH Spa mobile application.
+This update introduces improved payment flexibility and fixes related to payment processing.
+
+### What’s New
+* Added support for multiple payment methods:
+  * KNET
+  * Google Pay
+  * Apple Pay
+* Improved checkout and payment experience
+* Fixed an issue where payment success status was not updating correctly
+* Performance improvements and minor bug fixes
