@@ -92,18 +92,8 @@ python manage.py create_admin --email=admin@example.com --password=your-secure-p
 
 ```bash
 # Seed all spa center data (locations, services, branches, therapists, products)
-python manage.py seed_all
-
-# Or seed individually:
-python manage.py seed_locations      # Countries & cities
-python manage.py seed_specialties    # Therapist specialties
-python manage.py seed_services       # Spa services
-python manage.py seed_branches       # Spa centers & managers
-python manage.py seed_therapists     # Therapist profiles
-python manage.py seed_products       # Product catalog
-
-# Seed promotions (gift cards)
-python manage.py seed_promotions
+python -Xutf8 manage.py dumpdata spacenter --indent 2 --output spacenter_data.json
+python -Xutf8 manage.py loaddata spacenter_data.json
 
 # Clear and reseed
 python manage.py seed_all --clear
