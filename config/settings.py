@@ -542,6 +542,12 @@ SITE_BASE_URL = config("SITE_BASE_URL", default="http://localhost:8000")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "skip_disallowed_host": {
+            "()": "django.utils.log.CallbackFilter",
+            "callback": lambda record: record.name != "django.security.DisallowedHost",
+        },
+    },
     "formatters": {
         "verbose": {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
@@ -552,6 +558,7 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["skip_disallowed_host"],
         },
     },
     "root": {
@@ -562,6 +569,10 @@ LOGGING = {
         "django": {
             "handlers": ["console"],
             "level": config("DJANGO_LOG_LEVEL", default="INFO"),
+            "propagate": False,
+        },
+        "django.security.DisallowedHost": {
+            "handlers": [],
             "propagate": False,
         },
         "accounts": {
