@@ -203,9 +203,11 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         Create a new gift card.
 
         Flow:
-        1. User sends service_id, recipient_phone, optional recipient_name, gift_message.
-        2. A gift card is created with status 'pending_payment'.
-        3. Response includes the gift card details – client should initiate payment.
+        1. User sends service_id, recipient_phone, payment_status, and optional fields.
+        2. If payment_status is 'success':
+           - Gift card is activated, SMS is sent to recipient, sender loyalty is awarded.
+        3. If payment_status is 'failed':
+           - Gift card is created with failed payment status, no further action.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -215,10 +217,15 @@ class GiftCardViewSet(viewsets.ModelViewSet):
             gift_card, context={"request": request},
         )
 
+        if gift_card.status == GiftCard.GiftCardStatus.ACTIVE:
+            message = "Gift card created and activated. SMS sent to recipient."
+        else:
+            message = "Gift card created with payment failure recorded."
+
         return Response(
             {
                 "success": True,
-                "message": "Gift card created successfully. Please complete payment.",
+                "message": message,
                 "gift_card": detail_serializer.data,
             },
             status=status.HTTP_201_CREATED,
@@ -239,6 +246,9 @@ class GiftCardViewSet(viewsets.ModelViewSet):
                 {"error": "Gift card is not pending payment."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Award loyalty to sender on payment success (before activation)
+        gift_card._award_sender_loyalty()
 
         # Activate the gift card
         gift_card.activate()

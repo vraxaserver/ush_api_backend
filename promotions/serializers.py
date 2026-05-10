@@ -406,6 +406,10 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         allow_null=True,
         help_text="Optional expiry date for redemption",
     )
+    payment_status = serializers.ChoiceField(
+        choices=[("success", "Success"), ("failed", "Failed")],
+        help_text="Payment status from the payment gateway (success or failed)",
+    )
 
     class Meta:
         model = GiftCard
@@ -419,6 +423,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             "recipient_name",
             "gift_message",
             "expires_at",
+            "payment_status",
         ]
 
     def validate_service_id(self, value):
@@ -492,7 +497,15 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create a gift card with provided fields, auto-creating recipient user if needed."""
+        """Create a gift card with provided fields, auto-creating recipient user if needed.
+
+        If payment_status is 'success':
+          - Gift card is activated immediately
+          - SMS is sent to the recipient with the secret code
+          - Sender loyalty is awarded
+        If payment_status is 'failed':
+          - Gift card is created with failed payment status, no further action
+        """
         from accounts.models import User, UserType
         from spacenter.models import Service, ServiceArrangement, SpaCenter
 
@@ -501,6 +514,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         arrangement_id = validated_data.pop("service_arrangement_id")
         extra_minutes = validated_data.pop("extra_minutes", 0)
         total_duration = validated_data.pop("total_duration")
+        payment_status = validated_data.pop("payment_status")
 
         service = Service.objects.get(id=service_id)
         spa_center = SpaCenter.objects.get(id=spa_center_id)
@@ -537,6 +551,12 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             except Exception:
                 pass  # Don't fail gift card creation if SMS fails
 
+        # Determine initial gift card status based on payment
+        if payment_status == "success":
+            initial_status = GiftCard.GiftCardStatus.ACTIVE
+        else:
+            initial_status = GiftCard.GiftCardStatus.PENDING_PAYMENT
+
         gift_card = GiftCard.objects.create(
             sender=self.context["request"].user,
             recipient=recipient_user,
@@ -551,7 +571,20 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             recipient_name=recipient_name,
             gift_message=validated_data.get("gift_message", ""),
             expires_at=validated_data.get("expires_at"),
+            status=initial_status,
         )
+
+        # On successful payment: activate, send SMS, and award loyalty
+        if payment_status == "success":
+            # Activate the gift card (sets expiry if not already set)
+            gift_card.activate()
+
+            # Award loyalty to sender
+            gift_card._award_sender_loyalty()
+
+            # Send gift card SMS to recipient
+            from promotions.tasks import send_gift_card_sms
+            send_gift_card_sms(str(gift_card.id))
 
         return gift_card
 

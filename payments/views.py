@@ -307,6 +307,7 @@ class StripeWebhookView(APIView):
     def _handle_payment_succeeded(self, payment_intent):
         """Handle successful payment."""
         payment_intent_id = payment_intent["id"]
+        metadata = payment_intent.get("metadata", {})
         
         try:
             payment = Payment.objects.get(stripe_payment_intent_id=payment_intent_id)
@@ -320,10 +321,50 @@ class StripeWebhookView(APIView):
                 payment.booking.save()
                 logger.info(f"Updated booking {payment.booking.id} to payment_success")
             
+            # Handle gift card payment success
+            gift_card_id = metadata.get("gift_card_id")
+            if gift_card_id:
+                self._handle_gift_card_payment_success(gift_card_id)
+            
             logger.info(f"Payment {payment_intent_id} marked as succeeded")
             
         except Payment.DoesNotExist:
             logger.warning(f"Payment not found for intent: {payment_intent_id}")
+
+    def _handle_gift_card_payment_success(self, gift_card_id):
+        """
+        Handle gift card payment success: award loyalty, activate, and send SMS.
+
+        Called when a Stripe payment with gift_card_id metadata succeeds.
+        """
+        from promotions.models import GiftCard
+
+        try:
+            gift_card = GiftCard.objects.select_related(
+                "service", "sender", "service_arrangement",
+            ).get(id=gift_card_id)
+        except GiftCard.DoesNotExist:
+            logger.warning(f"Gift card not found for ID: {gift_card_id}")
+            return
+
+        if gift_card.status != GiftCard.GiftCardStatus.PENDING_PAYMENT:
+            logger.warning(f"Gift card {gift_card_id} is not pending payment, skipping.")
+            return
+
+        # Award loyalty to sender on payment success (before activation)
+        gift_card._award_sender_loyalty()
+
+        # Activate the gift card
+        gift_card.activate()
+
+        # Send SMS to recipient
+        try:
+            from promotions.tasks import send_gift_card_sms
+            send_gift_card_sms(str(gift_card.id))
+        except Exception as e:
+            logger.error(f"Failed to send gift card SMS for {gift_card_id}: {e}")
+
+        logger.info(f"Gift card {gift_card_id} activated via webhook payment success.")
 
     def _handle_payment_failed(self, payment_intent):
         """Handle failed payment."""

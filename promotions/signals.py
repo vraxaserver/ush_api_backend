@@ -2,15 +2,95 @@
 Promotions Signals – Loyalty Program & Gift Cards.
 
 Hooks into booking lifecycle to award loyalty points when a booking is completed.
+Hooks into gift card lifecycle to send SMS and award loyalty when a gift card
+is activated (e.g. via admin status change from pending_payment → active).
 """
 
 import logging
 
-from django.db.models.signals import pre_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
 
+
+@receiver(pre_save, sender="promotions.GiftCard")
+def handle_gift_card_activation(sender, instance, **kwargs):
+    """
+    Send SMS and award loyalty when a gift card transitions to 'active' status.
+
+    This covers the case where an admin manually changes the status from
+    'pending_payment' to 'active' (e.g. after verifying a failed payment).
+
+    Only triggers when:
+    1. The gift card already exists in the DB (not a new create).
+    2. The status is changing from 'pending_payment' to 'active'.
+    """
+    from promotions.models import GiftCard
+
+    # Only act on status transition to ACTIVE
+    if instance.status != GiftCard.GiftCardStatus.ACTIVE:
+        return
+
+    # Only act on existing gift cards (not new creates — serializer handles those)
+    if instance._state.adding:
+        return
+
+    # Check if the status actually changed from PENDING_PAYMENT
+    try:
+        old_instance = GiftCard.objects.get(pk=instance.pk)
+    except GiftCard.DoesNotExist:
+        return
+
+    if old_instance.status != GiftCard.GiftCardStatus.PENDING_PAYMENT:
+        # Not transitioning from pending_payment – skip
+        return
+
+    # Award loyalty to sender
+    try:
+        instance._award_sender_loyalty()
+        logger.info(
+            "Loyalty awarded to sender %s for gift card %s (admin activation).",
+            instance.sender,
+            instance.pk,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to award loyalty for gift card %s on admin activation.",
+            instance.pk,
+        )
+
+    # Send gift card SMS to recipient (after save completes, use post_save pattern)
+    # We flag the instance so a post_save handler can send the SMS
+    instance._send_sms_on_activation = True
+
+
+@receiver(post_save, sender="promotions.GiftCard")
+def send_sms_on_gift_card_activation(sender, instance, created, **kwargs):
+    """
+    Send gift card SMS after the gift card has been saved with ACTIVE status.
+
+    Only fires when the pre_save handler flagged the instance for SMS sending
+    (i.e. status transitioned from pending_payment → active via admin).
+    """
+    if not getattr(instance, "_send_sms_on_activation", False):
+        return
+
+    # Clear the flag to prevent re-triggering
+    del instance._send_sms_on_activation
+
+    try:
+        from promotions.tasks import send_gift_card_sms
+        send_gift_card_sms(str(instance.id))
+        logger.info(
+            "Gift card SMS sent for gift card %s (admin activation).",
+            instance.pk,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to send SMS for gift card %s on admin activation.",
+            instance.pk,
+        )
 
 @receiver(pre_save, sender="bookings.Booking")
 def award_loyalty_on_payment_success(sender, instance, **kwargs):
