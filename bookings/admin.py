@@ -1,5 +1,7 @@
 import json
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
@@ -79,9 +81,11 @@ class BookingAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
         "get_booking_date",
         "get_booking_time",
         "total_price",
-        "display_status",
+        "status",
+        "status_actions",
         "created_at",
     ]
+    list_editable = ["status"]
     list_filter = [
         SpaCenterFilter,
         "status",
@@ -176,9 +180,74 @@ class BookingAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     def get_booking_time(self, obj):
         return f"{obj.time_slot.start_time} - {obj.time_slot.end_time}"
 
-    @admin.display(description=_("Status"))
-    def display_status(self, obj):
-        return obj.get_status_display()
+    @admin.display(description=_("Status Actions"))
+    def status_actions(self, obj):
+        """Render quick action buttons for status changes."""
+        buttons = []
+        
+        # Define button styles
+        btn_base = 'display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; text-decoration: none; font-weight: bold; font-size: 11px; margin-right: 5px;'
+        confirm_style = f'{btn_base} background-color: #28a745;'
+        cancel_style = f'{btn_base} background-color: #dc3545;'
+        complete_style = f'{btn_base} background-color: #17a2b8;'
+
+        if obj.status == Booking.BookingStatus.REQUESTED:
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:booking-set-status', args=[obj.pk, 'confirmed']),
+                confirm_style,
+                _("Confirm")
+            ))
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:booking-set-status', args=[obj.pk, 'canceled']),
+                cancel_style,
+                _("Cancel")
+            ))
+        
+        elif obj.status == Booking.BookingStatus.CONFIRMED:
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:booking-set-status', args=[obj.pk, 'completed']),
+                complete_style,
+                _("Complete")
+            ))
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:booking-set-status', args=[obj.pk, 'canceled']),
+                cancel_style,
+                _("Cancel")
+            ))
+
+        if not buttons:
+            return "-"
+        
+        return format_html(''.join(buttons))
+
+    def get_urls(self):
+        """Add custom URLs for status actions."""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<uuid:object_id>/set-status/<str:status>/',
+                self.admin_site.admin_view(self.set_status),
+                name='booking-set-status',
+            ),
+        ]
+        return custom_urls + urls
+
+    def set_status(self, request, object_id, status):
+        """Custom view to update booking status."""
+        obj = self.get_object(request, object_id)
+        if obj:
+            old_status = obj.get_status_display()
+            obj.status = status
+            obj.save()
+            new_status = obj.get_status_display()
+            messages.success(request, _(f"Status for booking {obj.booking_number} updated from {old_status} to {new_status}."))
+        
+        # Redirect back to the changelist
+        return redirect(reverse('admin:bookings_booking_changelist'))
 
     @admin.display(description=_("Formatted Meta Data"))
     def get_formatted_meta_data(self, obj):
@@ -228,6 +297,7 @@ class ProductOrderAdmin(admin.ModelAdmin):
         "final_amount",
         "created_at",
     ]
+    list_editable = ["status", "payment_status"]
     list_filter = [
         "status",
         "payment_status",
@@ -308,9 +378,11 @@ class HomeServiceBookingAdmin(admin.ModelAdmin):
         "date",
         "time",
         "total_price",
-        "display_status",
+        "status",
+        "status_actions",
         "created_at",
     ]
+    list_editable = ["status"]
     list_filter = [
         "status",
         "date",
@@ -399,9 +471,74 @@ class HomeServiceBookingAdmin(admin.ModelAdmin):
         ),
     )
 
-    @admin.display(description=_("Status"))
-    def display_status(self, obj):
-        return obj.get_status_display()
+    @admin.display(description=_("Status Actions"))
+    def status_actions(self, obj):
+        """Render quick action buttons for status changes."""
+        buttons = []
+        
+        # Define button styles
+        btn_base = 'display: inline-block; padding: 4px 8px; border-radius: 4px; color: white; text-decoration: none; font-weight: bold; font-size: 11px; margin-right: 5px;'
+        confirm_style = f'{btn_base} background-color: #28a745;'
+        cancel_style = f'{btn_base} background-color: #dc3545;'
+        complete_style = f'{btn_base} background-color: #17a2b8;'
+
+        if obj.status == HomeServiceBooking.BookingStatus.REQUESTED:
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:home-booking-set-status', args=[obj.pk, 'confirmed']),
+                confirm_style,
+                _("Confirm")
+            ))
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:home-booking-set-status', args=[obj.pk, 'canceled']),
+                cancel_style,
+                _("Cancel")
+            ))
+        
+        elif obj.status == HomeServiceBooking.BookingStatus.CONFIRMED:
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:home-booking-set-status', args=[obj.pk, 'completed']),
+                complete_style,
+                _("Complete")
+            ))
+            buttons.append(format_html(
+                '<a href="{}" style="{}">{}</a>',
+                reverse('admin:home-booking-set-status', args=[obj.pk, 'canceled']),
+                cancel_style,
+                _("Cancel")
+            ))
+
+        if not buttons:
+            return "-"
+        
+        return format_html(''.join(buttons))
+
+    def get_urls(self):
+        """Add custom URLs for status actions."""
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                '<uuid:object_id>/set-status/<str:status>/',
+                self.admin_site.admin_view(self.set_status),
+                name='home-booking-set-status',
+            ),
+        ]
+        return custom_urls + urls
+
+    def set_status(self, request, object_id, status):
+        """Custom view to update booking status."""
+        obj = self.get_object(request, object_id)
+        if obj:
+            old_status = obj.get_status_display()
+            obj.status = status
+            obj.save()
+            new_status = obj.get_status_display()
+            messages.success(request, _(f"Status for booking {obj.booking_number} updated from {old_status} to {new_status}."))
+        
+        # Redirect back to the changelist
+        return redirect(reverse('admin:bookings_homeservicebooking_changelist'))
 
     def get_queryset(self, request):
         """Optimise queryset with select_related."""
