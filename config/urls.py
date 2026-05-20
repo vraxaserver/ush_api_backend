@@ -62,6 +62,27 @@ def privacy_policy(request):
     return render(request, "legal/privacy_policy.html")
 
 
+def contact_us(request):
+    """
+    Public contact us page.
+    """
+    return render(request, "legal/contact_us.html")
+
+
+def marketing(request):
+    """
+    Public marketing details page.
+    """
+    return render(request, "legal/marketing.html")
+
+
+def copyright_page(request):
+    """
+    Public copyright notice page.
+    """
+    return render(request, "legal/copyright.html")
+
+
 admin.site.site_title = "USH Spa Center Admin"
 admin.site.site_header = "USH Spa Center Admin"
 admin.site.index_title = "USH Spa Center Admin"
@@ -73,6 +94,9 @@ urlpatterns = [
 
     # Public Legal Pages
     path("privacy-policy/", privacy_policy, name="privacy-policy"),
+    path("contact-us/", contact_us, name="contact-us"),
+    path("marketing/", marketing, name="marketing"),
+    path("copyright/", copyright_page, name="copyright"),
     
     # Admin Cache Control
     path("admin/clear-cache/", clear_cache_view, name="clear-cache"),

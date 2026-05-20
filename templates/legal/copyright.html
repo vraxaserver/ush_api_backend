@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copyright | USH Spa</title>
+    <meta name="description"
+        content="USH Spa Center Copyright Notice — intellectual property rights, permitted use, and content ownership policies.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --primary-dark: #5b21b6;
+            --accent: #f59e0b;
+            --accent-light: #fbbf24;
+            --surface: #ffffff;
+            --surface-alt: #f8f7ff;
+            --surface-glass: rgba(255, 255, 255, 0.75);
+            --text: #1e1b4b;
+            --text-secondary: #6b7280;
+            --text-light: #9ca3af;
+            --border: #e5e7eb;
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #a78bfa 50%, #c4b5fd 100%);
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --font-heading: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text);
+            background: var(--surface-alt);
+            line-height: 1.7;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== HEADER ===== */
+        .pp-header {
+            background: var(--gradient-primary);
+            padding: 16px 0;
+        }
+
+        .pp-header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pp-header__logo {
+            font-family: var(--font-heading);
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-decoration: none;
+        }
+
+        .pp-header__logo span {
+            color: var(--accent-light);
+        }
+
+        /* ===== HERO ===== */
+        .pp-hero {
+            background: var(--gradient-primary);
+            padding: 48px 0 64px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pp-hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: var(--surface-alt);
+            border-radius: 40px 40px 0 0;
+        }
+
+        .pp-hero h1 {
+            font-family: var(--font-heading);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .pp-hero p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* ===== CONTENT CARD ===== */
+        .pp-content {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: 40px 48px;
+            margin: -24px auto 40px;
+            position: relative;
+            z-index: 1;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .pp-content h2 {
+            font-family: var(--font-heading);
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin: 36px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ede9fe;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pp-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .pp-content h2 .icon {
+            width: 28px;
+            height: 28px;
+            background: #ede9fe;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .pp-content h3 {
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 20px 0 8px;
+        }
+
+        .pp-content p {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .pp-content ul {
+            color: var(--text-secondary);
+            margin: 8px 0 16px 20px;
+            font-size: 0.95rem;
+        }
+
+        .pp-content ul li {
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+
+        .pp-content ul li::marker {
+            color: var(--primary-light);
+        }
+
+        .pp-content a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .pp-content a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        .pp-content .effective-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ede9fe;
+            color: var(--primary-dark);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .contact-card {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin-top: 8px;
+        }
+
+        .contact-card p {
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* ===== NOTICE BOX ===== */
+        .notice-box {
+            background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+            border: 1px solid #f59e0b;
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .notice-box p {
+            color: #92400e;
+            font-weight: 500;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #ede9fe 0%, #f3e8ff 100%);
+            border: 1px solid #c4b5fd;
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .highlight-box p {
+            color: var(--primary-dark);
+            font-weight: 500;
+        }
+
+        /* ===== TOC ===== */
+        .toc {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin-bottom: 28px;
+        }
+
+        .toc h3 {
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toc ol {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.9rem;
+        }
+
+        .toc ol li {
+            margin-bottom: 4px;
+        }
+
+        .toc ol li a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc ol li a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* ===== FOOTER ===== */
+        .pp-footer {
+            margin-top: auto;
+            padding: 24px 0;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 640px) {
+            .pp-content {
+                padding: 28px 24px;
+            }
+
+            .pp-hero h1 {
+                font-size: 1.7rem;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <header class="pp-header">
+            <div class="container">
+                <a href="/" class="pp-header__logo">USH <span>SPA</span></a>
+            </div>
+        </header>
+
+        <section class="pp-hero">
+            <div class="container">
+                <h1>Copyright Notice</h1>
+                <p>Intellectual property rights and content ownership.</p>
+            </div>
+        </section>
+
+        <main>
+            <div class="container">
+                <div class="pp-content">
+                    <div class="effective-date">📅 Effective Date: May 20, 2026</div>
+
+                    <p>
+                        All content, materials, and intellectual property associated with <strong>USH Spa Center</strong>
+                        ("we," "us," or "our"), including but not limited to our website, mobile application, and related
+                        services, are protected by applicable copyright, trademark, and intellectual property laws.
+                    </p>
+
+                    <nav class="toc">
+                        <h3>Table of Contents</h3>
+                        <ol>
+                            <li><a href="#ownership">Content Ownership</a></li>
+                            <li><a href="#trademarks">Trademarks</a></li>
+                            <li><a href="#permitted-use">Permitted Use</a></li>
+                            <li><a href="#restrictions">Restrictions</a></li>
+                            <li><a href="#user-content">User-Generated Content</a></li>
+                            <li><a href="#third-party">Third-Party Content</a></li>
+                            <li><a href="#takedown">Copyright Infringement & Takedown</a></li>
+                            <li><a href="#contact">Contact Us</a></li>
+                        </ol>
+                    </nav>
+
+                    <!-- 1. Content Ownership -->
+                    <h2 id="ownership"><span class="icon">©️</span> 1. Content Ownership</h2>
+                    <p>Unless otherwise stated, all content on USH Spa's platforms is owned by or licensed to USH Spa Center. This includes but is not limited to:</p>
+                    <ul>
+                        <li><strong>Text & Copy:</strong> All written content, descriptions, articles, marketing materials, and documentation.</li>
+                        <li><strong>Visual Media:</strong> Photographs, images, illustrations, icons, graphics, and video content.</li>
+                        <li><strong>Design Elements:</strong> User interface designs, layouts, color schemes, visual identity, and overall look and feel.</li>
+                        <li><strong>Software:</strong> Source code, algorithms, APIs, databases, and all underlying technology powering our services.</li>
+                        <li><strong>Audio:</strong> Music, sound effects, and any audio content used in our platforms.</li>
+                    </ul>
+
+                    <div class="highlight-box">
+                        <p>🔒 All rights are reserved. No content may be reproduced without prior written permission from USH Spa Center.</p>
+                    </div>
+
+                    <!-- 2. Trademarks -->
+                    <h2 id="trademarks"><span class="icon">™️</span> 2. Trademarks</h2>
+                    <p>The following are trademarks or registered trademarks of USH Spa Center:</p>
+                    <ul>
+                        <li>The <strong>"USH Spa"</strong> name and logo</li>
+                        <li>The <strong>"USH SPA"</strong> wordmark and visual identity</li>
+                        <li>All associated brand slogans, taglines, and marketing phrases</li>
+                        <li>Product and service names used within our platforms</li>
+                    </ul>
+                    <p>These trademarks may not be used in connection with any product or service that is not affiliated with USH Spa, in any manner that is likely to cause confusion, or in any way that disparages or discredits USH Spa Center.</p>
+
+                    <!-- 3. Permitted Use -->
+                    <h2 id="permitted-use"><span class="icon">✅</span> 3. Permitted Use</h2>
+                    <p>You are granted a limited, non-exclusive, non-transferable license to:</p>
+                    <ul>
+                        <li><strong>Personal Use:</strong> Access and view our content for personal, non-commercial purposes through our app and website.</li>
+                        <li><strong>Booking & Transactions:</strong> Use our platforms to browse services, make bookings, and manage your account.</li>
+                        <li><strong>Sharing:</strong> Share links to our public pages, promotions, and gift cards through the sharing features provided within our app.</li>
+                        <li><strong>Reviews:</strong> Submit reviews, ratings, and feedback as permitted by our Terms of Service.</li>
+                    </ul>
+
+                    <!-- 4. Restrictions -->
+                    <h2 id="restrictions"><span class="icon">🚫</span> 4. Restrictions</h2>
+                    <p>Without prior written consent from USH Spa Center, you may <strong>not</strong>:</p>
+                    <ul>
+                        <li>Copy, reproduce, distribute, or republish any content from our platforms.</li>
+                        <li>Modify, adapt, translate, reverse engineer, or create derivative works based on our content or software.</li>
+                        <li>Use our trademarks, logos, or branding in any unauthorized manner.</li>
+                        <li>Scrape, crawl, or use automated tools to extract content or data from our platforms.</li>
+                        <li>Frame, mirror, or embed our content on other websites or applications without permission.</li>
+                        <li>Use our content for commercial purposes, including resale, advertising, or promotional activities for competing services.</li>
+                        <li>Remove, alter, or obscure any copyright notices, watermarks, or proprietary markings.</li>
+                    </ul>
+
+                    <div class="notice-box">
+                        <p>⚠️ Unauthorized use of USH Spa content may violate copyright, trademark, and other applicable laws and could result in legal action.</p>
+                    </div>
+
+                    <!-- 5. User-Generated Content -->
+                    <h2 id="user-content"><span class="icon">📝</span> 5. User-Generated Content</h2>
+                    <p>When you submit content through our platforms (such as reviews, ratings, photos, or feedback), you:</p>
+                    <ul>
+                        <li><strong>Retain Ownership:</strong> You retain ownership of your original content.</li>
+                        <li><strong>Grant License:</strong> You grant USH Spa a worldwide, non-exclusive, royalty-free, perpetual license to use, display, reproduce, modify, and distribute your content in connection with our services and marketing activities.</li>
+                        <li><strong>Represent Originality:</strong> You confirm that your submitted content is original, does not infringe on any third-party rights, and complies with our Terms of Service.</li>
+                    </ul>
+                    <p>We reserve the right to remove any user-generated content that violates our policies, is deemed inappropriate, or infringes on the rights of others.</p>
+
+                    <!-- 6. Third-Party Content -->
+                    <h2 id="third-party"><span class="icon">🔗</span> 6. Third-Party Content</h2>
+                    <p>Our platforms may contain content, links, or integrations from third-party providers. Such content remains the intellectual property of its respective owners. Specifically:</p>
+                    <ul>
+                        <li><strong>Payment Processing:</strong> Payment interfaces and branding provided by MyFatoorah are subject to their own terms and intellectual property rights.</li>
+                        <li><strong>Fonts & Libraries:</strong> We use Google Fonts and open-source libraries under their respective licenses.</li>
+                        <li><strong>External Links:</strong> Links to third-party websites do not imply endorsement. We are not responsible for the content or practices of external sites.</li>
+                    </ul>
+
+                    <!-- 7. Copyright Infringement & Takedown -->
+                    <h2 id="takedown"><span class="icon">⚖️</span> 7. Copyright Infringement & Takedown</h2>
+                    <p>USH Spa respects the intellectual property rights of others. If you believe that any content on our platforms infringes your copyright, please notify us with the following information:</p>
+                    <ul>
+                        <li>A description of the copyrighted work you claim has been infringed.</li>
+                        <li>The URL or location of the allegedly infringing content on our platform.</li>
+                        <li>Your contact information (name, email, phone number).</li>
+                        <li>A statement that you have a good-faith belief that the use is not authorized.</li>
+                        <li>A statement, under penalty of perjury, that the information in your notice is accurate and that you are the copyright owner or authorized to act on their behalf.</li>
+                        <li>Your physical or electronic signature.</li>
+                    </ul>
+                    <p>Please send copyright infringement notices to:</p>
+
+                    <div class="contact-card">
+                        <p><strong>USH Spa Center — Copyright Team</strong></p>
+                        <p>📧 Email: <a href="mailto:Info@ushspakw.com">Info@ushspakw.com</a></p>
+                        <p>📋 Subject Line: <em>Copyright Infringement Notice</em></p>
+                    </div>
+
+                    <p style="margin-top: 12px;">We will review all valid notices promptly and take appropriate action, including removing infringing content when warranted.</p>
+
+                    <!-- 8. Contact Us -->
+                    <h2 id="contact"><span class="icon">📧</span> 8. Contact Us</h2>
+                    <p>For questions regarding our copyright policies, content licensing requests, or permissions:</p>
+
+                    <div class="contact-card">
+                        <p><strong>USH Spa Center</strong></p>
+                        <p>📧 Email: <a href="mailto:Info@ushspakw.com">Info@ushspakw.com</a></p>
+                        <p>🌐 Website: <a href="https://spaush.com" target="_blank" rel="noopener">spaush.com</a></p>
+                    </div>
+
+                    <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-light);">
+                        This copyright notice was last updated on May 20, 2026.
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="pp-footer">
+            <div class="container">
+                <p>&copy; 2026 USH Spa. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>

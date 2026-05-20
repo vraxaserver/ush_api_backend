@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Details | USH Spa</title>
+    <meta name="description"
+        content="Learn about USH Spa Center's marketing communications, promotional offers, loyalty rewards, and how we keep you informed.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #7c3aed;
+            --primary-light: #a78bfa;
+            --primary-dark: #5b21b6;
+            --accent: #f59e0b;
+            --accent-light: #fbbf24;
+            --surface: #ffffff;
+            --surface-alt: #f8f7ff;
+            --surface-glass: rgba(255, 255, 255, 0.75);
+            --text: #1e1b4b;
+            --text-secondary: #6b7280;
+            --text-light: #9ca3af;
+            --border: #e5e7eb;
+            --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #a78bfa 50%, #c4b5fd 100%);
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --font-heading: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body);
+            color: var(--text);
+            background: var(--surface-alt);
+            line-height: 1.7;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page-wrapper {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== HEADER ===== */
+        .pp-header {
+            background: var(--gradient-primary);
+            padding: 16px 0;
+        }
+
+        .pp-header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pp-header__logo {
+            font-family: var(--font-heading);
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-decoration: none;
+        }
+
+        .pp-header__logo span {
+            color: var(--accent-light);
+        }
+
+        /* ===== HERO ===== */
+        .pp-hero {
+            background: var(--gradient-primary);
+            padding: 48px 0 64px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pp-hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: var(--surface-alt);
+            border-radius: 40px 40px 0 0;
+        }
+
+        .pp-hero h1 {
+            font-family: var(--font-heading);
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            animation: fadeInUp 0.6s ease-out both;
+        }
+
+        .pp-hero p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* ===== CONTENT CARD ===== */
+        .pp-content {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            padding: 40px 48px;
+            margin: -24px auto 40px;
+            position: relative;
+            z-index: 1;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .pp-content h2 {
+            font-family: var(--font-heading);
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+            margin: 36px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #ede9fe;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pp-content h2:first-child {
+            margin-top: 0;
+        }
+
+        .pp-content h2 .icon {
+            width: 28px;
+            height: 28px;
+            background: #ede9fe;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .pp-content h3 {
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 20px 0 8px;
+        }
+
+        .pp-content p {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .pp-content ul {
+            color: var(--text-secondary);
+            margin: 8px 0 16px 20px;
+            font-size: 0.95rem;
+        }
+
+        .pp-content ul li {
+            margin-bottom: 6px;
+            padding-left: 4px;
+        }
+
+        .pp-content ul li::marker {
+            color: var(--primary-light);
+        }
+
+        .pp-content a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .pp-content a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        .pp-content .effective-date {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #ede9fe;
+            color: var(--primary-dark);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .contact-card {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin-top: 8px;
+        }
+
+        .contact-card p {
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        /* ===== HIGHLIGHT BOX ===== */
+        .highlight-box {
+            background: linear-gradient(135deg, #ede9fe 0%, #f3e8ff 100%);
+            border: 1px solid #c4b5fd;
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .highlight-box p {
+            color: var(--primary-dark);
+            font-weight: 500;
+        }
+
+        /* ===== FEATURE CARDS ===== */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .feature-card {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 20px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feature-card__icon {
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .feature-card__title {
+            font-family: var(--font-heading);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .feature-card__desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ===== TOC ===== */
+        .toc {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            margin-bottom: 28px;
+        }
+
+        .toc h3 {
+            font-family: var(--font-heading);
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            margin: 0 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toc ol {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.9rem;
+        }
+
+        .toc ol li {
+            margin-bottom: 4px;
+        }
+
+        .toc ol li a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc ol li a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+
+        /* ===== FOOTER ===== */
+        .pp-footer {
+            margin-top: auto;
+            padding: 24px 0;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 640px) {
+            .pp-content {
+                padding: 28px 24px;
+            }
+
+            .pp-hero h1 {
+                font-size: 1.7rem;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <header class="pp-header">
+            <div class="container">
+                <a href="/" class="pp-header__logo">USH <span>SPA</span></a>
+            </div>
+        </header>
+
+        <section class="pp-hero">
+            <div class="container">
+                <h1>Marketing Details</h1>
+                <p>How we communicate offers, rewards, and updates to you.</p>
+            </div>
+        </section>
+
+        <main>
+            <div class="container">
+                <div class="pp-content">
+                    <div class="effective-date">📅 Effective Date: May 20, 2026</div>
+
+                    <p>
+                        At <strong>USH Spa Center</strong>, we believe in transparent and respectful communication.
+                        This page explains how we market our services, the types of promotional communications you may
+                        receive, and how you can manage your preferences.
+                    </p>
+
+                    <nav class="toc">
+                        <h3>Table of Contents</h3>
+                        <ol>
+                            <li><a href="#communications">Marketing Communications</a></li>
+                            <li><a href="#promotions">Promotional Offers & Campaigns</a></li>
+                            <li><a href="#loyalty">Loyalty & Rewards Program</a></li>
+                            <li><a href="#referral">Referral Program</a></li>
+                            <li><a href="#gift-cards">Gift Cards</a></li>
+                            <li><a href="#channels">Communication Channels</a></li>
+                            <li><a href="#preferences">Managing Your Preferences</a></li>
+                            <li><a href="#contact">Contact Us</a></li>
+                        </ol>
+                    </nav>
+
+                    <!-- 1. Marketing Communications -->
+                    <h2 id="communications"><span class="icon">📣</span> 1. Marketing Communications</h2>
+                    <p>USH Spa may send you marketing communications to keep you informed about:</p>
+                    <ul>
+                        <li><strong>New Services:</strong> Announcements about new spa treatments, wellness programs, and beauty services added to our menu.</li>
+                        <li><strong>Seasonal Promotions:</strong> Special discounts and packages tailored to seasons, holidays, and special occasions.</li>
+                        <li><strong>Exclusive Member Offers:</strong> Personalized deals based on your booking history, preferences, and loyalty tier.</li>
+                        <li><strong>Event Invitations:</strong> Exclusive invitations to spa events, wellness workshops, and VIP experiences.</li>
+                        <li><strong>Service Updates:</strong> Important changes to our services, operating hours, or policies that may affect your experience.</li>
+                    </ul>
+
+                    <div class="highlight-box">
+                        <p>✨ We only send marketing messages with your consent. You can opt out at any time — see Section 7 for details.</p>
+                    </div>
+
+                    <!-- 2. Promotional Offers -->
+                    <h2 id="promotions"><span class="icon">🎁</span> 2. Promotional Offers & Campaigns</h2>
+                    <p>We run various promotional campaigns throughout the year to reward our customers:</p>
+
+                    <h3>2.1 Seasonal Campaigns</h3>
+                    <p>Look out for special offers during:</p>
+                    <ul>
+                        <li>Ramadan & Eid celebrations</li>
+                        <li>National Day festivities</li>
+                        <li>Summer wellness packages</li>
+                        <li>Year-end holiday specials</li>
+                        <li>Valentine's Day couples' treatments</li>
+                    </ul>
+
+                    <h3>2.2 First-Time Customer Offers</h3>
+                    <p>New customers receive a welcome discount on their first booking through the USH Spa app. This offer is automatically applied upon account registration and is valid for a limited time.</p>
+
+                    <h3>2.3 Bundle Packages</h3>
+                    <p>Save more when you book multiple services together. Our curated bundles combine complementary treatments at discounted rates for a complete wellness experience.</p>
+
+                    <!-- 3. Loyalty Program -->
+                    <h2 id="loyalty"><span class="icon">⭐</span> 3. Loyalty & Rewards Program</h2>
+                    <p>Our loyalty program rewards you for every visit and booking:</p>
+
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <span class="feature-card__icon">🥉</span>
+                            <div class="feature-card__title">Bronze Tier</div>
+                            <div class="feature-card__desc">Earn 1 point per KWD spent. Unlock after your first booking.</div>
+                        </div>
+                        <div class="feature-card">
+                            <span class="feature-card__icon">🥈</span>
+                            <div class="feature-card__title">Silver Tier</div>
+                            <div class="feature-card__desc">1.5x points multiplier. Priority booking access and birthday rewards.</div>
+                        </div>
+                        <div class="feature-card">
+                            <span class="feature-card__icon">🥇</span>
+                            <div class="feature-card__title">Gold Tier</div>
+                            <div class="feature-card__desc">2x points multiplier. Exclusive services, early access to promotions.</div>
+                        </div>
+                        <div class="feature-card">
+                            <span class="feature-card__icon">💎</span>
+                            <div class="feature-card__title">Platinum Tier</div>
+                            <div class="feature-card__desc">3x points multiplier. VIP experiences, complimentary upgrades, and more.</div>
+                        </div>
+                    </div>
+
+                    <p>Points can be redeemed for discounts on future bookings, complimentary add-on services, or exclusive merchandise.</p>
+
+                    <!-- 4. Referral Program -->
+                    <h2 id="referral"><span class="icon">🤝</span> 4. Referral Program</h2>
+                    <p>Share the USH Spa experience with friends and family and earn rewards:</p>
+                    <ul>
+                        <li><strong>Refer a Friend:</strong> Share your unique referral code with friends. When they complete their first booking, both of you receive loyalty points.</li>
+                        <li><strong>No Limit:</strong> There's no cap on how many friends you can refer — the more you share, the more you earn.</li>
+                        <li><strong>Easy Sharing:</strong> Share your referral code directly through the app via WhatsApp, SMS, or social media.</li>
+                    </ul>
+
+                    <!-- 5. Gift Cards -->
+                    <h2 id="gift-cards"><span class="icon">🎀</span> 5. Gift Cards</h2>
+                    <p>Give the gift of wellness with USH Spa gift cards:</p>
+                    <ul>
+                        <li><strong>Digital Gift Cards:</strong> Purchase and send gift cards instantly via our app. Recipients receive an SMS with their unique gift card code.</li>
+                        <li><strong>Custom Amounts:</strong> Choose any value that suits your budget.</li>
+                        <li><strong>Personal Messages:</strong> Add a personalized message to make your gift extra special.</li>
+                        <li><strong>Easy Redemption:</strong> Recipients can redeem gift cards directly in the app when booking any service.</li>
+                    </ul>
+
+                    <!-- 6. Communication Channels -->
+                    <h2 id="channels"><span class="icon">📱</span> 6. Communication Channels</h2>
+                    <p>We may reach you through the following channels:</p>
+                    <ul>
+                        <li><strong>SMS:</strong> Promotional offers, booking confirmations, and appointment reminders sent to your registered phone number.</li>
+                        <li><strong>Email:</strong> Newsletters, seasonal campaigns, and account-related communications.</li>
+                        <li><strong>Push Notifications:</strong> Real-time alerts about flash sales, booking updates, and loyalty milestones (if enabled in the app).</li>
+                        <li><strong>In-App Messages:</strong> Personalized recommendations and offers displayed within the USH Spa app.</li>
+                        <li><strong>Social Media:</strong> Follow us on Instagram, Twitter/X, Facebook, and TikTok for the latest content and exclusive social-only promotions.</li>
+                    </ul>
+
+                    <!-- 7. Managing Preferences -->
+                    <h2 id="preferences"><span class="icon">⚙️</span> 7. Managing Your Preferences</h2>
+                    <p>You are always in control of the marketing communications you receive:</p>
+                    <ul>
+                        <li><strong>In-App Settings:</strong> Navigate to <em>Profile → Notification Preferences</em> to toggle specific communication categories on or off.</li>
+                        <li><strong>Unsubscribe:</strong> Every promotional SMS and email includes an unsubscribe option. Simply follow the instructions to opt out.</li>
+                        <li><strong>Contact Support:</strong> Email us at <a href="mailto:Info@ushspakw.com">Info@ushspakw.com</a> with your preference changes.</li>
+                    </ul>
+
+                    <div class="highlight-box">
+                        <p>📌 <strong>Please note:</strong> Even if you opt out of marketing communications, you will still receive essential transactional messages such as booking confirmations, payment receipts, and security notifications.</p>
+                    </div>
+
+                    <!-- 8. Contact Us -->
+                    <h2 id="contact"><span class="icon">📧</span> 8. Contact Us</h2>
+                    <p>For questions about our marketing practices or to update your communication preferences:</p>
+
+                    <div class="contact-card">
+                        <p><strong>USH Spa Center</strong></p>
+                        <p>📧 Email: <a href="mailto:Info@ushspakw.com">Info@ushspakw.com</a></p>
+                        <p>🌐 Website: <a href="https://spaush.com" target="_blank" rel="noopener">spaush.com</a></p>
+                    </div>
+
+                    <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-light);">
+                        This marketing details page was last updated on May 20, 2026.
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="pp-footer">
+            <div class="container">
+                <p>&copy; 2026 USH Spa. All rights reserved.</p>
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>
