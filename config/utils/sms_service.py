@@ -39,11 +39,13 @@ def send_sms(phone_number: str, message: str, sender: str = None) -> dict:
     # ── Remove '+' if present (KWT-SMS mobile format) ──
     mobile = formatted.replace("+", "")
 
+    sender = settings.KWTSMS_SENDER if mobile.startswith("965") else "KWT-SMS"
+
     # ── Prepare payload ──
     payload = {
         "username": settings.KWTSMS_USERNAME,
         "password": settings.KWTSMS_PASSWORD,
-        "sender":   sender or settings.KWTSMS_SENDER,
+        "sender":   sender,
         "mobile":   mobile,
         "message":  message,
         "test":     settings.KWTSMS_TEST_MODE,
