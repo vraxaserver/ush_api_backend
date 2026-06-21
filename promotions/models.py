@@ -577,9 +577,9 @@ class GiftCard(models.Model):
         """Activate the gift card after successful payment."""
         self.status = self.GiftCardStatus.ACTIVE
         
-        # Set default expiry to 7 days from activation if not already set
+        # Set default expiry to 60 days from activation if not already set
         if not self.expires_at:
-            self.expires_at = timezone.now() + timezone.timedelta(days=7)
+            self.expires_at = timezone.now() + timezone.timedelta(days=60)
             
         self.save(update_fields=["status", "expires_at", "updated_at"])
 

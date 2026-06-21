@@ -435,6 +435,14 @@ class Service(models.Model):
         blank=True,
         help_text=_("List of benefits as key-value pairs"),
     )
+
+    session_benefits = models.TextField(
+        _("session benefits"),
+        blank=True,
+        null=True,
+        default=None,
+        help_text=_("Free-text description of session benefits"),
+    )
     
     # Add-on services
     add_on_services = models.ManyToManyField(

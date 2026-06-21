@@ -227,7 +227,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
 
     fieldsets = (
         (None, {
-            "fields": ("name", "description", "specialty")
+            "fields": ("name", "description", "session_benefits", "specialty")
         }),
         ("Location", {
             "fields": ("country", "city", "spa_center")
@@ -238,10 +238,10 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         ("Gender", {
             "fields": ('is_for_male', 'is_for_female')
         }),
-        # ("Add-on Services", {
-        #     "fields": ("add_on_services",),
-        #     "description": "Select additional services that can be added to this service."
-        # }),
+        ("Add-on Services", {
+            "fields": ("add_on_services",),
+            "description": "Select additional services that can be added to this service."
+        }),
         # ("Additional Info", {
         #     "fields": ("ideal_for", "benefits")
         # }),
