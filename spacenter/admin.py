@@ -38,7 +38,47 @@ from .filters import CountryFilter, CityFilter, SpaCenterFilter, ServiceArrangem
 # =============================================================================
 
 class ClearCacheActionMixin:
-    """Mixin that adds a 'Clear API Cache' admin action."""
+    """
+    Mixin that:
+    - Auto-clears the API cache whenever a model is saved or deleted via admin.
+    - Adds a manual 'Clear all API caches' dropdown action for on-demand clearing.
+    """
+
+    # ------------------------------------------------------------------ #
+    # Auto-invalidation on every admin write                               #
+    # ------------------------------------------------------------------ #
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        invalidate_all_caches()
+        self.message_user(
+            request,
+            "✅ API cache cleared automatically after saving.",
+            messages.SUCCESS,
+        )
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        invalidate_all_caches()
+        self.message_user(
+            request,
+            "✅ API cache cleared automatically after deleting.",
+            messages.SUCCESS,
+        )
+
+    def delete_queryset(self, request, queryset):
+        """Handle bulk delete from the changelist."""
+        super().delete_queryset(request, queryset)
+        invalidate_all_caches()
+        self.message_user(
+            request,
+            "✅ API cache cleared automatically after bulk delete.",
+            messages.SUCCESS,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Manual dropdown action                                               #
+    # ------------------------------------------------------------------ #
 
     @admin.action(description="🗑 Clear all API caches")
     def clear_api_cache(self, request, queryset):
@@ -53,6 +93,8 @@ class ClearCacheActionMixin:
             "🗑 Clear all API caches",
         )
         return actions
+
+
 
 
 
