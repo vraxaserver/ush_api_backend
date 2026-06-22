@@ -254,6 +254,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         "discount_price",
         "current_price_display",
         "is_eligible_for_loyalty",
+        "booking_count",
         "is_active",
         "sort_order",
         "addon_count",

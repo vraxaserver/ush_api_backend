@@ -370,8 +370,8 @@ class ServiceViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
         filters.OrderingFilter,
     ]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
-    ordering_fields = ["name", "base_price", "duration_minutes", "sort_order", "created_at"]
-    ordering = ["sort_order", "name"]
+    ordering_fields = ["name", "base_price", "duration_minutes", "sort_order", "created_at", "booking_count"]
+    ordering = ["-booking_count", "sort_order", "name"]
 
     def get_permissions(self):
         """Set permissions based on action."""

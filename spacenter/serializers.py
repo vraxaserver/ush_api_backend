@@ -274,11 +274,12 @@ class ServiceSerializer(serializers.ModelSerializer):
             "images",
             "spa_center",
             "is_eligible_for_loyalty",
+            "booking_count",
             "is_active",
             "sort_order",
             "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "booking_count", "created_at"]
 
     def get_spa_center(self, obj):
         """Get list of branches offering this service with availability."""
@@ -433,6 +434,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
     has_discount = serializers.BooleanField(read_only=True)
     discount_percentage = serializers.IntegerField(read_only=True)
     branch = serializers.SerializerMethodField()
+    booking_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Service
@@ -462,6 +464,7 @@ class ServiceListSerializer(serializers.ModelSerializer):
             "add_on_services",
             "addon_count",
             "is_eligible_for_loyalty",
+            "booking_count",
             "branch",
         ]
 

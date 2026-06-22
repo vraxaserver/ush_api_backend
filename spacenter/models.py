@@ -473,6 +473,14 @@ class Service(models.Model):
         ),
     )
 
+    # Booking counter — incremented atomically on each successful payment
+    booking_count = models.PositiveIntegerField(
+        _("booking count"),
+        default=0,
+        db_index=True,
+        help_text=_("Total number of successful paid bookings for this service."),
+    )
+
     is_active = models.BooleanField(_("active"), default=True)
     sort_order = models.PositiveIntegerField(_("sort order"), default=0)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
