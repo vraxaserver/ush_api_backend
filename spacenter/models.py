@@ -846,16 +846,76 @@ class SpaProduct(models.Model):
 
 
 # =============================================================================
+# Room Model
+# =============================================================================
+
+
+class Room(models.Model):
+    """
+    Physical room / treatment space within a Spa Center.
+
+    Each Room has a unique identifier (room_id) within its spa center and
+    can be configured for multiple service arrangements simultaneously.
+    A room can serve different arrangement types concurrently (e.g. a
+    large room configured as both single-room and couple-room — each
+    arrangement is booked independently).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    spa_center = models.ForeignKey(
+        SpaCenter,
+        on_delete=models.CASCADE,
+        related_name="rooms",
+        verbose_name=_("spa center"),
+    )
+    room_id = models.CharField(
+        _("room ID"),
+        max_length=50,
+        help_text=_(
+            "Unique identifier for this room within the spa center (e.g. 'A1', 'VIP-01')."
+        ),
+    )
+    name = models.CharField(_("room name"), max_length=100)
+    description = models.TextField(_("description"), blank=True)
+    is_active = models.BooleanField(_("active"), default=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("room")
+        verbose_name_plural = _("rooms")
+        unique_together = [("spa_center", "room_id")]
+        ordering = ["spa_center", "room_id"]
+        indexes = [
+            models.Index(fields=["spa_center", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.spa_center.name} — {self.room_id} ({self.name})"
+
+
+# =============================================================================
 # Service Arrangement Model
 # =============================================================================
 
+
 class ServiceArrangement(models.Model):
     """
-    Room/arrangement configuration for services at a spa center.
+    Configuration for how a Room is set up to deliver spa services.
 
-    Defines how many rooms/setups are available for each service at each branch.
-    Each arrangement type can have its own pricing.
-    Example: Branch A has 3 rooms for Thai Massage, 2 for Facial, etc.
+    Each arrangement belongs to a Room and defines:
+    - The type of setup (single, couple, group, etc.)
+    - Which services can be booked here (all or a whitelist)
+    - Which add-on services are available (all, or filtered from service-level add-ons)
+    - Pricing and cleanup duration
+
+    Multiple arrangements can exist for the same Room (e.g. the same physical
+    room configured as a single-room setup AND a couple-room setup).
+    Each arrangement is booked independently and can run concurrently in the
+    same room (user-confirmed behaviour).
+
+    Backwards compatibility: The legacy `service` FK and `room_count` fields are
+    retained so existing data and queries continue to work during migration.
     """
 
     class ArrangementType(models.TextChoices):
@@ -868,24 +928,74 @@ class ServiceArrangement(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # ------------------------------------------------------------------
+    # Room association — the physical space this arrangement belongs to
+    # ------------------------------------------------------------------
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.CASCADE,
+        related_name="arrangements",
+        verbose_name=_("room"),
+        null=False,
+        blank=False,
+        help_text=_(
+            "The physical room this arrangement belongs to. "
+            "Capacity is 1 (one session per arrangement)."
+        ),
+    )
+
     spa_center = models.ForeignKey(
         SpaCenter,
         on_delete=models.CASCADE,
         related_name="service_arrangements",
         verbose_name=_("spa center"),
     )
-    service = models.ForeignKey(
+
+    # ------------------------------------------------------------------
+    # Service whitelist
+    # ------------------------------------------------------------------
+    allows_all_services = models.BooleanField(
+        _("allows all services"),
+        default=True,
+        help_text=_(
+            "If True, any active service offered by this spa center can be "
+            "booked in this arrangement. If False, only services listed in "
+            "'Allowed services' are accepted."
+        ),
+    )
+    allowed_services = models.ManyToManyField(
         Service,
-        on_delete=models.CASCADE,
-        related_name="arrangements",
-        verbose_name=_("service"),
+        blank=True,
+        related_name="whitelisted_arrangements",
+        verbose_name=_("allowed services"),
+        help_text=_(
+            "Specific services that can use this arrangement. "
+            "Relevant only when 'Allows all services' is False."
+        ),
     )
 
-    # Room identification
-    room_count = models.PositiveIntegerField(
-        _("room count"),
-        default=1,
-        help_text=_("How many rooms/spaces are available for this arrangement"),
+    # ------------------------------------------------------------------
+    # Add-on whitelist
+    # ------------------------------------------------------------------
+    allows_all_add_ons = models.BooleanField(
+        _("allows all add-ons"),
+        default=True,
+        help_text=_(
+            "If True, all add-ons defined on the booked service are available. "
+            "If False, only add-ons in 'Allowed add-on services' are offered "
+            "(acts as a filter on the service's own add-on list)."
+        ),
+    )
+    allowed_add_on_services = models.ManyToManyField(
+        AddOnService,
+        blank=True,
+        related_name="whitelisted_arrangements",
+        verbose_name=_("allowed add-on services"),
+        help_text=_(
+            "Specific add-ons permitted for bookings in this arrangement. "
+            "Relevant only when 'Allows all add-ons' is False. "
+            "Only add-ons that also exist on the booked service are shown."
+        ),
     )
 
     arrangement_type = models.CharField(
@@ -905,7 +1015,7 @@ class ServiceArrangement(models.Model):
     cleanup_duration = models.PositiveIntegerField(
         _("cleanup duration (minutes)"),
         default=15,
-        help_text=_("Time needed to clean/prepare room after service"),
+        help_text=_("Time needed to clean/prepare the room after the service"),
     )
 
     # Per-arrangement pricing
@@ -931,6 +1041,7 @@ class ServiceArrangement(models.Model):
         _("extra minutes"),
         max_length=10,
         choices=[
+            ("0", _("No extra time")),
             ("15", _("15 minutes")),
             ("30", _("30 minutes")),
             ("45", _("45 minutes")),
@@ -957,34 +1068,83 @@ class ServiceArrangement(models.Model):
     class Meta:
         verbose_name = _("service arrangement")
         verbose_name_plural = _("service arrangements")
-        unique_together = ["spa_center", "service", "arrangement_type", "arrangement_label"]
-        ordering = ["spa_center", "service", "room_count"]
+        # Removed `service` from unique_together — service is now a whitelist (M2M)
+        unique_together = [["spa_center", "arrangement_type", "arrangement_label"]]
+        ordering = ["spa_center", "arrangement_type"]
         indexes = [
-            models.Index(fields=["spa_center", "service", "is_active"]),
-            models.Index(fields=["service", "is_active"]),
+            models.Index(fields=["spa_center", "is_active"]),
+            models.Index(fields=["room", "is_active"]),
+            models.Index(fields=["spa_center", "arrangement_type", "is_active"]),
         ]
 
     def __str__(self):
-        return f"{self.spa_center.name} - {self.service.name} ({self.arrangement_label})"
+        return f"{self.spa_center.name} [{self.room.room_id}] - {self.arrangement_label}"
 
     def clean(self):
-        """Validate that service is offered at this spa center and discount is valid."""
-        if self.service_id and self.spa_center_id:
-            if not self.spa_center.services.filter(id=self.service_id).exists():
-                raise ValidationError({
-                    "service": _("This service is not offered at the selected spa center.")
-                })
-        
+        """Validate room belongs to spa center and discount price."""
+        # Room must belong to the same spa center
+        if self.room and self.room.spa_center_id != self.spa_center_id:
+            raise ValidationError({
+                "room": _(
+                    "The selected room does not belong to the selected spa center."
+                )
+            })
+
         if self.discount_price and self.base_price:
             if self.discount_price >= self.base_price:
                 raise ValidationError({
                     "discount_price": _("Discount price must be less than base price.")
                 })
 
+    # ------------------------------------------------------------------
+    # Capacity
+    # ------------------------------------------------------------------
+
+    @property
+    def capacity(self) -> int:
+        """Number of concurrent bookings this arrangement can handle (always 1 per room)."""
+        return 1
+
+    # ------------------------------------------------------------------
+    # Service / add-on helpers
+    # ------------------------------------------------------------------
+
+    def is_service_allowed(self, service) -> bool:
+        """
+        Return True if *service* can be booked in this arrangement.
+        """
+        if self.allows_all_services:
+            return True
+        return self.allowed_services.filter(pk=service.pk).exists()
+
+    def get_effective_add_on_services(self, service):
+        """
+        Return the queryset of add-on services available for a booking.
+
+        Starts from the service's own add-on list and, when
+        ``allows_all_add_ons`` is False, further filters it to only
+        add-ons present in this arrangement's ``allowed_add_on_services``
+        whitelist.  This ensures the arrangement can only narrow — never
+        expand — the service-level add-on selection.
+        """
+        service_addons = service.add_on_services.filter(is_active=True)
+        if self.allows_all_add_ons:
+            return service_addons
+        # Intersect: must be on service AND in arrangement whitelist
+        return service_addons.filter(
+            pk__in=self.allowed_add_on_services.values_list("pk", flat=True)
+        )
+
+    # ------------------------------------------------------------------
+    # Pricing helpers
+    # ------------------------------------------------------------------
+
     @property
     def total_service_duration(self):
-        """Total duration including service + cleanup time."""
-        return self.service.duration_minutes + self.cleanup_duration
+        """Total duration including legacy service + cleanup (if service FK is set)."""
+        if self.service:
+            return self.service.duration_minutes + self.cleanup_duration
+        return self.cleanup_duration
 
     @property
     def current_price(self):

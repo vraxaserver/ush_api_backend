@@ -693,7 +693,7 @@ class GiftCardRedeemBookingView(APIView):
                     "arrangement": {
                         "id": str(arrangement.id),
                         "type": arrangement.arrangement_type,
-                        "room_count": arrangement.room_count,
+                        "room_count": arrangement.capacity,
                         "label": arrangement.arrangement_label,
                         "cleanup_duration": arrangement.cleanup_duration,
                     },

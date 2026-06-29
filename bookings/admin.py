@@ -170,7 +170,7 @@ class BookingAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
     def get_service_name(self, obj):
         if obj.service:
             return obj.service.name
-        return obj.service_arrangement.service.name
+        return None
 
     @admin.display(description=_("Date"))
     def get_booking_date(self, obj):

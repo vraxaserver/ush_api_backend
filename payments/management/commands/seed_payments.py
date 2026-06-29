@@ -100,7 +100,7 @@ class Command(BaseCommand):
                 ),
                 metadata={
                     "booking_number": booking.booking_number,
-                    "service": booking.service_arrangement.service.name,
+                    "service": booking.service.name,
                     "spa_center": booking.spa_center.name,
                     "seeded": True,
                 },

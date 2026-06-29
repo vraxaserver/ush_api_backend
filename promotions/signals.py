@@ -116,10 +116,8 @@ def award_loyalty_on_payment_success(sender, instance, **kwargs):
         # Status didn't change – already payment_success
         return
 
-    # Get the service – prefer the direct service FK, fallback to arrangement
+    # Get the service – prefer the direct service FK
     service = instance.service
-    if not service and instance.service_arrangement:
-        service = instance.service_arrangement.service
 
     if not service:
         logger.warning(

@@ -244,7 +244,7 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             end_time__gt=start_time,
         ).count()
 
-        if overlapping_count >= arrangement.room_count:
+        if overlapping_count >= arrangement.capacity:
             raise serializers.ValidationError({
                 "start_time": "Selected arrangement has no available space for this time."
             })
@@ -308,7 +308,7 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             "arrangement": {
                 "id": str(arrangement.id),
                 "type": arrangement.arrangement_type,
-                "room_count": arrangement.room_count,
+                "room_count": arrangement.capacity,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
             },

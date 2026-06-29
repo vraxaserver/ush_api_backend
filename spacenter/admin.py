@@ -21,6 +21,7 @@ from .models import (
     Country,
     HomeService,
     ProductCategory,
+    Room,
     Service,
     ServiceArrangement,
     ServiceImage,
@@ -353,24 +354,34 @@ class SpaCenterOperatingHoursInline(admin.TabularInline):
     max_num = 7
 
 
+class RoomInline(admin.TabularInline):
+    """
+    Inline for managing Rooms directly on the SpaCenter admin page.
+    """
+
+    model = Room
+    extra = 0
+    fields = ["room_id", "name", "description", "is_active"]
+    show_change_link = True
+
+
 class ServiceArrangementInline(admin.TabularInline):
-    """Inline for service arrangements at a spa center with pricing."""
+    """Inline for service arrangements at a spa center."""
 
     model = ServiceArrangement
     extra = 0
     fields = [
-        "service",
+        "room",
         "arrangement_type",
-        "room_count",
         "arrangement_label",
+        "allows_all_services",
+        "allows_all_add_ons",
         "base_price",
         "discount_price",
-        "extra_minutes",
-        "price_for_extra_minutes",
         "cleanup_duration",
         "is_active",
     ]
-    autocomplete_fields = ["service"]
+    autocomplete_fields = ["room"]
 
 @admin.register(SpaCenter)
 class SpaCenterAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, TranslationAdmin):
@@ -390,7 +401,7 @@ class SpaCenterAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, Simpl
     search_fields = ["name", "name_en", "name_ar", "address", "city__name"]
     prepopulated_fields = {"slug": ("name",)}
     autocomplete_fields = ["country", "city"]
-    inlines = [SpaCenterOperatingHoursInline, ServiceArrangementInline]
+    inlines = [SpaCenterOperatingHoursInline, RoomInline, ServiceArrangementInline]
     ordering = ["sort_order", "country", "name"]
     list_editable = ["sort_order", "is_active", "on_service"]
 
@@ -448,35 +459,93 @@ class SpaCenterOperatingHoursAdmin(admin.ModelAdmin):
     ordering = ["spa_center", "day_of_week"]
 
 
-@admin.register(ServiceArrangement)
-class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, admin.ModelAdmin):
-    """Admin for ServiceArrangement model with pricing support."""
+# =============================================================================
+# Room Admin
+# =============================================================================
+
+
+class RoomInline(admin.TabularInline):
+    """
+    Inline for managing Rooms directly on the SpaCenter admin page.
+    """
+
+    model = Room
+    extra = 0
+    fields = ["room_id", "name", "description", "is_active"]
+    show_change_link = True
+
+
+@admin.register(Room)
+class RoomAdmin(ClearCacheActionMixin, admin.ModelAdmin):
+    """
+    Standalone admin for Room model.
+
+    Allows bulk management of rooms across all spa centers.
+    """
 
     list_display = [
         "spa_center",
-        "service",
-        "arrangement_type",
-        "room_count",
-        "base_price",
-        "discount_price",
-        "current_price_display",
-        "extra_minutes",
-        "price_for_extra_minutes",
-        "cleanup_duration",
+        "room_id",
+        "name",
         "is_active",
+        "arrangement_count",
     ]
-    list_filter = [ServiceArrangementServiceFilter, SpaCenterFilter, "arrangement_type", "is_active"]
-    search_fields = ["room_count", "arrangement_label", "service__name", "spa_center__name"]
-    autocomplete_fields = ["spa_center", "service"]
-    ordering = ["spa_center", "service", "room_count"]
+    list_filter = [SpaCenterFilter, "is_active"]
+    search_fields = ["room_id", "name", "spa_center__name"]
+    ordering = ["spa_center", "room_id"]
     list_editable = ["is_active"]
+    autocomplete_fields = ["spa_center"]
 
     fieldsets = (
         (None, {
-            "fields": ("spa_center", "service")
+            "fields": ("spa_center", "room_id", "name", "description")
         }),
-        ("Room Details", {
-            "fields": ("arrangement_type", "room_count", "arrangement_label", "cleanup_duration")
+        ("Status", {
+            "fields": ("is_active",)
+        }),
+    )
+
+    def arrangement_count(self, obj):
+        """Display number of arrangements linked to this room."""
+        count = obj.arrangements.filter(is_active=True).count()
+        return count
+    arrangement_count.short_description = "Active Arrangements"
+
+
+@admin.register(ServiceArrangement)
+class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, admin.ModelAdmin):
+    """Admin for ServiceArrangement model — room-based scheduling."""
+
+    list_display = [
+        "spa_center",
+        "room",
+        "arrangement_type",
+        "arrangement_label",
+        "allows_all_services",
+        "allows_all_add_ons",
+        "base_price",
+        "discount_price",
+        "current_price_display",
+        "is_active",
+    ]
+    list_filter = [ServiceArrangementServiceFilter, SpaCenterFilter, "arrangement_type", "is_active"]
+    search_fields = ["arrangement_label", "allowed_services__name", "spa_center__name", "room__room_id"]
+    autocomplete_fields = ["spa_center"]
+    ordering = ["spa_center", "arrangement_type", "arrangement_label"]
+    list_editable = ["is_active"]
+
+    fieldsets = (
+        ("Spa Center & Room", {
+            "fields": ("spa_center", "room")
+        }),
+        ("Service Whitelist", {
+            "fields": ("allows_all_services", "allowed_services")
+        }),
+        ("Add-on Whitelist", {
+            "fields": ("allows_all_add_ons", "allowed_add_on_services")
+        }),
+        ("Arrangement Details", {
+            "fields": ("arrangement_type", "arrangement_label", "cleanup_duration")
         }),
         ("Pricing", {
             "fields": ("base_price", "discount_price")

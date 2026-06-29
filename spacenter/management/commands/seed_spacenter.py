@@ -23,6 +23,7 @@ from spacenter.models import (
     City,
     Country,
     ProductCategory,
+    Room,
     Service,
     ServiceArrangement,
     ServiceImage,
@@ -263,11 +264,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["clear"]:
             self.stdout.write("Clearing spa center data...")
-            # Delete bookings/timeslots first (they have protected FKs to ServiceArrangement)
             from bookings.models import Booking, TimeSlot, ProductOrder, OrderItem
             for M in [OrderItem, ProductOrder, Booking, TimeSlot,
-                       ServiceArrangement, ServiceImage, SpaProduct, BaseProduct, ProductCategory,
-                       Service, AddOnService, Specialty, SpaCenterOperatingHours, SpaCenter, City, Country]:
+                      ServiceArrangement, Room, ServiceImage, SpaProduct, BaseProduct, ProductCategory,
+                      Service, AddOnService, Specialty, SpaCenterOperatingHours, SpaCenter, City, Country]:
                 M.objects.all().delete()
 
         self._seed_countries()
@@ -275,6 +275,7 @@ class Command(BaseCommand):
         self._seed_specialties()
         self._seed_addons()
         self._seed_branches()
+        self._seed_rooms()
         self._seed_operating_hours()
         self._seed_services_with_images()
         self._seed_product_categories()
@@ -500,27 +501,59 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  {'Created' if created else 'Updated'}: {bp.name} @ {first_city.name}")
 
+    def _seed_rooms(self):
+        self.stdout.write("\nSeeding rooms...")
+        for spa in SpaCenter.objects.all():
+            for i in range(1, 6):
+                Room.objects.get_or_create(
+                    spa_center=spa,
+                    room_id=f"R-{i:02d}",
+                    defaults={"name": f"Treatment Room {i}"}
+                )
+
     # ── Arrangements ───────────────────────────────────────────
     def _seed_arrangements(self):
         self.stdout.write("\nSeeding service arrangements...")
-        extra_minutes_choices = ["15", "30", "45", "60"]
-        room_counter = 1
+        extra_minutes_choices = ["0", "15", "30", "45", "60"]
+        
+        # Map arrangement types to room indices (1-indexed)
+        type_room_map = {
+            ServiceArrangement.ArrangementType.SINGLE_ROOM: 1,
+            ServiceArrangement.ArrangementType.COUPLE_ROOM: 2,
+            ServiceArrangement.ArrangementType.VIP_SUITE: 3,
+            ServiceArrangement.ArrangementType.GROUP_ROOM: 4,
+            ServiceArrangement.ArrangementType.OPEN_AREA: 5,
+        }
+
         for spa in SpaCenter.objects.all():
+            rooms = {
+                i: Room.objects.get(spa_center=spa, room_id=f"R-{i:02d}")
+                for i in range(1, 6)
+            }
             for svc in spa.services.all():
                 for arr_type, label_en, label_ar, multiplier in ARRANGEMENT_TYPES:
-                    room_count = random.randint(1, 4)
+                    room_idx = type_room_map.get(arr_type)
+                    if not room_idx:
+                        continue
+                    room = rooms[room_idx]
                     bp = svc.base_price * multiplier
                     dp = svc.discount_price * multiplier if svc.discount_price else None
                     extra_min = random.choice(extra_minutes_choices)
                     extra_price = Decimal(str(random.randint(25, 150)))
+                    
                     obj, created = ServiceArrangement.objects.update_or_create(
-                        spa_center=spa, service=svc, arrangement_type=arr_type,
+                        spa_center=spa, 
+                        room=room,
+                        arrangement_type=arr_type,
                         arrangement_label=f"{label_en} – {svc.name}",
                         defaults={
-                            "room_count": room_count,
-                            "cleanup_duration": 15, "base_price": bp, "discount_price": dp,
+                            "cleanup_duration": 15, 
+                            "base_price": bp, 
+                            "discount_price": dp,
                             "extra_minutes": extra_min,
                             "price_for_extra_minutes": extra_price,
+                            "allows_all_services": False,
                         },
                     )
+                    obj.allowed_services.set([svc])
                 self.stdout.write(f"  Arrangements for: {svc.name} @ {spa.name}")
