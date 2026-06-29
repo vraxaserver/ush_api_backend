@@ -329,6 +329,7 @@ class GiftCard(models.Model):
 
     class GiftCardStatus(models.TextChoices):
         PENDING_PAYMENT = "pending_payment", _("Pending Payment")
+        PAYMENT_FAILED = "payment_failed", _("Payment Failed")
         ACTIVE = "active", _("Active")
         REDEEMED = "redeemed", _("Redeemed")
         FULFILLED = "fulfilled", _("Service Fulfilled")
@@ -409,6 +410,18 @@ class GiftCard(models.Model):
         verbose_name=_("service arrangement"),
         help_text=_("Room/setup configuration for the gifted service"),
     )
+    
+    # Add-on service (optional)
+    add_on_service = models.ForeignKey(
+        "spacenter.AddOnService",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gift_cards",
+        verbose_name=_("add-on service"),
+        help_text=_("Optional add-on service gifted"),
+    )
+
 
     # Extra minutes and total duration
     extra_minutes = models.PositiveIntegerField(
