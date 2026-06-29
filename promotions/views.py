@@ -384,6 +384,7 @@ class GiftCardPublicView(APIView):
 
         return render(request, "gift_cards/public.html", {
             "gift_card": serializer.data,
+            "gift_card_obj": gift_card,
         })
 
 

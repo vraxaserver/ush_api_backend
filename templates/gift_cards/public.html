@@ -490,11 +490,16 @@ z-index: 1;
           <p class="gc-app-download__text">
             {% trans "To start enjoying this exclusive spa experience, please download our mobile app and log in or complete your registration. Your relaxation awaits!" %}
           </p>
-          <div class="gc-app-download__links" style="justify-content: center;">
-            <a href="#" class="gc-app-btn gc-app-btn--primary">
-              📱 {% trans "Download App" %}
-            </a>
-            <a href="https://wa.me/96590010335" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--whatsapp">
+          <div class="gc-app-download__links" style="display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center;">
+            <div style="display: flex; gap: 12px; width: 100%; justify-content: center;">
+              <a href="https://play.google.com/store/apps/details?id=com.spaush.ushspa" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--primary" style="flex: 1; max-width: 200px;">
+                🤖 {% trans "Android App" %}
+              </a>
+              <a href="https://apps.apple.com/us/app/ush-spa/id6736881729" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--primary" style="flex: 1; max-width: 200px;">
+                🍎 {% trans "Apple App Store" %}
+              </a>
+            </div>
+            <a href="https://wa.me/96590010335" target="_blank" rel="noopener noreferrer" class="gc-app-btn gc-app-btn--whatsapp" style="width: 100%; max-width: 412px;">
               💬 {% trans "WhatsApp Us" %}
             </a>
           </div>
@@ -594,7 +599,7 @@ z-index: 1;
         <span class="gc-countdown__name">{% trans "Sec" %}</span>
       </div>
     </div>
-    <div class="gc-expiry-banner__date">{% blocktrans with date=gift_card.expires_at|date:"N j, Y, g:i A" %}Redeem before {{ date }}{% endblocktrans %}</div>
+    <div class="gc-expiry-banner__date">{% blocktrans with date=gift_card_obj.expires_at|date:"d F Y" %}Redeem before {{ date }}{% endblocktrans %}</div>
   </div>
   {% endif %}
 
@@ -646,7 +651,7 @@ z-index: 1;
       <span class="badge badge-info">🎁 {% trans "Redeemed — Awaiting Your Visit" %}</span>
       {% elif gift_card.status == 'fulfilled' %}
       <span style="display:inline-block; background: linear-gradient(135deg,#059669,#10b981); color:#fff; padding:8px 20px; border-radius:50px; font-size:0.9rem; font-weight:700; letter-spacing:0.5px;">
-        ✨ {% trans "Service Fulfilled" %}
+         {% trans "Service Fulfilled" %}
       </span>
       <div style="margin-top:10px;font-size:0.82rem;color:var(--text-secondary);">
         {% trans "We hope you had a wonderful experience! 🌿" %}
@@ -659,9 +664,9 @@ z-index: 1;
       <span class="badge badge-info">{{ gift_card.status }}</span>
       {% endif %}
 
-      {% if gift_card.expires_at %}
+      {% if gift_card_obj.expires_at %}
       <div style="margin-top:10px;font-size:0.82rem;color:var(--text-light);">
-        {% trans "Expires" %}: {{ gift_card.expires_at }}
+        {% trans "Expires" %}: {{ gift_card_obj.expires_at|date:"d F Y" }}
       </div>
       {% endif %}
     </div>
