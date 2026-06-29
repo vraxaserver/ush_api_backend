@@ -407,7 +407,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         help_text="Optional expiry date for redemption",
     )
     payment_status = serializers.ChoiceField(
-        choices=[("success", "Success"), ("failed", "Failed")],
+        choices=[("success", "Success"), ("pending", "Pending"), ("failed", "Failed")],
         help_text="Payment status from the payment gateway (success or failed)",
     )
 

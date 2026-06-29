@@ -494,7 +494,7 @@ class Service(models.Model):
         ordering = ["sort_order", "name"]
 
     def __str__(self):
-        return f"{self.name} ({self.city.name}, {self.country.code})"
+        return f"{self.name} ({self.spa_center.name}, {self.country.code})"
 
     def clean(self):
         """Validate benefits JSON structure, discount price, and city belongs to country."""

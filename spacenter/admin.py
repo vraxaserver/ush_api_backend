@@ -255,7 +255,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         "discount_price",
         "current_price_display",
         "is_eligible_for_loyalty",
-        "booking_count",
+        "booking_count_display",
         "is_active",
         "sort_order",
         "addon_count",
@@ -294,9 +294,10 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
             "description": "Enable this to allow bookings of this service to count towards the loyalty program."
         }),
         ("Status", {
-            "fields": ("is_active", "sort_order")
+            "fields": ("is_active", "sort_order", "booking_count")
         }),
     )
+    readonly_fields = ["booking_count"]
 
     def addon_count(self, obj):
         """Count of add-on services attached."""
@@ -325,6 +326,27 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
             return format_html('<span style="color: red;">0 (Required!)</span>')
         return count
     image_count.short_description = "Images"
+
+    def booking_count_display(self, obj):
+        """Styled booking count badge."""
+        count = obj.booking_count
+        if count == 0:
+            color = "#999"
+        elif count < 10:
+            color = "#2196F3"
+        elif count < 50:
+            color = "#4CAF50"
+        else:
+            color = "#FF5722"
+        return format_html(
+            '<span style="'
+            'background: {}; color: #fff; padding: 2px 8px; '
+            'border-radius: 10px; font-weight: bold; font-size: 12px;">'
+            '{}</span>',
+            color, count
+        )
+    booking_count_display.short_description = "Bookings"
+    booking_count_display.admin_order_field = "booking_count"
 
 
 

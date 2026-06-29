@@ -12,6 +12,7 @@ import string
 import uuid
 from decimal import Decimal
 
+# pyrefly: ignore [missing-import]
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
