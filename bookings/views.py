@@ -312,7 +312,8 @@ class UpcomingBookingsView(generics.ListAPIView):
             time_slot__date__gte=timezone.now().date()
         ).select_related(
             "spa_center",
-            "service_arrangement__service",
+            "service",
+            "service_arrangement",
             "time_slot",
         ).order_by("time_slot__date", "time_slot__start_time")
 
@@ -335,7 +336,8 @@ class PastBookingsView(generics.ListAPIView):
             time_slot__date__lt=timezone.now().date()
         ).select_related(
             "spa_center",
-            "service_arrangement__service",
+            "service",
+            "service_arrangement",
             "time_slot",
         ).order_by("-time_slot__date", "-time_slot__start_time")
 
@@ -373,7 +375,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         return queryset.select_related(
             "spa_center",
             "service",
-            "service_arrangement__service",
+            "service_arrangement",
             "service_arrangement__spa_center",
             "time_slot",
             "loyalty_reward",

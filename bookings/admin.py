@@ -266,7 +266,7 @@ class BookingAdmin(SpaCenterRestrictedAdminMixin, SimpleHistoryAdmin):
                 "customer",
                 "spa_center",
                 "service",
-                "service_arrangement__service",
+                "service_arrangement",
                 "time_slot",
             )
         )

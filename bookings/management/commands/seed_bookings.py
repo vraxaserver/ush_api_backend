@@ -48,7 +48,7 @@ class Command(BaseCommand):
         self.stdout.write("\nSeeding bookings...")
         customers = list(User.objects.filter(user_type=UserType.CUSTOMER))
         arrangements = list(ServiceArrangement.objects.select_related(
-            "spa_center", "service"
+            "spa_center", "room"
         ).filter(is_active=True))
 
         if not customers or not arrangements:
