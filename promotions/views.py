@@ -202,12 +202,7 @@ class GiftCardViewSet(viewsets.ModelViewSet):
         """
         Create a new gift card.
 
-        Flow:
-        1. User sends service_id, recipient_phone, payment_status, and optional fields.
-        2. If payment_status is 'success':
-           - Gift card is activated, SMS is sent to recipient, sender loyalty is awarded.
-        3. If payment_status is 'failed':
-           - Gift card is created with failed payment status, no further action.
+        Initial status is always pending payment.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -217,19 +212,65 @@ class GiftCardViewSet(viewsets.ModelViewSet):
             gift_card, context={"request": request},
         )
 
-        if gift_card.status == GiftCard.GiftCardStatus.ACTIVE:
-            message = "Gift card created and activated. SMS sent to recipient."
-        else:
-            message = "Gift card created with payment failure recorded."
-
         return Response(
             {
                 "success": True,
-                "message": message,
+                "message": "Gift card created. Pending payment.",
                 "gift_card": detail_serializer.data,
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(detail=True, methods=["post"], url_path="update-payment-status")
+    def update_payment_status(self, request, pk=None):
+        """
+        Update the payment status for a gift card.
+        Expects payload: {"payment_status": "success" | "failed"}
+        """
+        gift_card = self.get_object()
+        payment_status = request.data.get("payment_status")
+
+        if payment_status not in ["success", "failed"]:
+            return Response(
+                {"error": "Invalid payment_status. Must be 'success' or 'failed'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if gift_card.status != GiftCard.GiftCardStatus.PENDING_PAYMENT:
+            return Response(
+                {"error": f"Cannot update payment status. Current status is {gift_card.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if payment_status == "success":
+            # Award loyalty to sender
+            gift_card._award_sender_loyalty()
+
+            # Activate the gift card
+            gift_card.activate()
+
+            # Enqueue gift card SMS to recipient
+            from .tasks import send_gift_card_sms
+            try:
+                send_gift_card_sms(str(gift_card.id))
+            except Exception:
+                pass
+
+            message = "Payment status updated to success. Gift card activated and SMS queued."
+        else:
+            gift_card.status = GiftCard.GiftCardStatus.PAYMENT_FAILED
+            gift_card.save(update_fields=["status", "updated_at"])
+            message = "Payment status updated to failed. Gift card status set to payment_failed."
+
+        detail_serializer = GiftCardDetailSerializer(
+            gift_card, context={"request": request},
+        )
+
+        return Response({
+            "success": True,
+            "message": message,
+            "gift_card": detail_serializer.data,
+        })
 
     @action(detail=True, methods=["post"], url_path="simulate-payment")
     def simulate_payment(self, request, pk=None):
@@ -343,6 +384,7 @@ class GiftCardPublicView(APIView):
 
         return render(request, "gift_cards/public.html", {
             "gift_card": serializer.data,
+            "gift_card_obj": gift_card,
         })
 
 
@@ -693,7 +735,7 @@ class GiftCardRedeemBookingView(APIView):
                     "arrangement": {
                         "id": str(arrangement.id),
                         "type": arrangement.arrangement_type,
-                        "room_count": arrangement.room_count,
+                        "room_count": arrangement.capacity,
                         "label": arrangement.arrangement_label,
                         "cleanup_duration": arrangement.cleanup_duration,
                     },

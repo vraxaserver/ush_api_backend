@@ -12,6 +12,7 @@ import string
 import uuid
 from decimal import Decimal
 
+# pyrefly: ignore [missing-import]
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -328,6 +329,7 @@ class GiftCard(models.Model):
 
     class GiftCardStatus(models.TextChoices):
         PENDING_PAYMENT = "pending_payment", _("Pending Payment")
+        PAYMENT_FAILED = "payment_failed", _("Payment Failed")
         ACTIVE = "active", _("Active")
         REDEEMED = "redeemed", _("Redeemed")
         FULFILLED = "fulfilled", _("Service Fulfilled")
@@ -408,6 +410,18 @@ class GiftCard(models.Model):
         verbose_name=_("service arrangement"),
         help_text=_("Room/setup configuration for the gifted service"),
     )
+    
+    # Add-on service (optional)
+    add_on_service = models.ForeignKey(
+        "spacenter.AddOnService",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gift_cards",
+        verbose_name=_("add-on service"),
+        help_text=_("Optional add-on service gifted"),
+    )
+
 
     # Extra minutes and total duration
     extra_minutes = models.PositiveIntegerField(
@@ -577,60 +591,17 @@ class GiftCard(models.Model):
         """Activate the gift card after successful payment."""
         self.status = self.GiftCardStatus.ACTIVE
         
-        # Set default expiry to 7 days from activation if not already set
+        # Set default expiry to 60 days from activation if not already set
         if not self.expires_at:
-            self.expires_at = timezone.now() + timezone.timedelta(days=7)
+            self.expires_at = timezone.now() + timezone.timedelta(days=60)
             
         self.save(update_fields=["status", "expires_at", "updated_at"])
 
     def _award_sender_loyalty(self):
         """
-        Award loyalty points to the sender on gift card payment success.
-
-        If the gifted service has `is_eligible_for_loyalty = True`, the sender
-        (who paid for the gift) earns a loyalty count toward a free booking.
-        This uses the same LoyaltyTracker mechanism as regular paid bookings.
+        Award loyalty points disabled.
         """
-        import logging
-
-        logger = logging.getLogger(__name__)
-
-        service = self.service
-        if not getattr(service, "is_eligible_for_loyalty", False):
-            return
-
-        sender = self.sender
-        if not sender:
-            return
-
-        service_arrangement = self.service_arrangement
-
-        tracker, created = LoyaltyTracker.objects.get_or_create(
-            customer=sender,
-            service=service,
-            service_arrangement=service_arrangement,
-        )
-
-        reward = tracker.record_booking(booking=None)
-
-        if reward:
-            logger.info(
-                "Loyalty reward issued for gift card sender %s – service '%s' "
-                "(reward ID: %s). Tracker reset to 0/%d.",
-                sender,
-                service.name,
-                reward.pk,
-                tracker.bookings_required,
-            )
-        else:
-            logger.info(
-                "Loyalty progress updated for gift card sender %s – service '%s': "
-                "%d/%d bookings.",
-                sender,
-                service.name,
-                tracker.booking_count,
-                tracker.bookings_required,
-            )
+        return
 
     def redeem(self, secret_code, redeemed_by_user=None):
         """

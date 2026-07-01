@@ -279,7 +279,7 @@ class Booking(models.Model):
         ]
 
     def __str__(self):
-        service_name = self.service.name if self.service else self.service_arrangement.service.name
+        service_name = self.service.name if self.service else "Unknown Service"
         return f"{self.booking_number} - {service_name}"
 
     @property

@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -44,11 +44,12 @@ logger = logging.getLogger(__name__)
 
 class ServiceArrangementListView(generics.ListAPIView):
     """
-    List all active arrangements for a specific service.
-    
+    List all active arrangements that support a specific service.
+
     GET /api/v1/bookings/services/{service_id}/arrangements/
-    
-    Returns all arrangements (rooms/setups) available for the specified service.
+
+    Returns arrangements whose service whitelist includes the given service
+    (checks legacy FK, allows_all_services flag, and allowed_services M2M).
     """
 
     serializer_class = ServiceArrangementListSerializer
@@ -56,10 +57,25 @@ class ServiceArrangementListView(generics.ListAPIView):
 
     def get_queryset(self):
         service_id = self.kwargs.get("service_id")
-        return ServiceArrangement.objects.filter(
-            service_id=service_id,
-            is_active=True,
-        ).select_related("service", "spa_center").order_by("room_count")
+        try:
+            service = Service.objects.get(id=service_id, is_active=True)
+        except Service.DoesNotExist:
+            return ServiceArrangement.objects.none()
+
+        return (
+            ServiceArrangement.objects
+            .filter(
+                spa_center=service.spa_center,
+                is_active=True,
+            )
+            .filter(
+                Q(allows_all_services=True) | # whitelist: all
+                Q(allowed_services=service)   # whitelist: explicit
+            )
+            .select_related("spa_center", "room")
+            .distinct()
+            .order_by("arrangement_type", "arrangement_label")
+        )
 
 
 # =============================================================================
@@ -69,44 +85,27 @@ class ServiceArrangementListView(generics.ListAPIView):
 
 class ServiceAvailabilityView(APIView):
     """
-    Get booked time slots for all arrangements of a service.
-    
+    Get available timeslots for all arrangements that support a service.
+
     GET /api/v1/bookings/services/{service_id}/availability/
-    
+
     Query Parameters:
         - date_from: Start date (YYYY-MM-DD), defaults to today
-        - date_to: End date (YYYY-MM-DD), defaults to 30 days from today
-    
-    Response format:
+        - date_to:   End date   (YYYY-MM-DD), defaults to today+4 (5 days)
+
+    Response format (unchanged from prior version):
     {
         "service_id": "uuid",
+        "service_name": "...",
         "date_from": "2026-01-19",
-        "date_to": "2026-02-18",
-        "spa_center": {
-            "id": "uuid",
-            "name": "...",
-            "opening_time": "09:00",
-            "closing_time": "21:00"
-        },
+        "date_to":   "2026-01-23",
+        "spa_center": {"id": "...", "name": "...", "opening_time": "09:00", "closing_time": "21:00"},
         "arrangements": [
-            {"id": "uuid", "label": "Room 1", "type": "single_room"}
+            {"id": "...", "label": "Single Room", "type": "single_room", "room_count": 2, ...}
         ],
-        "booked_slots": {
-            "arrangement_1_id": {
-                "2026-01-19": {
-                    "8:00 - 9:00": "booked",
-                    "9:00 - 10:00": "booked"
-                },
-                "2026-01-20": {
-                    "10:00 - 11:00": "booked"
-                }
-            },
-            "arrangement_2_id": {...}
-        },
-        "merged_availability": {
-            "2026-01-19": {
-                "8:00 - 9:00": "available",  // at least one arrangement is free
-                "9:00 - 10:00": "booked"     // all arrangements are booked
+        "timeslots_availability": {
+            "single_room": {
+                "2026-01-19": {"08:00 - 09:00": "available", "09:00 - 10:00": "booked", ...}
             }
         }
     }
@@ -115,7 +114,9 @@ class ServiceAvailabilityView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, service_id):
-        # Parse date parameters
+        # ----------------------------------------------------------------
+        # Parse & validate date parameters
+        # ----------------------------------------------------------------
         today = timezone.now().date()
         date_from_str = request.query_params.get("date_from")
         date_to_str = request.query_params.get("date_to")
@@ -123,13 +124,11 @@ class ServiceAvailabilityView(APIView):
         try:
             date_from = (
                 datetime.strptime(date_from_str, "%Y-%m-%d").date()
-                if date_from_str
-                else today
+                if date_from_str else today
             )
             date_to = (
                 datetime.strptime(date_to_str, "%Y-%m-%d").date()
-                if date_to_str
-                else today + timedelta(days=4)  # 5 days including today
+                if date_to_str else today + timedelta(days=4)
             )
         except ValueError:
             return Response(
@@ -137,108 +136,117 @@ class ServiceAvailabilityView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Ensure date_from is not in the past
         if date_from < today:
             date_from = today
 
-        # Validate date range
         if date_to < date_from:
             return Response(
                 {"error": "date_to must be greater than or equal to date_from."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Get service and validate
+        # ----------------------------------------------------------------
+        # Resolve service
+        # ----------------------------------------------------------------
         try:
-            service = Service.objects.get(id=service_id, is_active=True)
+            service = Service.objects.select_related("spa_center").get(
+                id=service_id, is_active=True
+            )
         except Service.DoesNotExist:
             return Response(
                 {"error": "Service not found or not active."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Get spa center info (from first arrangement or service)
-        arrangements = ServiceArrangement.objects.filter(
-            service_id=service_id,
-            is_active=True,
-        ).select_related("spa_center")
+        spa_center = service.spa_center
+
+        # ----------------------------------------------------------------
+        # Fetch arrangements that accept this service (whitelist-aware)
+        # ----------------------------------------------------------------
+        arrangements = (
+            ServiceArrangement.objects
+            .filter(spa_center=spa_center, is_active=True)
+            .filter(
+                Q(allows_all_services=True) | # whitelist: all
+                Q(allowed_services=service)   # whitelist: explicit
+            )
+            .select_related("spa_center", "room")
+            .distinct()
+        )
 
         if not arrangements.exists():
             return Response(
-                {"error": "No arrangements found for this service."},
+                {"error": "No active arrangements found for this service."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Get spa center from first arrangement
-        spa_center = arrangements.first().spa_center
+        # ----------------------------------------------------------------
+        # Build occupancy map from a single TimeSlot query
+        # ----------------------------------------------------------------
+        from .utils import _get_blocked_hour_slots  # reuse shared helper
+        from .models import TimeSlot as TimeSlotModel
 
-        # Get all booked time slots for the date range
-        booked_slots = TimeSlot.objects.filter(
-            arrangement__in=arrangements,
-            date__gte=date_from,
-            date__lte=date_to,
-        ).select_related("arrangement")
+        arrangement_ids = [arr.id for arr in arrangements]
+        arr_capacity_map = {str(arr.id): arr.capacity for arr in arrangements}
 
-        # Build booked slots response
-        # Store count of bookings per (arrangement, date, hour_slot)
+        raw_slots = (
+            TimeSlotModel.objects
+            .filter(
+                arrangement_id__in=arrangement_ids,
+                date__gte=date_from,
+                date__lte=date_to,
+            )
+            .values("arrangement_id", "date", "start_time", "end_time")
+        )
+
         booked_slots_data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-        
-        for slot in booked_slots:
-            arr_id = str(slot.arrangement_id)
-            date_str = slot.date.isoformat()
-            
-            # Get all blocked hour slots for this booking
-            blocked_hours = slot.get_blocked_hour_slots()
-            for hour_slot in blocked_hours:
+        for slot in raw_slots:
+            arr_id = str(slot["arrangement_id"])
+            date_str = slot["date"].isoformat()
+            for hour_slot in _get_blocked_hour_slots(slot["start_time"], slot["end_time"]):
                 booked_slots_data[arr_id][date_str][hour_slot] += 1
 
-        # Generate all possible time slots from spa opening to closing
+        # ----------------------------------------------------------------
+        # Generate hour slots from spa operating hours
+        # ----------------------------------------------------------------
         opening_hour = spa_center.default_opening_time.hour
         closing_hour = spa_center.default_closing_time.hour
         all_hour_slots = [
-            f"{h:02d}:00 - {h+1:02d}:00"
+            f"{h:02d}:00 - {h + 1:02d}:00"
             for h in range(opening_hour, closing_hour)
         ]
 
-        # Map arrangement IDs to their room_count for quick lookup
-        arr_room_counts = {str(arr.id): arr.room_count for arr in arrangements}
-
-        # Group arrangements by type
+        # ----------------------------------------------------------------
+        # Compute merged availability grouped by arrangement type
+        # ----------------------------------------------------------------
         arrangements_by_type = defaultdict(list)
         for arr in arrangements:
             arrangements_by_type[arr.arrangement_type].append(str(arr.id))
 
-        # Calculate merged availability per arrangement type
-        # A slot is "available" if at least one arrangement of that type has free space (OR condition)
         merged_availability = defaultdict(lambda: defaultdict(dict))
-        
         current_date = date_from
         while current_date <= date_to:
             date_str = current_date.isoformat()
-            
             for arr_type, arr_ids in arrangements_by_type.items():
                 for hour_slot in all_hour_slots:
-                    # Check if at least one arrangement of this type has free space
-                    is_available = False
-                    for arr_id in arr_ids:
-                        booked_count = booked_slots_data[arr_id][date_str].get(hour_slot, 0)
-                        if booked_count < arr_room_counts.get(arr_id, 1):
-                            is_available = True
-                            break
-                    
+                    is_available = any(
+                        booked_slots_data[arr_id][date_str].get(hour_slot, 0)
+                        < arr_capacity_map[arr_id]
+                        for arr_id in arr_ids
+                    )
                     merged_availability[arr_type][date_str][hour_slot] = (
                         "available" if is_available else "booked"
                     )
-            
             current_date += timedelta(days=1)
 
-        # Convert nested defaultdicts to regular dicts for JSON serialization
-        merged_availability_dict = {
+        timeslots_availability = {
             arr_type: dict(dates)
             for arr_type, dates in merged_availability.items()
         }
 
-        # Build response
+        # ----------------------------------------------------------------
+        # Build response (same structure as before + additive fields)
+        # ----------------------------------------------------------------
         response_data = {
             "service_id": str(service_id),
             "service_name": service.name,
@@ -252,18 +260,33 @@ class ServiceAvailabilityView(APIView):
             },
             "arrangements": [
                 {
+                    # --- unchanged core fields ---
                     "id": str(arr.id),
                     "label": arr.arrangement_label,
                     "type": arr.arrangement_type,
-                    "room_count": arr.room_count,
-                    "booked_slots_summary": dict(booked_slots_data.get(str(arr.id), {})),
+                    "room_count": arr.capacity,
+                    "booked_slots_summary": dict(
+                        booked_slots_data.get(str(arr.id), {})
+                    ),
+                    # --- additive extension fields ---
+                    "room": (
+                        {
+                            "id": str(arr.room.id),
+                            "room_id": arr.room.room_id,
+                            "name": arr.room.name,
+                        }
+                        if arr.room else None
+                    ),
+                    "allows_all_services": arr.allows_all_services,
+                    "allows_all_add_ons": arr.allows_all_add_ons,
                 }
                 for arr in arrangements
             ],
-            "timeslots_availability": merged_availability_dict,
+            "timeslots_availability": timeslots_availability,
         }
 
         return Response(response_data)
+
 
 
 # =============================================================================
@@ -289,7 +312,8 @@ class UpcomingBookingsView(generics.ListAPIView):
             time_slot__date__gte=timezone.now().date()
         ).select_related(
             "spa_center",
-            "service_arrangement__service",
+            "service",
+            "service_arrangement",
             "time_slot",
         ).order_by("time_slot__date", "time_slot__start_time")
 
@@ -312,7 +336,8 @@ class PastBookingsView(generics.ListAPIView):
             time_slot__date__lt=timezone.now().date()
         ).select_related(
             "spa_center",
-            "service_arrangement__service",
+            "service",
+            "service_arrangement",
             "time_slot",
         ).order_by("-time_slot__date", "-time_slot__start_time")
 
@@ -350,7 +375,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         return queryset.select_related(
             "spa_center",
             "service",
-            "service_arrangement__service",
+            "service_arrangement",
             "service_arrangement__spa_center",
             "time_slot",
             "loyalty_reward",

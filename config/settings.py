@@ -508,8 +508,8 @@ SPECTACULAR_SETTINGS = {
 # ============================================================================
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": config("CACHE_REDIS_URL", default="redis://localhost:6379/1"),
         "KEY_PREFIX": "ush",
         "TIMEOUT": 900,  # 15 minutes default
     }

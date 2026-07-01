@@ -2,8 +2,9 @@
 Promotions Signals – Loyalty Program & Gift Cards.
 
 Hooks into booking lifecycle to award loyalty points when a booking is completed.
-Hooks into gift card lifecycle to send SMS and award loyalty when a gift card
+Hooks into gift card lifecycle to send SMS when a gift card
 is activated (e.g. via admin status change from pending_payment → active).
+Note: Loyalty is NOT awarded for gift card purchases (only for direct paid bookings).
 """
 
 import logging
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 @receiver(pre_save, sender="promotions.GiftCard")
 def handle_gift_card_activation(sender, instance, **kwargs):
     """
-    Send SMS and award loyalty when a gift card transitions to 'active' status.
+    Send SMS when a gift card transitions to 'active' status.
 
     This covers the case where an admin manually changes the status from
     'pending_payment' to 'active' (e.g. after verifying a failed payment).
@@ -25,6 +26,9 @@ def handle_gift_card_activation(sender, instance, **kwargs):
     Only triggers when:
     1. The gift card already exists in the DB (not a new create).
     2. The status is changing from 'pending_payment' to 'active'.
+
+    Note: Loyalty is intentionally NOT awarded for gift card purchases.
+    Only direct paid bookings count towards the loyalty program.
     """
     from promotions.models import GiftCard
 
@@ -46,22 +50,7 @@ def handle_gift_card_activation(sender, instance, **kwargs):
         # Not transitioning from pending_payment – skip
         return
 
-    # Award loyalty to sender
-    try:
-        instance._award_sender_loyalty()
-        logger.info(
-            "Loyalty awarded to sender %s for gift card %s (admin activation).",
-            instance.sender,
-            instance.pk,
-        )
-    except Exception:
-        logger.exception(
-            "Failed to award loyalty for gift card %s on admin activation.",
-            instance.pk,
-        )
-
-    # Send gift card SMS to recipient (after save completes, use post_save pattern)
-    # We flag the instance so a post_save handler can send the SMS
+    # Flag the instance so a post_save handler can send the SMS
     instance._send_sms_on_activation = True
 
 
@@ -127,10 +116,8 @@ def award_loyalty_on_payment_success(sender, instance, **kwargs):
         # Status didn't change – already payment_success
         return
 
-    # Get the service – prefer the direct service FK, fallback to arrangement
+    # Get the service – prefer the direct service FK
     service = instance.service
-    if not service and instance.service_arrangement:
-        service = instance.service_arrangement.service
 
     if not service:
         logger.warning(

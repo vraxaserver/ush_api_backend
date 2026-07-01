@@ -19,4 +19,4 @@ class SpaCenterFilter(AutocompleteFilter):
 
 class ServiceArrangementServiceFilter(AutocompleteFilter):
     title = 'Service' # display title
-    field_name = 'service' # name of the foreign key field
+    field_name = 'allowed_services' # name of the foreign key field

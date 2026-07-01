@@ -48,7 +48,7 @@ class Command(BaseCommand):
         self.stdout.write("\nSeeding bookings...")
         customers = list(User.objects.filter(user_type=UserType.CUSTOMER))
         arrangements = list(ServiceArrangement.objects.select_related(
-            "spa_center", "service"
+            "spa_center", "room"
         ).filter(is_active=True))
 
         if not customers or not arrangements:
@@ -122,10 +122,19 @@ class Command(BaseCommand):
                 else:
                     status = random.choice(statuses)
 
+                # Pick a service allowed by the arrangement
+                if arrangement.allows_all_services:
+                    service = arrangement.spa_center.services.first()
+                else:
+                    service = arrangement.allowed_services.first()
+
+                if not service:
+                    continue
+
                 booking = Booking.objects.create(
                     customer=customer,
                     spa_center=arrangement.spa_center,
-                    service=arrangement.service,
+                    service=service,
                     service_arrangement=arrangement,
                     time_slot=time_slot,
                     subtotal=base,

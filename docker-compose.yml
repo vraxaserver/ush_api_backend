@@ -1,9 +1,28 @@
 # docker-compose.yml
-# Run: docker-compose up -d --build
+# Run: docker compose up --build -d
 # Note: Requires external PostgreSQL database configured in .env file
-# Note: Async task queues handled by AWS SQS (no local Redis/Celery workers needed)
+# Note: Redis is bundled for caching; async task queues handled by AWS SQS
 
 services:
+  # ==========================================================================
+  # Redis Cache Server
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: spaush_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # ==========================================================================
   # Django Web Application
   # ==========================================================================
@@ -27,9 +46,15 @@ services:
       - /home/ubuntu/staticfiles:/app/staticfiles
       - /home/ubuntu/mediafiles:/app/mediafiles
       - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/auth/health/" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  redis_data:

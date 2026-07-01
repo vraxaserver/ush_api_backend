@@ -244,7 +244,7 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             end_time__gt=start_time,
         ).count()
 
-        if overlapping_count >= arrangement.room_count:
+        if overlapping_count >= arrangement.capacity:
             raise serializers.ValidationError({
                 "start_time": "Selected arrangement has no available space for this time."
             })
@@ -308,7 +308,7 @@ class LoyaltyRedeemBookingSerializer(serializers.Serializer):
             "arrangement": {
                 "id": str(arrangement.id),
                 "type": arrangement.arrangement_type,
-                "room_count": arrangement.room_count,
+                "room_count": arrangement.capacity,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
             },
@@ -378,6 +378,12 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Service arrangement (room/setup) ID",
     )
+    add_on_service_id = serializers.UUIDField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        help_text="Optional add-on service ID",
+    )
     extra_minutes = serializers.IntegerField(
         required=False,
         default=0,
@@ -406,10 +412,6 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         allow_null=True,
         help_text="Optional expiry date for redemption",
     )
-    payment_status = serializers.ChoiceField(
-        choices=[("success", "Success"), ("failed", "Failed")],
-        help_text="Payment status from the payment gateway (success or failed)",
-    )
 
     class Meta:
         model = GiftCard
@@ -417,13 +419,13 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             "service_id",
             "spa_center_id",
             "service_arrangement_id",
+            "add_on_service_id",
             "extra_minutes",
             "total_duration",
             "recipient_phone",
             "recipient_name",
             "gift_message",
             "expires_at",
-            "payment_status",
         ]
 
     def validate_service_id(self, value):
@@ -471,6 +473,7 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         service_id = attrs.get("service_id")
         spa_center_id = attrs.get("spa_center_id")
         arrangement_id = attrs.get("service_arrangement_id")
+        add_on_service_id = attrs.get("add_on_service_id")
 
         # Verify the service belongs to the spa center
         from spacenter.models import Service
@@ -483,42 +486,58 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
         except Service.DoesNotExist:
             pass  # Already validated above
 
-        # Verify arrangement belongs to the service
+        # Verify arrangement belongs to the same spa center and allows the service
         from spacenter.models import ServiceArrangement
         try:
             arrangement = ServiceArrangement.objects.get(id=arrangement_id)
-            if str(arrangement.service_id) != str(service_id):
+            if str(arrangement.spa_center_id) != str(spa_center_id):
                 raise serializers.ValidationError({
-                    "service_arrangement_id": "This arrangement does not belong to the selected service."
+                    "service_arrangement_id": "This arrangement does not belong to the selected spa center."
                 })
+            
+            if not arrangement.allows_all_services:
+                if not arrangement.allowed_services.filter(id=service_id).exists():
+                    raise serializers.ValidationError({
+                        "service_arrangement_id": "This service is not allowed in the selected arrangement."
+                    })
         except ServiceArrangement.DoesNotExist:
             pass  # Already validated above
+
+        # Verify add-on service belongs to the service
+        if add_on_service_id:
+            from spacenter.models import AddOnService
+            try:
+                add_on = AddOnService.objects.get(id=add_on_service_id)
+                if not service.add_on_services.filter(id=add_on_service_id).exists():
+                    raise serializers.ValidationError({
+                        "add_on_service_id": "This add-on service is not available for the selected service."
+                    })
+            except AddOnService.DoesNotExist:
+                raise serializers.ValidationError({
+                    "add_on_service_id": "Add-on service not found."
+                })
 
         return attrs
 
     def create(self, validated_data):
         """Create a gift card with provided fields, auto-creating recipient user if needed.
 
-        If payment_status is 'success':
-          - Gift card is activated immediately
-          - SMS is sent to the recipient with the secret code
-          - Sender loyalty is awarded
-        If payment_status is 'failed':
-          - Gift card is created with failed payment status, no further action
+        Initial status is always PENDING_PAYMENT.
         """
         from accounts.models import User, UserType
-        from spacenter.models import Service, ServiceArrangement, SpaCenter
+        from spacenter.models import Service, ServiceArrangement, SpaCenter, AddOnService
 
         service_id = validated_data.pop("service_id")
         spa_center_id = validated_data.pop("spa_center_id")
         arrangement_id = validated_data.pop("service_arrangement_id")
+        add_on_service_id = validated_data.pop("add_on_service_id", None)
         extra_minutes = validated_data.pop("extra_minutes", 0)
         total_duration = validated_data.pop("total_duration")
-        payment_status = validated_data.pop("payment_status")
 
         service = Service.objects.get(id=service_id)
         spa_center = SpaCenter.objects.get(id=spa_center_id)
         arrangement = ServiceArrangement.objects.get(id=arrangement_id)
+        add_on_service = AddOnService.objects.get(id=add_on_service_id) if add_on_service_id else None
 
         # Find or create recipient user by phone number
         recipient_phone = validated_data["recipient_phone"]
@@ -551,18 +570,13 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             except Exception:
                 pass  # Don't fail gift card creation if SMS fails
 
-        # Determine initial gift card status based on payment
-        if payment_status == "success":
-            initial_status = GiftCard.GiftCardStatus.ACTIVE
-        else:
-            initial_status = GiftCard.GiftCardStatus.PENDING_PAYMENT
-
         gift_card = GiftCard.objects.create(
             sender=self.context["request"].user,
             recipient=recipient_user,
             service=service,
             spa_center=spa_center,
             service_arrangement=arrangement,
+            add_on_service=add_on_service,
             extra_minutes=extra_minutes,
             total_duration=total_duration,
             amount=service.current_price,
@@ -571,20 +585,8 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
             recipient_name=recipient_name,
             gift_message=validated_data.get("gift_message", ""),
             expires_at=validated_data.get("expires_at"),
-            status=initial_status,
+            status=GiftCard.GiftCardStatus.PENDING_PAYMENT,
         )
-
-        # On successful payment: activate, send SMS, and award loyalty
-        if payment_status == "success":
-            # Activate the gift card (sets expiry if not already set)
-            gift_card.activate()
-
-            # Award loyalty to sender
-            gift_card._award_sender_loyalty()
-
-            # Send gift card SMS to recipient
-            from promotions.tasks import send_gift_card_sms
-            send_gift_card_sms(str(gift_card.id))
 
         return gift_card
 
@@ -604,6 +606,7 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
     service_arrangement_type = serializers.CharField(
         source="service_arrangement.get_arrangement_type_display", read_only=True, default=None,
     )
+    add_on_service_name = serializers.CharField(source="add_on_service.name", read_only=True, default=None)
     spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
     spa_center_address = serializers.CharField(source="spa_center.full_address", read_only=True)
     spa_center_phone = serializers.CharField(source="spa_center.phone", read_only=True)
@@ -630,6 +633,8 @@ class GiftCardDetailSerializer(serializers.ModelSerializer):
             "service_arrangement",
             "service_arrangement_label",
             "service_arrangement_type",
+            "add_on_service",
+            "add_on_service_name",
             "extra_minutes",
             "total_duration",
             "spa_center",

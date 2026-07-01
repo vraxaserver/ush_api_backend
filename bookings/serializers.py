@@ -29,11 +29,13 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
     """Full serializer for ServiceArrangement model."""
 
     spa_center_name = serializers.CharField(source="spa_center.name", read_only=True)
-    service_name = serializers.CharField(source="service.name", read_only=True)
-    service_duration = serializers.IntegerField(
-        source="service.duration_minutes", read_only=True
-    )
+    service = serializers.SerializerMethodField()
+    service_name = serializers.SerializerMethodField()
+    service_duration = serializers.SerializerMethodField()
+    room_count = serializers.SerializerMethodField()
     total_duration = serializers.SerializerMethodField()
+    # Room extension (additive — no frontend breakage)
+    room_info = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -54,21 +56,51 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
             "is_active",
             "created_at",
             "updated_at",
+            # Extensions
+            "room_info",
+            "allows_all_services",
+            "allows_all_add_ons",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def get_service(self, obj):
+        """Legacy service field (no longer exists, return None)."""
+        return None
+
+    def get_service_name(self, obj):
+        """Return legacy service name, or None for multi-service arrangements."""
+        return None
+
+    def get_service_duration(self, obj):
+        """Return legacy service duration, or None for multi-service arrangements."""
+        return None
+
+    def get_room_count(self, obj):
+        """Return arrangement capacity (always 1 for room-based arrangements)."""
+        return obj.capacity
+
     def get_total_duration(self, obj):
-        """Get total duration including service + cleanup."""
-        return obj.total_service_duration
+        """Get total duration including service (if set) + cleanup."""
+        return obj.cleanup_duration
+
+    def get_room_info(self, obj):
+        """Return Room summary if a Room FK is set."""
+        if obj.room:
+            return {
+                "id": str(obj.room.id),
+                "room_id": obj.room.room_id,
+                "name": obj.room.name,
+            }
+        return None
 
 
 class ServiceArrangementListSerializer(serializers.ModelSerializer):
     """Minimal serializer for arrangement lists."""
 
-    service_name = serializers.CharField(source="service.name", read_only=True)
-    service_duration = serializers.IntegerField(
-        source="service.duration_minutes", read_only=True
-    )
+    room_count = serializers.SerializerMethodField()
+    service_name = serializers.SerializerMethodField()
+    service_duration = serializers.SerializerMethodField()
+    room_info = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -82,7 +114,30 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
             "cleanup_duration",
             "extra_minutes",
             "price_for_extra_minutes",
+            # Extensions
+            "room_info",
+            "allows_all_services",
+            "allows_all_add_ons",
         ]
+
+    def get_room_count(self, obj):
+        """Return arrangement capacity (always 1 for room-based arrangements)."""
+        return obj.capacity
+
+    def get_service_name(self, obj):
+        return None
+
+    def get_service_duration(self, obj):
+        return None
+
+    def get_room_info(self, obj):
+        if obj.room:
+            return {
+                "id": str(obj.room.id),
+                "room_id": obj.room.room_id,
+                "name": obj.room.name,
+            }
+        return None
 
 
 # =============================================================================
@@ -179,7 +234,7 @@ class BookingListSerializer(serializers.ModelSerializer):
 
     def get_service_image(self, obj):
         """Get the primary image URL for the service."""
-        service = obj.service or (obj.service_arrangement.service if obj.service_arrangement else None)
+        service = obj.service
         if service:
             # Try to get primary image first
             primary_image = service.images.filter(is_primary=True).first()
@@ -338,31 +393,48 @@ class BookingCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         """
         Cross-field validation:
-        - Resolve arrangement (id vs type search)
+        - Resolve arrangement by ID (whitelist-aware, no service FK filter)
+        - Validate service is allowed in arrangement
+        - Validate add-ons (if any) are allowed in arrangement
         - Calculate end time
-        - Check availability
+        - Check timeslot availability
         """
         service = attrs["service"]
         spa_center = attrs["spa_center"]
         date = attrs["date"]
         start_time = attrs["start_time"]
-        
-        # 1. Resolve Arrangement
+
+        # ------------------------------------------------------------------
+        # 1. Resolve Arrangement (no service FK filter — use whitelist check)
+        # ------------------------------------------------------------------
         arr_id = attrs.get("service_arrangement_id")
-        
+
         try:
-            selected_arrangement = ServiceArrangement.objects.get(
-                id=arr_id, 
-                service=service, 
-                spa_center=spa_center,
-                is_active=True
+            selected_arrangement = (
+                ServiceArrangement.objects
+                .select_related("room", "spa_center")
+                .get(id=arr_id, spa_center=spa_center, is_active=True)
             )
         except ServiceArrangement.DoesNotExist:
             raise serializers.ValidationError({
-                "service_arrangement_id": "Arrangement not found or does not match service/spa center."
+                "service_arrangement_id": (
+                    "Arrangement not found or does not belong to the selected spa center."
+                )
             })
 
-        # Check spa center operating hours
+        # ------------------------------------------------------------------
+        # 2. Service whitelist check
+        # ------------------------------------------------------------------
+        if not selected_arrangement.is_service_allowed(service):
+            raise serializers.ValidationError({
+                "service_arrangement_id": (
+                    "This arrangement does not support the selected service."
+                )
+            })
+
+        # ------------------------------------------------------------------
+        # 3. Operating hours check
+        # ------------------------------------------------------------------
         opening_time = spa_center.default_opening_time
         closing_time = spa_center.default_closing_time
 
@@ -374,33 +446,42 @@ class BookingCreateSerializer(serializers.Serializer):
         service_duration = service.duration_minutes
         extra_minutes = int(attrs.get("extra_minutes", 0))
         total_duration = service_duration + extra_minutes
-        
-        # 2. Check Availability
+
+        # ------------------------------------------------------------------
+        # 4. Calculate end time & closing-time check
+        # ------------------------------------------------------------------
         cleanup_duration = selected_arrangement.cleanup_duration
         end_time = Booking.calculate_end_time(
             start_time, total_duration, 0, cleanup_duration
         )
-        
-        if end_time > closing_time:
-             raise serializers.ValidationError({"start_time": "Booking exceeds closing time."})
 
-        # Count overlapping bookings
+        if end_time > closing_time:
+            raise serializers.ValidationError({
+                "start_time": "Booking exceeds closing time."
+            })
+
+        # ------------------------------------------------------------------
+        # 5. Availability check — use arr.capacity (supports both Room & legacy)
+        # ------------------------------------------------------------------
         overlapping_count = TimeSlot.objects.filter(
             arrangement=selected_arrangement,
             date=date,
             start_time__lt=end_time,
             end_time__gt=start_time,
         ).count()
-        
-        if overlapping_count >= selected_arrangement.room_count:
-            raise serializers.ValidationError({"start_time": "Selected arrangement has no available space for this time."})
 
-        # Store calculated values
+        if overlapping_count >= selected_arrangement.capacity:
+            raise serializers.ValidationError({
+                "start_time": "Selected arrangement has no available space for this time."
+            })
+
+        # Store calculated values for create()
         attrs["service_arrangement"] = selected_arrangement
         attrs["end_time"] = end_time
-        
-        # 3. Calculate Financials
-        # Price = base_price from arrangement + price_for_extra_minutes
+
+        # ------------------------------------------------------------------
+        # 6. Calculate Financials
+        # ------------------------------------------------------------------
         from decimal import Decimal
         base_price = selected_arrangement.base_price
         price_for_extra = Decimal(str(attrs.get("price_for_extra_minutes", 0)))
@@ -471,9 +552,18 @@ class BookingCreateSerializer(serializers.Serializer):
             "arrangement": {
                 "id": str(arrangement.id),
                 "type": arrangement.arrangement_type,
-                "room_count": arrangement.room_count,
+                "capacity": arrangement.capacity,
                 "label": arrangement.arrangement_label,
                 "cleanup_duration": arrangement.cleanup_duration,
+                # Room info if linked
+                "room": (
+                    {
+                        "id": str(arrangement.room.id),
+                        "room_id": arrangement.room.room_id,
+                        "name": arrangement.room.name,
+                    }
+                    if arrangement.room else None
+                ),
             },
             "pricing": {
                 "subtotal": str(subtotal),

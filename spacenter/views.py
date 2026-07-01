@@ -8,7 +8,6 @@ Public endpoints for list/retrieve, authenticated for create/update/delete on se
 
 import logging
 
-from django.core.cache import cache
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -17,7 +16,6 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdminUser
 from config.cache_utils import (
     ADDON_SERVICE_CACHE_PREFIX,
-    CACHE_TIMEOUT,
     CITY_CACHE_PREFIX,
     COUNTRY_CACHE_PREFIX,
     HOME_SERVICE_CACHE_PREFIX,
@@ -26,7 +24,7 @@ from config.cache_utils import (
     SPA_CENTER_CACHE_PREFIX,
     SPA_PRODUCT_CACHE_PREFIX,
     SPECIALTY_CACHE_PREFIX,
-    build_cache_key,
+    CachedListRetrieveMixin,
 )
 
 from .models import (
@@ -205,7 +203,7 @@ class ServiceFilter(django_filters.FilterSet):
 # Country Views
 # =============================================================================
 
-class CountryViewSet(viewsets.ModelViewSet):
+class CountryViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing countries.
     
@@ -217,6 +215,8 @@ class CountryViewSet(viewsets.ModelViewSet):
     PUT /api/v1/spa/countries/{id}/ - Update country
     DELETE /api/v1/spa/countries/{id}/ - Delete country
     """
+
+    CACHE_PREFIX = COUNTRY_CACHE_PREFIX
 
     queryset = Country.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -237,21 +237,12 @@ class CountryViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(COUNTRY_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
-
 
 # =============================================================================
 # City Views
 # =============================================================================
 
-class CityViewSet(viewsets.ModelViewSet):
+class CityViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing cities.
     
@@ -262,6 +253,8 @@ class CityViewSet(viewsets.ModelViewSet):
     GET /api/v1/spa/cities/{id}/ - Get city details
     GET /api/v1/spa/cities/by-country/{country_id}/ - Get cities by country ID
     """
+
+    CACHE_PREFIX = CITY_CACHE_PREFIX
 
     queryset = City.objects.select_related("country")
     permission_classes = [permissions.AllowAny]
@@ -287,15 +280,6 @@ class CityViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True, country__is_active=True)
         return queryset
 
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(CITY_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
-
     @action(detail=False, methods=["get"], url_path="by-country/(?P<country_code>[^/.]+)")
     def by_country(self, request, country_code=None):
         """Get cities filtered by country code (e.g., UAE, SAU, QAT)."""
@@ -311,7 +295,7 @@ class CityViewSet(viewsets.ModelViewSet):
 # Specialty Views
 # =============================================================================
 
-class SpecialtyViewSet(viewsets.ModelViewSet):
+class SpecialtyViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing specialties.
     
@@ -320,6 +304,8 @@ class SpecialtyViewSet(viewsets.ModelViewSet):
     GET /api/v1/spa/specialties/ - List all active specialties
     GET /api/v1/spa/specialties/{id}/ - Get specialty details
     """
+
+    CACHE_PREFIX = SPECIALTY_CACHE_PREFIX
 
     queryset = Specialty.objects.all()
     permission_classes = [permissions.AllowAny]
@@ -340,25 +326,16 @@ class SpecialtyViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         return queryset
 
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(SPECIALTY_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
-
 
 # =============================================================================
 # Service Views
 # =============================================================================
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing services.
     
-    GET endpoints are public.
+    GET endpoints are public (cached for all users).
     POST/PUT/DELETE require authentication (Admin or Branch Manager).
     
     Admin: Must select branch(es) when creating service.
@@ -376,6 +353,8 @@ class ServiceViewSet(viewsets.ModelViewSet):
     DELETE /api/v1/spa/services/{id}/ - Delete service (Admin/Branch Manager)
     """
 
+    CACHE_PREFIX = SERVICE_CACHE_PREFIX
+
     queryset = Service.objects.select_related(
         "specialty", "country", "city"
     ).prefetch_related(
@@ -391,8 +370,8 @@ class ServiceViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter,
     ]
     search_fields = ["name", "name_en", "name_ar", "description", "ideal_for"]
-    ordering_fields = ["name", "base_price", "duration_minutes", "sort_order", "created_at"]
-    ordering = ["sort_order", "name"]
+    ordering_fields = ["name", "base_price", "duration_minutes", "sort_order", "created_at", "booking_count"]
+    ordering = ["-booking_count", "sort_order", "name"]
 
     def get_permissions(self):
         """Set permissions based on action."""
@@ -416,18 +395,6 @@ class ServiceViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=True)
         
         return queryset.distinct()
-
-    def list(self, request, *args, **kwargs):
-        # Only cache for unauthenticated (public) requests
-        if not request.user.is_authenticated:
-            cache_key = build_cache_key(SERVICE_CACHE_PREFIX, request)
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return Response(cached)
-            response = super().list(request, *args, **kwargs)
-            cache.set(cache_key, response.data, CACHE_TIMEOUT)
-            return response
-        return super().list(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminUser])
     def add_image(self, request, pk=None):
@@ -533,7 +500,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
 # Spa Center Views
 # =============================================================================
 
-class SpaCenterViewSet(viewsets.ModelViewSet):
+class SpaCenterViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing spa centers/branches.
     
@@ -546,6 +513,8 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
     GET /api/v1/spa/branches/{id}/ - Get branch details
     GET /api/v1/spa/branches/{id}/services/ - Get services for branch
     """
+
+    CACHE_PREFIX = SPA_CENTER_CACHE_PREFIX
 
     queryset = SpaCenter.objects.select_related(
         "country", "city"
@@ -574,15 +543,6 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             queryset = queryset.filter(is_active=True)
         return queryset
-
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(SPA_CENTER_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
 
     @action(detail=True, methods=["get"])
     def services(self, request, pk=None):
@@ -670,13 +630,15 @@ class SpaCenterViewSet(viewsets.ModelViewSet):
 # Product Category ViewSet
 # =============================================================================
 
-class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
+class ProductCategoryViewSet(CachedListRetrieveMixin, viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for ProductCategory (Read Only).
     
     Public read-only access to product categories.
     Only active categories are shown.
     """
+
+    CACHE_PREFIX = PRODUCT_CATEGORY_CACHE_PREFIX
 
     queryset = ProductCategory.objects.filter(is_active=True)
     serializer_class = ProductCategorySerializer
@@ -688,15 +650,6 @@ class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ["name", "name_en", "name_ar", "description"]
     ordering_fields = ["sort_order", "name", "created_at"]
     ordering = ["sort_order", "name"]
-
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(PRODUCT_CATEGORY_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
 
 
 # =============================================================================
@@ -782,7 +735,7 @@ class SpaProductFilter(django_filters.FilterSet):
 # Product ViewSets (Read Only)
 # =============================================================================
 
-class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
+class SpaProductViewSet(CachedListRetrieveMixin, viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for SpaProduct listing (Read Only).
     
@@ -794,6 +747,8 @@ class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
     
     Only shows products where base product is visible.
     """
+
+    CACHE_PREFIX = SPA_PRODUCT_CACHE_PREFIX
 
     queryset = SpaProduct.objects.select_related(
         "product",
@@ -830,21 +785,12 @@ class SpaProductViewSet(viewsets.ReadOnlyModelViewSet):
             return SpaProductDetailSerializer
         return SpaProductListSerializer
 
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(SPA_PRODUCT_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
-
 
 # =============================================================================
 # Add-on Service ViewSet
 # =============================================================================
 
-class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
+class AddOnServiceViewSet(CachedListRetrieveMixin, viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for AddOnService listing (Read Only).
     
@@ -853,6 +799,8 @@ class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
     GET /api/v1/spa/add-on-services/ - List all active add-on services
     GET /api/v1/spa/add-on-services/{id}/ - Get add-on service details
     """
+
+    CACHE_PREFIX = ADDON_SERVICE_CACHE_PREFIX
 
     queryset = AddOnService.objects.filter(is_active=True)
     permission_classes = [permissions.AllowAny]
@@ -873,15 +821,6 @@ class AddOnServiceViewSet(viewsets.ReadOnlyModelViewSet):
         if self.action == "list":
             return AddOnServiceListSerializer
         return AddOnServiceSerializer
-
-    def list(self, request, *args, **kwargs):
-        cache_key = build_cache_key(ADDON_SERVICE_CACHE_PREFIX, request)
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return Response(cached)
-        response = super().list(request, *args, **kwargs)
-        cache.set(cache_key, response.data, CACHE_TIMEOUT)
-        return response
 
 
 # =============================================================================
@@ -943,11 +882,11 @@ class HomeServiceFilter(django_filters.FilterSet):
 # Home Service Views
 # =============================================================================
 
-class HomeServiceViewSet(viewsets.ModelViewSet):
+class HomeServiceViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing home services.
 
-    GET endpoints are public.
+    GET endpoints are public (cached for all users).
     POST/PUT/DELETE require admin authentication.
 
     GET /api/v1/spa/home-services/ - List all active home services
@@ -959,6 +898,8 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
     PUT /api/v1/spa/home-services/{id}/ - Update home service (Admin)
     DELETE /api/v1/spa/home-services/{id}/ - Delete home service (Admin)
     """
+
+    CACHE_PREFIX = HOME_SERVICE_CACHE_PREFIX
 
     queryset = HomeService.objects.select_related(
         "specialty", "country", "city"
@@ -990,15 +931,3 @@ class HomeServiceViewSet(viewsets.ModelViewSet):
         if self.action in ["list", "retrieve"]:
             queryset = queryset.filter(is_active=True)
         return queryset
-
-
-    def list(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            cache_key = build_cache_key(HOME_SERVICE_CACHE_PREFIX, request)
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return Response(cached)
-            response = super().list(request, *args, **kwargs)
-            cache.set(cache_key, response.data, CACHE_TIMEOUT)
-            return response
-        return super().list(request, *args, **kwargs)

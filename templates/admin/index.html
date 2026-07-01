@@ -1,0 +1,51 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+{% if user.is_staff %}
+<div style="
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: 10px;
+    padding: 20px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    border-left: 4px solid #e94560;
+">
+    <div style="flex: 1;">
+        <h2 style="margin: 0 0 4px 0; color: #ffffff; font-size: 18px; font-weight: 600;">
+            🗄️ Redis API Cache
+        </h2>
+        <p style="margin: 0; color: #a0aec0; font-size: 13px;">
+            Cached endpoints: Countries · Cities · Specialties · Services · Spa Centers · Products · Add-ons · Home Services
+        </p>
+    </div>
+    <a href="{% url 'clear-cache' %}"
+       onclick="return confirm('Clear all API caches? All endpoints will refetch from the database on next request.');"
+       style="
+           display: inline-flex;
+           align-items: center;
+           gap: 8px;
+           background: #e94560;
+           color: #ffffff;
+           padding: 10px 22px;
+           border-radius: 6px;
+           text-decoration: none;
+           font-weight: 600;
+           font-size: 14px;
+           transition: background 0.2s ease;
+           white-space: nowrap;
+           box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
+       "
+       onmouseover="this.style.background='#c73652'"
+       onmouseout="this.style.background='#e94560'"
+    >
+        🗑️ Clear All Cache
+    </a>
+</div>
+{% endif %}
+
+{{ block.super }}
+{% endblock %}

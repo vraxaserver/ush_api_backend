@@ -52,7 +52,7 @@ class AddOnServiceTranslationOptions(TranslationOptions):
 class ServiceTranslationOptions(TranslationOptions):
     """Translation options for Service model."""
     
-    fields = ("name", "description", "ideal_for")
+    fields = ("name", "description", "ideal_for", "session_benefits")
 
 
 @register(SpaCenter)

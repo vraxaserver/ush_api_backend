@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 
 from bookings.models import Booking, TimeSlot
 from promotions.models import GiftCard
-from spacenter.models import City, Country, Service, ServiceArrangement, Specialty, SpaCenter
+from spacenter.models import City, Country, Room, Service, ServiceArrangement, Specialty, SpaCenter
 
 User = get_user_model()
 
@@ -25,16 +25,19 @@ class BookingCreateV2Tests(APITestCase):
         self.specialty = Specialty.objects.create(name="Massage")
 
         # Create spa center
-        self.user_manager = User.objects.create_user(
-            email="manager@example.com", password="password123", user_type="employee", phone_number="+97455001006"
-        )
         self.spa_center = SpaCenter.objects.create(
             name="Main Spa",
             slug="main-spa",
             country=self.country,
             city=self.city,
             address="Corniche",
-            branch_manager=self.user_manager,
+        )
+
+        # Create room
+        self.room = Room.objects.create(
+            spa_center=self.spa_center,
+            room_id="101",
+            name="Room 101",
         )
 
         # Create service
@@ -47,17 +50,17 @@ class BookingCreateV2Tests(APITestCase):
             base_price=Decimal("100.00"),
             spa_center=self.spa_center,
         )
-        self.spa_center.services.add(self.service)
 
-        # Create arrangement
+        # Create arrangement — restrict to self.service only
         self.arrangement = ServiceArrangement.objects.create(
             spa_center=self.spa_center,
-            service=self.service,
-            room_count=1,
+            room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
-            arrangement_label="Room 101",
+            arrangement_label="Room 101 Arrangement",
             base_price=Decimal("100.00"),
+            allows_all_services=False,
         )
+        self.arrangement.allowed_services.add(self.service)
 
         # Create customer
         self.customer = User.objects.create_user(
@@ -85,15 +88,8 @@ class BookingCreateV2Tests(APITestCase):
         self.assertEqual(booking.service_arrangement, self.arrangement)
         self.assertEqual(booking.total_price, Decimal("100.00"))
 
-
-
-
-    def test_multi_room_booking_capacity(self):
-        """Test that multiple bookings are allowed up to room_count."""
-        # Update arrangement to have 2 rooms
-        self.arrangement.room_count = 2
-        self.arrangement.save()
-
+    def test_multi_booking_capacity(self):
+        """Test that only one booking is allowed on the room-based arrangement."""
         tomorrow = date.today() + timedelta(days=1)
         data = {
             "service": str(self.service.id),
@@ -107,14 +103,10 @@ class BookingCreateV2Tests(APITestCase):
         response1 = self.client.post(self.url, data)
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
 
-        # Second booking - should succeed (capacity is 2)
+        # Second booking - should fail (capacity is 1)
         response2 = self.client.post(self.url, data)
-        self.assertEqual(response2.status_code, status.HTTP_201_CREATED)
-
-        # Third booking - should fail (capacity exceeded)
-        response3 = self.client.post(self.url, data)
-        self.assertEqual(response3.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("Selected arrangement has no available space", str(response3.data))
+        self.assertEqual(response2.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Selected arrangement has no available space", str(response2.data))
 
     def test_invalid_arrangement_id(self):
         """Test error when arrangement ID doesn't match service/spa."""

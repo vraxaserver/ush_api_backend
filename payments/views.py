@@ -317,9 +317,25 @@ class StripeWebhookView(APIView):
             
             # Update related booking status if exists
             if payment.booking:
-                payment.booking.status = "payment_success"
-                payment.booking.save()
-                logger.info(f"Updated booking {payment.booking.id} to payment_success")
+                booking = payment.booking
+                booking.status = "payment_success"
+                booking.save()
+                logger.info(f"Updated booking {booking.id} to payment_success")
+
+                # Atomically increment the service booking counter
+                if booking.service_id:
+                    from django.db.models import F
+                    from spacenter.models import Service
+                    updated = Service.objects.filter(
+                        id=booking.service_id
+                    ).update(booking_count=F("booking_count") + 1)
+                    if updated:
+                        logger.info(
+                            f"Incremented booking_count for service {booking.service_id}"
+                        )
+                    # Clear the service list cache so sorted order is fresh
+                    from config.cache_utils import invalidate_all_caches
+                    invalidate_all_caches()
             
             # Handle gift card payment success
             gift_card_id = metadata.get("gift_card_id")
@@ -330,6 +346,7 @@ class StripeWebhookView(APIView):
             
         except Payment.DoesNotExist:
             logger.warning(f"Payment not found for intent: {payment_intent_id}")
+
 
     def _handle_gift_card_payment_success(self, gift_card_id):
         """
