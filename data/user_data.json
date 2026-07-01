@@ -173,30 +173,6 @@
     },
     {
         "model": "accounts.user",
-        "pk": "77914bab-8ec0-4d36-a883-51e3080f588b",
-        "fields": {
-            "password": "pbkdf2_sha256$1000000$HqOLexPO0SGkMoWHtVLaDU$8vCsqmLZ/0Ovzc47Ddj9X1KM3ieRG/lA9sgel3vex3s=",
-            "is_superuser": true,
-            "email": "charlicoder@gmail.com",
-            "phone_number": "+8801743505740",
-            "first_name": "K Md Mamunur",
-            "last_name": "Rashid",
-            "date_of_birth": "1985-09-10",
-            "user_type": "admin",
-            "spa_center": null,
-            "is_email_verified": true,
-            "is_phone_verified": true,
-            "is_active": true,
-            "is_staff": true,
-            "date_joined": "2026-05-06T08:31:51Z",
-            "last_login": "2026-06-21T07:36:34.459Z",
-            "updated_at": "2026-05-07T06:53:05.897Z",
-            "groups": [],
-            "user_permissions": []
-        }
-    },
-    {
-        "model": "accounts.user",
         "pk": "7a2dd84f-9469-4409-87a8-289d50448d7f",
         "fields": {
             "password": "pbkdf2_sha256$1000000$CtS5eO0xH24PiT9vsM4RSn$ANQM4IV8fqXEp6wHrBMMTI+8jJ5+BlzCI1HFvCrCW5c=",
