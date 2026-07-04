@@ -53,7 +53,11 @@ class TimeSlot(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.arrangement.service.name} - {self.date} {self.start_time}-{self.end_time}"
+        try:
+            arrangement_label = str(self.arrangement)
+        except Exception:
+            arrangement_label = "Unknown Arrangement"
+        return f"{arrangement_label} - {self.date} {self.start_time}-{self.end_time}"
 
     def get_blocked_hour_slots(self):
         """
