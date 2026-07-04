@@ -43,8 +43,8 @@ services:
     env_file:
       - .env
     volumes:
-      - /home/ubuntu/staticfiles:/app/staticfiles
-      - /home/ubuntu/mediafiles:/app/mediafiles
+      - ./staticfiles:/app/staticfiles
+      - ./mediafiles:/app/mediafiles
       - ./logs:/app/logs
     depends_on:
       redis:
