@@ -359,9 +359,9 @@ class ServiceViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
         "specialty", "country", "city"
     ).prefetch_related(
         "images",
-        "spa_center",
-        "add_on_services"
+        "spa_center"
     )
+
 
     filterset_class = ServiceFilter
     filter_backends = [

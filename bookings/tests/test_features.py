@@ -100,8 +100,7 @@ class SpaCenterFixtureMixin:
             duration_minutes=10,
             price=Decimal("20.00"),
         )
-        # Attach add-ons to service_a
-        cls.service_a.add_on_services.add(cls.addon_a, cls.addon_b)
+
 
         cls.customer = User.objects.create_user(
             email="customer@test.com",
@@ -312,31 +311,20 @@ class AddOnWhitelistTests(SpaCenterFixtureMixin, TestCase):
         )
         self.arr_selected.allowed_add_on_services.add(self.addon_a)
 
-    def test_allows_all_add_ons_returns_service_addons(self):
-        """allows_all_add_ons=True -> returns all add-ons attached to the service."""
+    def test_allows_all_add_ons_returns_all_active_addons(self):
+        """allows_all_add_ons=True -> returns all active add-ons."""
         qs = self.arr_all.get_effective_add_on_services(self.service_a)
         pks = set(qs.values_list("pk", flat=True))
         self.assertIn(self.addon_a.pk, pks)
         self.assertIn(self.addon_b.pk, pks)
 
-    def test_selected_add_ons_only_returns_intersection(self):
-        """
-        allows_all_add_ons=False -> only returns add-ons in both the service's list
-        AND the arrangement's whitelist.
-        """
+    def test_selected_add_ons_only_returns_whitelist(self):
+        """allows_all_add_ons=False -> only returns add-ons in the arrangement's whitelist."""
         qs = self.arr_selected.get_effective_add_on_services(self.service_a)
         pks = set(qs.values_list("pk", flat=True))
         self.assertIn(self.addon_a.pk, pks)
-        self.assertNotIn(self.addon_b.pk, pks)  # addon_b not in whitelist
+        self.assertNotIn(self.addon_b.pk, pks)
 
-    def test_arrangement_cannot_expand_service_addons(self):
-        """
-        An arrangement whitelist cannot introduce an add-on that the service
-        itself does not list -- the intersection ensures it stays a subset.
-        """
-        # arr_selected whitelists addon_a; service_b has NO add-ons at all
-        qs = self.arr_selected.get_effective_add_on_services(self.service_b)
-        self.assertEqual(qs.count(), 0)
 
 
 # =============================================================================
@@ -632,7 +620,7 @@ class AvailabilityAPITests(SpaCenterFixtureMixin, APITestCase):
         arr = arrangements[0]
         for field in ["id", "label", "type", "room_count"]:
             self.assertIn(field, arr, msg=f"Legacy field missing: {field}")
-        for field in ["room", "allows_all_services", "allows_all_add_ons"]:
+        for field in ["room", "allows_all_services", "allows_all_add_ons", "add_on_services", "arrangement_label"]:
             self.assertIn(field, arr, msg=f"Extension field missing: {field}")
 
     def test_room_field_populated_when_room_is_assigned(self):

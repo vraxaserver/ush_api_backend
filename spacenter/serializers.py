@@ -230,7 +230,6 @@ class ServiceSerializer(serializers.ModelSerializer):
     country_detail = CountryListSerializer(source="country", read_only=True)
     city_detail = CityListSerializer(source="city", read_only=True)
     images = ServiceImageSerializer(many=True, read_only=True)
-    add_on_services = AddOnServiceListSerializer(many=True, read_only=True)
     current_price = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -272,7 +271,6 @@ class ServiceSerializer(serializers.ModelSerializer):
             "session_benefits",
             "session_benefits_en",
             "session_benefits_ar",
-            "add_on_services",
             "images",
             "spa_center",
             "is_eligible_for_loyalty",
@@ -294,6 +292,16 @@ class ServiceSerializer(serializers.ModelSerializer):
         availability = calculate_service_availability(
             obj, obj.spa_center, today, date_to
         )
+        
+        # Serialize add_on_services inside each arrangement
+        for arr_data in availability["arrangements"]:
+            addons_qs = arr_data.pop("add_on_services_queryset", None)
+            if addons_qs is not None:
+                arr_data["add_on_services"] = AddOnServiceListSerializer(
+                    addons_qs, many=True, context=self.context
+                ).data
+            else:
+                arr_data["add_on_services"] = []
         
         branches_data = {
             "id": str(obj.spa_center.id),

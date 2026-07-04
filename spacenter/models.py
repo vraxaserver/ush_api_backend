@@ -536,6 +536,30 @@ class Service(models.Model):
             return round(discount, 0)
         return 0
 
+    @property
+    def add_on_services(self):
+        """
+        Return the queryset of active add-on services available for this service
+        via its spa center's active arrangements.
+        """
+        from django.db.models import Q
+        
+        arrangements = ServiceArrangement.objects.filter(
+            spa_center=self.spa_center,
+            is_active=True
+        ).filter(
+            Q(allows_all_services=True) | Q(allowed_services=self)
+        )
+        
+        if arrangements.filter(allows_all_add_ons=True).exists():
+            return AddOnService.objects.filter(is_active=True)
+            
+        return AddOnService.objects.filter(
+            arrangements__in=arrangements,
+            is_active=True
+        ).distinct()
+
+
 
 class ServiceImage(models.Model):
     """
@@ -1110,17 +1134,19 @@ class ServiceArrangement(models.Model):
             return True
         return self.allowed_services.filter(pk=service.pk).exists()
 
-    def get_effective_add_on_services(self):
+    def get_effective_add_on_services(self, service=None):
         """
         Return the queryset of add-on services available for a booking.
 
         Add-ons are now owned by the arrangement (not the service).
-        When ``allows_all_add_ons`` is True, all active add-ons in
-        ``allowed_add_on_services`` are returned. When False, only
-        the explicitly listed add-ons are returned (still filtered
+        When ``allows_all_add_ons`` is True, all active add-ons are returned.
+        When False, only the explicitly listed add-ons are returned (still filtered
         to active ones).
         """
+        if self.allows_all_add_ons:
+            return AddOnService.objects.filter(is_active=True)
         return self.allowed_add_on_services.filter(is_active=True)
+
 
     # ------------------------------------------------------------------
     # Pricing helpers

@@ -247,6 +247,8 @@ class ServiceAvailabilityView(APIView):
         # ----------------------------------------------------------------
         # Build response (same structure as before + additive fields)
         # ----------------------------------------------------------------
+        from spacenter.serializers import AddOnServiceListSerializer
+
         response_data = {
             "service_id": str(service_id),
             "service_name": service.name,
@@ -264,6 +266,7 @@ class ServiceAvailabilityView(APIView):
                     "id": str(arr.id),
                     "label": arr.arrangement_label,
                     "type": arr.arrangement_type,
+                    "arrangement_label": arr.arrangement_label,
                     "room_count": arr.capacity,
                     "booked_slots_summary": dict(
                         booked_slots_data.get(str(arr.id), {})
@@ -279,6 +282,11 @@ class ServiceAvailabilityView(APIView):
                     ),
                     "allows_all_services": arr.allows_all_services,
                     "allows_all_add_ons": arr.allows_all_add_ons,
+                    "add_on_services": AddOnServiceListSerializer(
+                        arr.get_effective_add_on_services(service),
+                        many=True,
+                        context={"request": request}
+                    ).data,
                 }
                 for arr in arrangements
             ],

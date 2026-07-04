@@ -3,6 +3,7 @@ import os
 import sys
 import django
 import json
+import pytest
 from datetime import date, timedelta
 from django.utils import timezone
 
@@ -10,7 +11,10 @@ sys.path.append(os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from spacenter.models import Service, SpaCenter, ServiceArrangement
+pytestmark = pytest.mark.django_db
+
+
+from spacenter.models import Service, SpaCenter, ServiceArrangement, Room
 from spacenter.serializers import ServiceSerializer
 from bookings.models import TimeSlot
 
@@ -31,35 +35,44 @@ def test_serializer():
         spa_center = SpaCenter.objects.create(name="Test Spa", is_active=True)
         
     # Ensure service is linked to spa center
-    if not service.spa_centers.filter(id=spa_center.id).exists():
-        service.spa_centers.add(spa_center)
+    if service.spa_center != spa_center:
+        service.spa_center = spa_center
         service.save()
+        
+    # Ensure physical Room exists
+    room, _ = Room.objects.get_or_create(
+        spa_center=spa_center,
+        room_id="R_TEST",
+        defaults={"name": "Test Room physical"}
+    )
         
     # Create/Get an arrangement
     arrangement1, _ = ServiceArrangement.objects.get_or_create(
-        service=service,
         spa_center=spa_center,
-        room_count=1,
         arrangement_label="Test Room",
         defaults={
             "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
             "base_price": 100,
-            "is_active": True
+            "is_active": True,
+            "allows_all_services": True,
+            "room": room,
         }
     )
+    arrangement1.allowed_services.add(service)
     
-    # Create duplicate arrangement (same type/price, different room)
+    # Create duplicate arrangement (same type/price)
     arrangement2, _ = ServiceArrangement.objects.get_or_create(
-        service=service,
         spa_center=spa_center,
-        room_count=1,
         arrangement_label="Test Room (duplicate)",
         defaults={
             "arrangement_type": ServiceArrangement.ArrangementType.SINGLE_ROOM,
             "base_price": 100,
-            "is_active": True
+            "is_active": True,
+            "allows_all_services": True,
+            "room": room,
         }
     )
+    arrangement2.allowed_services.add(service)
     
     # 2. Serialize
     serializer = ServiceSerializer(service)
@@ -68,11 +81,10 @@ def test_serializer():
     # 3. Verify Structure
     print(f"Service ID: {data['id']}")
     
-    if not data['branches']:
-        print("ERROR: No branches found in response!")
+    branch = data.get('spa_center')
+    if not branch:
+        print("ERROR: No spa_center found in response!")
         return
-
-    branch = data['branches'][0]
     print(f"Branch Name: {branch['name']}")
     
     # Check Arrangements
@@ -86,6 +98,8 @@ def test_serializer():
         if len(arrs) == 1:
             print("SUCCESS: Duplicates aggregated correctly.")
             print(f"Arrangement: {arrs[0]['label']} (${arrs[0]['current_price']}) Count: {arrs[0]['count']}")
+            print("Full arrangement details:")
+            print(json.dumps(arrs[0], indent=2))
         else:
             print(f"FAILURE: Expected 1 aggregated arrangement, found {len(arrs)}")
             for a in arrs:

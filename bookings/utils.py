@@ -175,6 +175,7 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 "id": str(arr.id),
                 "label": arr.get_arrangement_type_display(),
                 "type": arr.arrangement_type,
+                "arrangement_label": arr.arrangement_label,
                 "room_count": arr.capacity,
                 "base_price": str(arr.base_price),
                 "discount_price": str(arr.discount_price) if arr.discount_price else None,
@@ -199,6 +200,7 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 ),
                 "allows_all_services": arr.allows_all_services,
                 "allows_all_add_ons": arr.allows_all_add_ons,
+                "add_on_services_queryset": arr.get_effective_add_on_services(service),
             }
         else:
             unique[key]["count"] += 1
