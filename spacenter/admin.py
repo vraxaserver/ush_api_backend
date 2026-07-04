@@ -258,7 +258,6 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         "booking_count_display",
         "is_active",
         "sort_order",
-        "addon_count",
         "image_count",
     ]
     list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
@@ -282,10 +281,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         ("Gender", {
             "fields": ('is_for_male', 'is_for_female')
         }),
-        ("Add-on Services", {
-            "fields": ("add_on_services",),
-            "description": "Select additional services that can be added to this service."
-        }),
+
         # ("Additional Info", {
         #     "fields": ("ideal_for", "benefits")
         # }),
@@ -299,13 +295,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
     )
     readonly_fields = ["booking_count"]
 
-    def addon_count(self, obj):
-        """Count of add-on services attached."""
-        count = obj.add_on_services.count()
-        if count > 0:
-            return format_html('<span style="color: green;">{}</span>', count)
-        return "-"
-    addon_count.short_description = "Add-ons"
+
 
     def current_price_display(self, obj):
         if obj.has_discount:

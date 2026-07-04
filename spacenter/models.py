@@ -444,14 +444,7 @@ class Service(models.Model):
         help_text=_("Free-text description of session benefits"),
     )
     
-    # Add-on services
-    add_on_services = models.ManyToManyField(
-        AddOnService,
-        blank=True,
-        related_name="services",
-        verbose_name=_("add-on services"),
-        help_text=_("Additional services that can be added to this service"),
-    )
+
 
     # Spa Center
     spa_center = models.ForeignKey(
@@ -975,26 +968,26 @@ class ServiceArrangement(models.Model):
     )
 
     # ------------------------------------------------------------------
-    # Add-on whitelist
+    # Add-on services — owned by the arrangement, not by the service
     # ------------------------------------------------------------------
     allows_all_add_ons = models.BooleanField(
         _("allows all add-ons"),
         default=True,
         help_text=_(
-            "If True, all add-ons defined on the booked service are available. "
-            "If False, only add-ons in 'Allowed add-on services' are offered "
-            "(acts as a filter on the service's own add-on list)."
+            "If True, all active add-ons in 'Allowed add-on services' are "
+            "available for bookings in this arrangement. "
+            "If False, add-ons must be explicitly listed below."
         ),
     )
     allowed_add_on_services = models.ManyToManyField(
         AddOnService,
         blank=True,
-        related_name="whitelisted_arrangements",
+        related_name="arrangements",
         verbose_name=_("allowed add-on services"),
         help_text=_(
-            "Specific add-ons permitted for bookings in this arrangement. "
-            "Relevant only when 'Allows all add-ons' is False. "
-            "Only add-ons that also exist on the booked service are shown."
+            "Add-on services available for bookings in this arrangement. "
+            "When 'Allows all add-ons' is True, all active entries here are "
+            "offered. When False, only those explicitly listed are offered."
         ),
     )
 
@@ -1117,23 +1110,17 @@ class ServiceArrangement(models.Model):
             return True
         return self.allowed_services.filter(pk=service.pk).exists()
 
-    def get_effective_add_on_services(self, service):
+    def get_effective_add_on_services(self):
         """
         Return the queryset of add-on services available for a booking.
 
-        Starts from the service's own add-on list and, when
-        ``allows_all_add_ons`` is False, further filters it to only
-        add-ons present in this arrangement's ``allowed_add_on_services``
-        whitelist.  This ensures the arrangement can only narrow — never
-        expand — the service-level add-on selection.
+        Add-ons are now owned by the arrangement (not the service).
+        When ``allows_all_add_ons`` is True, all active add-ons in
+        ``allowed_add_on_services`` are returned. When False, only
+        the explicitly listed add-ons are returned (still filtered
+        to active ones).
         """
-        service_addons = service.add_on_services.filter(is_active=True)
-        if self.allows_all_add_ons:
-            return service_addons
-        # Intersect: must be on service AND in arrangement whitelist
-        return service_addons.filter(
-            pk__in=self.allowed_add_on_services.values_list("pk", flat=True)
-        )
+        return self.allowed_add_on_services.filter(is_active=True)
 
     # ------------------------------------------------------------------
     # Pricing helpers
