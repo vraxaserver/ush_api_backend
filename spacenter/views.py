@@ -8,6 +8,7 @@ Public endpoints for list/retrieve, authenticated for create/update/delete on se
 
 import logging
 
+from django.core.cache import cache
 from django_filters import rest_framework as django_filters
 from rest_framework import filters, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -16,6 +17,8 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdminUser
 from config.cache_utils import (
     ADDON_SERVICE_CACHE_PREFIX,
+    BRANCH_SERVICES_CACHE_PREFIX,
+    CACHE_TIMEOUT,
     CITY_CACHE_PREFIX,
     COUNTRY_CACHE_PREFIX,
     HOME_SERVICE_CACHE_PREFIX,
@@ -25,6 +28,7 @@ from config.cache_utils import (
     SPA_PRODUCT_CACHE_PREFIX,
     SPECIALTY_CACHE_PREFIX,
     CachedListRetrieveMixin,
+    build_id_cache_key,
 )
 
 from .models import (
@@ -283,11 +287,17 @@ class CityViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="by-country/(?P<country_code>[^/.]+)")
     def by_country(self, request, country_code=None):
         """Get cities filtered by country code (e.g., UAE, SAU, QAT)."""
+        cache_key = build_id_cache_key(CITY_CACHE_PREFIX, f"by_country:{country_code}", request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         queryset = self.get_queryset().filter(
             country__code__iexact=country_code,
             is_active=True,
         )
         serializer = CityListSerializer(queryset, many=True)
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
         return Response(serializer.data)
 
 
@@ -559,6 +569,12 @@ class SpaCenterViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
         - is_for_female: Filter by female availability
         - ordering: Sort results (e.g., 'price', '-price', 'name')
         """
+        # Cache-first — key includes branch pk + full query string + language
+        cache_key = build_id_cache_key(BRANCH_SERVICES_CACHE_PREFIX, pk, request)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
         spa_center = self.get_object()
         services = spa_center.services.filter(is_active=True)
         
@@ -595,13 +611,16 @@ class SpaCenterViewSet(CachedListRetrieveMixin, viewsets.ModelViewSet):
                 many=True, 
                 context={"request": request, "spa_center": spa_center}
             )
-            return self.get_paginated_response(serializer.data)
+            paginated_response = self.get_paginated_response(serializer.data)
+            cache.set(cache_key, paginated_response.data, CACHE_TIMEOUT)
+            return paginated_response
         
         serializer = ServiceListSerializer(
             services, 
             many=True, 
             context={"request": request, "spa_center": spa_center}
         )
+        cache.set(cache_key, serializer.data, CACHE_TIMEOUT)
         return Response(serializer.data)
 
     @action(detail=True, methods=["post"])

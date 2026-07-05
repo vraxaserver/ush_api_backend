@@ -27,6 +27,10 @@ SPA_PRODUCT_CACHE_PREFIX = "spa_product_list"
 ADDON_SERVICE_CACHE_PREFIX = "addon_service_list"
 HOME_SERVICE_CACHE_PREFIX = "home_service_list"
 
+# Sub-resource / action-level cache prefixes
+SERVICE_ARRANGEMENTS_CACHE_PREFIX = "service_arrangements"
+BRANCH_SERVICES_CACHE_PREFIX = "branch_services"
+
 # All prefixes for bulk invalidation
 ALL_CACHE_PREFIXES = [
     COUNTRY_CACHE_PREFIX,
@@ -38,6 +42,8 @@ ALL_CACHE_PREFIXES = [
     SPA_PRODUCT_CACHE_PREFIX,
     ADDON_SERVICE_CACHE_PREFIX,
     HOME_SERVICE_CACHE_PREFIX,
+    SERVICE_ARRANGEMENTS_CACHE_PREFIX,
+    BRANCH_SERVICES_CACHE_PREFIX,
 ]
 
 # Default cache timeout (15 minutes)
@@ -71,6 +77,27 @@ def build_retrieve_cache_key(prefix, pk):
     Uses the prefix + pk so each object has its own cache slot.
     """
     return f"{prefix}:retrieve:{pk}"
+
+
+def build_id_cache_key(prefix, identifier, request):
+    """
+    Build a cache key for a sub-resource or @action endpoint scoped to an ID.
+
+    Example uses:
+    - Branch services:  build_id_cache_key(BRANCH_SERVICES_CACHE_PREFIX, branch_pk, request)
+    - Arrangements:     build_id_cache_key(SERVICE_ARRANGEMENTS_CACHE_PREFIX, service_id, request)
+    - City by-country:  build_id_cache_key(CITY_CACHE_PREFIX, country_code, request)
+
+    The identifier (branch pk, service id, country code, etc.) is embedded in
+    the key so that each object gets its own cache slot while still respecting
+    query-string variations (filters, pagination, language).
+    """
+    query_string = request.META.get("QUERY_STRING", "")
+    language = request.META.get("HTTP_ACCEPT_LANGUAGE", "en")
+
+    raw = f"{prefix}:{identifier}:{query_string}:{language}"
+    key_hash = hashlib.md5(raw.encode()).hexdigest()
+    return f"{prefix}:{identifier}:{key_hash}"
 
 
 # ============================================================================

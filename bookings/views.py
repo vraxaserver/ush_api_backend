@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Prefetch, Q
 from django.utils import timezone
@@ -16,6 +17,12 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from config.cache_utils import (
+    CACHE_TIMEOUT,
+    SERVICE_ARRANGEMENTS_CACHE_PREFIX,
+    build_id_cache_key,
+)
 
 from spacenter.models import Service, SpaCenter, ServiceArrangement
 
@@ -73,6 +80,20 @@ class ServiceArrangementListView(generics.ListAPIView):
             .distinct()
             .order_by("arrangement_type", "arrangement_label")
         )
+
+    def list(self, request, *args, **kwargs):
+        """Cache-first list: keyed by service_id + query string + language."""
+        service_id = self.kwargs.get("service_id")
+        cache_key = build_id_cache_key(
+            SERVICE_ARRANGEMENTS_CACHE_PREFIX, service_id, request
+        )
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        response = super().list(request, *args, **kwargs)
+        cache.set(cache_key, response.data, CACHE_TIMEOUT)
+        return response
 
 
 # =============================================================================
