@@ -526,6 +526,7 @@ class ServiceArrangementPriceInline(admin.TabularInline):
     model = ServiceArrangementPrice
     extra = 1
     autocomplete_fields = ["service"]
+    fields = ["service", "price", "discounted_price", "extra_minutes", "price_for_extra_minutes"]
 
 
 class ServiceArrangementAddOnInline(admin.StackedInline):
@@ -565,9 +566,6 @@ class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMix
         ("Arrangement Details", {
             "fields": ("arrangement_type", "arrangement_label", "cleanup_duration")
         }),
-        ("Extra Minutes Pricing", {
-            "fields": ("extra_minutes", "price_for_extra_minutes")
-        }),
         ("Status", {
             "fields": ("is_active",)
         }),
@@ -576,8 +574,8 @@ class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMix
 
 @admin.register(ServiceArrangementPrice)
 class ServiceArrangementPriceAdmin(ClearCacheActionMixin, admin.ModelAdmin):
-    list_display = ["service_arrangement", "service", "price", "discounted_price"]
-    list_filter = ["service"]
+    list_display = ["service_arrangement", "service", "price", "discounted_price", "extra_minutes", "price_for_extra_minutes"]
+    list_filter = ["service", "extra_minutes"]
     search_fields = ["service_arrangement__arrangement_label", "service__name"]
 
 

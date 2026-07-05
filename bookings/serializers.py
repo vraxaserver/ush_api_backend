@@ -38,6 +38,8 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
     room_info = serializers.SerializerMethodField()
     allows_all_services = serializers.SerializerMethodField()
     allows_all_add_ons = serializers.SerializerMethodField()
+    extra_minutes = serializers.SerializerMethodField()
+    price_for_extra_minutes = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -91,6 +93,38 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
     def get_allows_all_add_ons(self, obj):
         return True
 
+    def get_extra_minutes(self, obj):
+        service = self.context.get("service")
+        if not service:
+            request = self.context.get("request")
+            if request:
+                service_id = request.query_params.get("service") or request.data.get("service") or self.context.get("view", {}).kwargs.get("service_id")
+                if service_id:
+                    from spacenter.models import Service
+                    service = Service.objects.filter(id=service_id).first()
+        from spacenter.models import ServiceArrangementPrice
+        price_obj = ServiceArrangementPrice.objects.filter(
+            service_arrangement=obj,
+            service=service
+        ).first() if service else None
+        return price_obj.extra_minutes if price_obj else "0"
+
+    def get_price_for_extra_minutes(self, obj):
+        service = self.context.get("service")
+        if not service:
+            request = self.context.get("request")
+            if request:
+                service_id = request.query_params.get("service") or request.data.get("service") or self.context.get("view", {}).kwargs.get("service_id")
+                if service_id:
+                    from spacenter.models import Service
+                    service = Service.objects.filter(id=service_id).first()
+        from spacenter.models import ServiceArrangementPrice
+        price_obj = ServiceArrangementPrice.objects.filter(
+            service_arrangement=obj,
+            service=service
+        ).first() if service else None
+        return price_obj.price_for_extra_minutes if price_obj else None
+
     def get_room_info(self, obj):
         """Return Room summary if a Room FK is set."""
         if obj.room:
@@ -111,6 +145,8 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
     room_info = serializers.SerializerMethodField()
     allows_all_services = serializers.SerializerMethodField()
     allows_all_add_ons = serializers.SerializerMethodField()
+    extra_minutes = serializers.SerializerMethodField()
+    price_for_extra_minutes = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -145,6 +181,38 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
 
     def get_allows_all_add_ons(self, obj):
         return True
+
+    def get_extra_minutes(self, obj):
+        service = self.context.get("service")
+        if not service:
+            request = self.context.get("request")
+            if request:
+                service_id = request.query_params.get("service") or request.data.get("service") or self.context.get("view", {}).kwargs.get("service_id")
+                if service_id:
+                    from spacenter.models import Service
+                    service = Service.objects.filter(id=service_id).first()
+        from spacenter.models import ServiceArrangementPrice
+        price_obj = ServiceArrangementPrice.objects.filter(
+            service_arrangement=obj,
+            service=service
+        ).first() if service else None
+        return price_obj.extra_minutes if price_obj else "0"
+
+    def get_price_for_extra_minutes(self, obj):
+        service = self.context.get("service")
+        if not service:
+            request = self.context.get("request")
+            if request:
+                service_id = request.query_params.get("service") or request.data.get("service") or self.context.get("view", {}).kwargs.get("service_id")
+                if service_id:
+                    from spacenter.models import Service
+                    service = Service.objects.filter(id=service_id).first()
+        from spacenter.models import ServiceArrangementPrice
+        price_obj = ServiceArrangementPrice.objects.filter(
+            service_arrangement=obj,
+            service=service
+        ).first() if service else None
+        return price_obj.price_for_extra_minutes if price_obj else None
 
     def get_room_info(self, obj):
         if obj.room:
@@ -505,7 +573,18 @@ class BookingCreateSerializer(serializers.Serializer):
             service_arrangement=selected_arrangement
         ).first()
         base_price = arr_price_obj.price if arr_price_obj else service.base_price
-        price_for_extra = Decimal(str(attrs.get("price_for_extra_minutes", 0)))
+        
+        # Populate price_for_extra_minutes
+        extra_minutes = int(attrs.get("extra_minutes", 0))
+        price_for_extra = Decimal("0.00")
+        if extra_minutes > 0 and arr_price_obj:
+            if arr_price_obj.price_for_extra_minutes is not None:
+                price_for_extra = arr_price_obj.price_for_extra_minutes
+            else:
+                price_for_extra = (base_price / Decimal(str(service.duration_minutes))) * Decimal(str(extra_minutes))
+                price_for_extra = price_for_extra.quantize(Decimal("0.01"))
+        
+        attrs["price_for_extra_minutes"] = price_for_extra
         attrs["calculated_subtotal"] = base_price + price_for_extra
 
         return attrs

@@ -548,8 +548,6 @@ class Command(BaseCommand):
                         arrangement_label=f"{label_en} – {svc.name}",
                         defaults={
                             "cleanup_duration": 15, 
-                            "extra_minutes": extra_min,
-                            "price_for_extra_minutes": extra_price,
                         },
                     )
                     from spacenter.models import ServiceArrangementPrice, ServiceArrangementAddOn, AddOnService
@@ -559,6 +557,8 @@ class Command(BaseCommand):
                         defaults={
                             "price": bp,
                             "discounted_price": dp,
+                            "extra_minutes": extra_min,
+                            "price_for_extra_minutes": extra_price,
                         }
                     )
                     addon_obj, _ = ServiceArrangementAddOn.objects.get_or_create(
