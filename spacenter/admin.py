@@ -217,7 +217,15 @@ class AddOnServiceAdmin(ClearCacheActionMixin, TranslationAdmin):
 
     def service_count(self, obj):
         """Count of services using this add-on."""
-        return obj.services.count()
+        from django.db.models import Q
+        from spacenter.models import Service
+        return Service.objects.filter(
+            is_active=True,
+            arrangement_prices__service_arrangement__is_active=True
+        ).filter(
+            Q(arrangement_prices__service_arrangement__add_ons__isnull=True) |
+            Q(arrangement_prices__service_arrangement__add_ons__add_on_services=obj)
+        ).distinct().count()
     service_count.short_description = "Used In"
 
     def image_preview(self, obj):
