@@ -177,7 +177,6 @@ class RoomArrangementTests(SpaCenterFixtureMixin, TestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Single C1",
-            base_price=Decimal("100.00"),
         )
         self.assertEqual(self.room.arrangements.count(), 1)
         self.assertEqual(arr.room, self.room)
@@ -189,14 +188,12 @@ class RoomArrangementTests(SpaCenterFixtureMixin, TestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Single C1",
-            base_price=Decimal("100.00"),
         )
         ServiceArrangement.objects.create(
             spa_center=self.spa,
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.COUPLE_ROOM,
             arrangement_label="Couple C1",
-            base_price=Decimal("180.00"),
         )
         self.assertEqual(self.room.arrangements.count(), 2)
 
@@ -210,7 +207,6 @@ class RoomArrangementTests(SpaCenterFixtureMixin, TestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.VIP_SUITE,
             arrangement_label="VIP C1",
-            base_price=Decimal("300.00"),
         )
         self.assertEqual(arr.capacity, 1)
 
@@ -233,7 +229,6 @@ class RoomArrangementTests(SpaCenterFixtureMixin, TestCase):
             room=other_room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Cross-spa",
-            base_price=Decimal("100.00"),
         )
         with self.assertRaises(ValidationError):
             arr.full_clean()
@@ -246,7 +241,7 @@ class RoomArrangementTests(SpaCenterFixtureMixin, TestCase):
 
 class ServiceWhitelistTests(SpaCenterFixtureMixin, TestCase):
     """
-    Requirement 3a: Arrangement allows all services OR a selected whitelist.
+    Requirement 3a: Arrangement allows service if price exists.
     """
 
     def setUp(self):
@@ -254,39 +249,26 @@ class ServiceWhitelistTests(SpaCenterFixtureMixin, TestCase):
             spa_center=self.spa, room_id="WL-R1", name="WL Room"
         )
 
-    def test_allows_all_services_flag_permits_any_service(self):
-        """allows_all_services=True -> is_service_allowed returns True for any service."""
+    def test_service_allowed_if_price_exists(self):
         arr = ServiceArrangement.objects.create(
             spa_center=self.spa,
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
-            arrangement_label="All Services",
-            base_price=Decimal("100.00"),
-            allows_all_services=True,
-        )
-        self.assertTrue(arr.is_service_allowed(self.service_a))
-        self.assertTrue(arr.is_service_allowed(self.service_b))
-
-    def test_whitelist_mode_only_allows_listed_services(self):
-        """allows_all_services=False -> only whitelisted services are accepted."""
-        arr = ServiceArrangement.objects.create(
-            spa_center=self.spa,
-            room=self.room,
-            arrangement_type=ServiceArrangement.ArrangementType.COUPLE_ROOM,
             arrangement_label="Selected Services",
-            base_price=Decimal("150.00"),
-            allows_all_services=False,
         )
-        arr.allowed_services.add(self.service_a)
-
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=arr,
+            price=Decimal("100.00"),
+        )
         self.assertTrue(arr.is_service_allowed(self.service_a))
         self.assertFalse(arr.is_service_allowed(self.service_b))
 
 
 class AddOnWhitelistTests(SpaCenterFixtureMixin, TestCase):
     """
-    Requirement 3b: Arrangement allows all add-ons OR a selected whitelist
-    (always intersected with the service's own add-on list).
+    Requirement 3b: Arrangement allows all add-ons OR a selected whitelist.
     """
 
     def setUp(self):
@@ -298,28 +280,28 @@ class AddOnWhitelistTests(SpaCenterFixtureMixin, TestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="All Add-ons",
-            base_price=Decimal("100.00"),
-            allows_all_add_ons=True,
         )
         self.arr_selected = ServiceArrangement.objects.create(
             spa_center=self.spa,
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.COUPLE_ROOM,
             arrangement_label="Selected Add-ons",
-            base_price=Decimal("150.00"),
-            allows_all_add_ons=False,
         )
-        self.arr_selected.allowed_add_on_services.add(self.addon_a)
+        from spacenter.models import ServiceArrangementAddOn
+        selected_addon = ServiceArrangementAddOn.objects.create(
+            service_arrangement=self.arr_selected
+        )
+        selected_addon.add_on_services.add(self.addon_a)
 
     def test_allows_all_add_ons_returns_all_active_addons(self):
-        """allows_all_add_ons=True -> returns all active add-ons."""
+        """No whitelist record -> returns all active add-ons by default."""
         qs = self.arr_all.get_effective_add_on_services(self.service_a)
         pks = set(qs.values_list("pk", flat=True))
         self.assertIn(self.addon_a.pk, pks)
         self.assertIn(self.addon_b.pk, pks)
 
     def test_selected_add_ons_only_returns_whitelist(self):
-        """allows_all_add_ons=False -> only returns add-ons in the arrangement's whitelist."""
+        """Whitelist record exists -> only returns whitelisted add-ons."""
         qs = self.arr_selected.get_effective_add_on_services(self.service_a)
         pks = set(qs.values_list("pk", flat=True))
         self.assertIn(self.addon_a.pk, pks)
@@ -373,8 +355,6 @@ class AvailabilityUtilTests(SpaCenterFixtureMixin, TestCase):
             room=self.room1,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Single R1",
-            base_price=Decimal("100.00"),
-            allows_all_services=True,
             cleanup_duration=15,
         )
         self.arr2 = ServiceArrangement.objects.create(
@@ -382,9 +362,28 @@ class AvailabilityUtilTests(SpaCenterFixtureMixin, TestCase):
             room=self.room2,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Single R2",
-            base_price=Decimal("100.00"),
-            allows_all_services=True,
             cleanup_duration=15,
+        )
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=self.arr1,
+            price=self.service_a.base_price,
+        )
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=self.arr2,
+            price=self.service_a.base_price,
+        )
+        ServiceArrangementPrice.objects.create(
+            service=self.service_b,
+            service_arrangement=self.arr1,
+            price=self.service_b.base_price,
+        )
+        ServiceArrangementPrice.objects.create(
+            service=self.service_b,
+            service_arrangement=self.arr2,
+            price=self.service_b.base_price,
         )
 
     def _book_slot(self, arrangement, on_date, start, end):
@@ -492,10 +491,13 @@ class AvailabilityUtilTests(SpaCenterFixtureMixin, TestCase):
             room=self.room1,
             arrangement_type=ServiceArrangement.ArrangementType.VIP_SUITE,
             arrangement_label="VIP (A only)",
-            base_price=Decimal("300.00"),
-            allows_all_services=False,
         )
-        restricted.allowed_services.add(self.service_a)
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=restricted,
+            price=Decimal("300.00"),
+        )
 
         # service_b availability: arr1+arr2 allow all services, restricted does not
         result = calculate_service_availability(
@@ -528,9 +530,13 @@ class AvailabilityAPITests(SpaCenterFixtureMixin, APITestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="API Single",
-            base_price=Decimal("100.00"),
-            allows_all_services=True,
             cleanup_duration=15,
+        )
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=self.arrangement,
+            price=self.service_a.base_price,
         )
         self.url = f"/api/v1/bookings/services/{self.service_a.id}/availability/"
 
@@ -657,9 +663,13 @@ class BookingCreateTests(SpaCenterFixtureMixin, APITestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Booking Single",
-            base_price=Decimal("100.00"),
-            allows_all_services=True,
             cleanup_duration=15,
+        )
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=self.arrangement,
+            price=self.service_a.base_price,
         )
         self.client.force_authenticate(user=self.customer)
         self.url = "/api/v1/bookings/"
@@ -701,10 +711,13 @@ class BookingCreateTests(SpaCenterFixtureMixin, APITestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.VIP_SUITE,
             arrangement_label="Restricted VIP",
-            base_price=Decimal("300.00"),
-            allows_all_services=False,
         )
-        restricted_arr.allowed_services.add(self.service_a)
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service_a,
+            service_arrangement=restricted_arr,
+            price=self.service_a.base_price,
+        )
 
         data = {
             "service": str(self.service_b.id),  # NOT whitelisted

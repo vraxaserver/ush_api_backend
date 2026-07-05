@@ -302,6 +302,11 @@ class ServiceSerializer(serializers.ModelSerializer):
                 ).data
             else:
                 arr_data["add_on_services"] = []
+            
+            arr_data.pop("count", None)
+            arr_data.pop("room_count", None)
+            arr_data.pop("allows_all_services", None)
+            arr_data.pop("allows_all_add_ons", None)
         
         branches_data = {
             "id": str(obj.spa_center.id),

@@ -495,11 +495,10 @@ class GiftCardCreateSerializer(serializers.ModelSerializer):
                     "service_arrangement_id": "This arrangement does not belong to the selected spa center."
                 })
             
-            if not arrangement.allows_all_services:
-                if not arrangement.allowed_services.filter(id=service_id).exists():
-                    raise serializers.ValidationError({
-                        "service_arrangement_id": "This service is not allowed in the selected arrangement."
-                    })
+            if not arrangement.is_service_allowed(service):
+                raise serializers.ValidationError({
+                    "service_arrangement_id": "This service is not allowed in the selected arrangement."
+                })
         except ServiceArrangement.DoesNotExist:
             pass  # Already validated above
 

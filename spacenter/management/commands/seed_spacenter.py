@@ -548,12 +548,21 @@ class Command(BaseCommand):
                         arrangement_label=f"{label_en} – {svc.name}",
                         defaults={
                             "cleanup_duration": 15, 
-                            "base_price": bp, 
-                            "discount_price": dp,
                             "extra_minutes": extra_min,
                             "price_for_extra_minutes": extra_price,
-                            "allows_all_services": False,
                         },
                     )
-                    obj.allowed_services.set([svc])
+                    from spacenter.models import ServiceArrangementPrice, ServiceArrangementAddOn, AddOnService
+                    ServiceArrangementPrice.objects.update_or_create(
+                        service=svc,
+                        service_arrangement=obj,
+                        defaults={
+                            "price": bp,
+                            "discounted_price": dp,
+                        }
+                    )
+                    addon_obj, _ = ServiceArrangementAddOn.objects.get_or_create(
+                        service_arrangement=obj
+                    )
+                    addon_obj.add_on_services.set(AddOnService.objects.all()[:2])
                 self.stdout.write(f"  Arrangements for: {svc.name} @ {spa.name}")

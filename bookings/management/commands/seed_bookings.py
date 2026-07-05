@@ -83,10 +83,20 @@ class Command(BaseCommand):
                 start_hour = start_hours[i % len(start_hours)]
                 start_t = time(start_hour, 0)
 
-                # Calculate end time
+                # Pick a service allowed by the arrangement
+                from spacenter.models import ServiceArrangementPrice
+                price_record = ServiceArrangementPrice.objects.filter(
+                    service_arrangement=arrangement
+                ).first()
+                service = price_record.service if price_record else None
+
+                if not service:
+                    continue
+
+                # Calculate end time using service duration
                 end_t = Booking.calculate_end_time(
                     start_t,
-                    arrangement.service.duration_minutes,
+                    service.duration_minutes,
                     cleanup_duration=arrangement.cleanup_duration,
                 )
 
@@ -107,8 +117,10 @@ class Command(BaseCommand):
                 )
 
                 # Calculate pricing
-                base = arrangement.current_price
+                base = price_record.price if price_record else service.base_price
                 discount = Decimal("0.00")
+                if price_record and price_record.discounted_price:
+                    discount = price_record.price - price_record.discounted_price
                 total = base - discount
 
                 # Pick status
@@ -121,15 +133,6 @@ class Command(BaseCommand):
                     ])
                 else:
                     status = random.choice(statuses)
-
-                # Pick a service allowed by the arrangement
-                if arrangement.allows_all_services:
-                    service = arrangement.spa_center.services.first()
-                else:
-                    service = arrangement.allowed_services.first()
-
-                if not service:
-                    continue
 
                 booking = Booking.objects.create(
                     customer=customer,
@@ -152,7 +155,7 @@ class Command(BaseCommand):
                 created_count += 1
                 self.stdout.write(
                     f"  Created: {booking.booking_number} – "
-                    f"{arrangement.service.name} on {booking_date} at {start_t}"
+                    f"{service.name} on {booking_date} at {start_t}"
                 )
 
         self.stdout.write(f"  Total bookings created: {created_count}")

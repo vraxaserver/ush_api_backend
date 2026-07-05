@@ -57,10 +57,13 @@ class BookingCreateV2Tests(APITestCase):
             room=self.room,
             arrangement_type=ServiceArrangement.ArrangementType.SINGLE_ROOM,
             arrangement_label="Room 101 Arrangement",
-            base_price=Decimal("100.00"),
-            allows_all_services=False,
         )
-        self.arrangement.allowed_services.add(self.service)
+        from spacenter.models import ServiceArrangementPrice
+        ServiceArrangementPrice.objects.create(
+            service=self.service,
+            service_arrangement=self.arrangement,
+            price=Decimal("100.00"),
+        )
 
         # Create customer
         self.customer = User.objects.create_user(

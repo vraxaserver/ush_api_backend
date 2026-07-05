@@ -542,20 +542,22 @@ class Service(models.Model):
         Return the queryset of active add-on services available for this service
         via its spa center's active arrangements.
         """
-        from django.db.models import Q
-        
         arrangements = ServiceArrangement.objects.filter(
             spa_center=self.spa_center,
-            is_active=True
-        ).filter(
-            Q(allows_all_services=True) | Q(allowed_services=self)
+            is_active=True,
+            prices__service=self
         )
         
-        if arrangements.filter(allows_all_add_ons=True).exists():
+        from spacenter.models import ServiceArrangementAddOn
+        has_full_addons = arrangements.exclude(
+            id__in=ServiceArrangementAddOn.objects.values_list("service_arrangement_id", flat=True)
+        ).exists()
+        
+        if has_full_addons:
             return AddOnService.objects.filter(is_active=True)
             
         return AddOnService.objects.filter(
-            arrangements__in=arrangements,
+            arrangement_addons__service_arrangement__in=arrangements,
             is_active=True
         ).distinct()
 
@@ -968,52 +970,6 @@ class ServiceArrangement(models.Model):
         verbose_name=_("spa center"),
     )
 
-    # ------------------------------------------------------------------
-    # Service whitelist
-    # ------------------------------------------------------------------
-    allows_all_services = models.BooleanField(
-        _("allows all services"),
-        default=True,
-        help_text=_(
-            "If True, any active service offered by this spa center can be "
-            "booked in this arrangement. If False, only services listed in "
-            "'Allowed services' are accepted."
-        ),
-    )
-    allowed_services = models.ManyToManyField(
-        Service,
-        blank=True,
-        related_name="whitelisted_arrangements",
-        verbose_name=_("allowed services"),
-        help_text=_(
-            "Specific services that can use this arrangement. "
-            "Relevant only when 'Allows all services' is False."
-        ),
-    )
-
-    # ------------------------------------------------------------------
-    # Add-on services — owned by the arrangement, not by the service
-    # ------------------------------------------------------------------
-    allows_all_add_ons = models.BooleanField(
-        _("allows all add-ons"),
-        default=True,
-        help_text=_(
-            "If True, all active add-ons in 'Allowed add-on services' are "
-            "available for bookings in this arrangement. "
-            "If False, add-ons must be explicitly listed below."
-        ),
-    )
-    allowed_add_on_services = models.ManyToManyField(
-        AddOnService,
-        blank=True,
-        related_name="arrangements",
-        verbose_name=_("allowed add-on services"),
-        help_text=_(
-            "Add-on services available for bookings in this arrangement. "
-            "When 'Allows all add-ons' is True, all active entries here are "
-            "offered. When False, only those explicitly listed are offered."
-        ),
-    )
 
     arrangement_type = models.CharField(
         _("arrangement type"),
@@ -1035,23 +991,6 @@ class ServiceArrangement(models.Model):
         help_text=_("Time needed to clean/prepare the room after the service"),
     )
 
-    # Per-arrangement pricing
-    base_price = models.DecimalField(
-        _("base price"),
-        max_digits=10,
-        decimal_places=2,
-        validators=[MinValueValidator(0)],
-        help_text=_("Base price for this arrangement type"),
-    )
-    discount_price = models.DecimalField(
-        _("discount price"),
-        max_digits=10,
-        decimal_places=2,
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(0)],
-        help_text=_("Discounted price if applicable"),
-    )
 
     # Extra minutes
     extra_minutes = models.CharField(
@@ -1107,11 +1046,6 @@ class ServiceArrangement(models.Model):
                 )
             })
 
-        if self.discount_price and self.base_price:
-            if self.discount_price >= self.base_price:
-                raise ValidationError({
-                    "discount_price": _("Discount price must be less than base price.")
-                })
 
     # ------------------------------------------------------------------
     # Capacity
@@ -1130,22 +1064,16 @@ class ServiceArrangement(models.Model):
         """
         Return True if *service* can be booked in this arrangement.
         """
-        if self.allows_all_services:
-            return True
-        return self.allowed_services.filter(pk=service.pk).exists()
+        return self.prices.filter(service=service).exists()
 
     def get_effective_add_on_services(self, service=None):
         """
         Return the queryset of add-on services available for a booking.
-
-        Add-ons are now owned by the arrangement (not the service).
-        When ``allows_all_add_ons`` is True, all active add-ons are returned.
-        When False, only the explicitly listed add-ons are returned (still filtered
-        to active ones).
         """
-        if self.allows_all_add_ons:
-            return AddOnService.objects.filter(is_active=True)
-        return self.allowed_add_on_services.filter(is_active=True)
+        addon_record = self.add_ons.first()
+        if addon_record:
+            return addon_record.add_on_services.filter(is_active=True)
+        return AddOnService.objects.filter(is_active=True)
 
 
     # ------------------------------------------------------------------
@@ -1159,25 +1087,80 @@ class ServiceArrangement(models.Model):
             return self.service.duration_minutes + self.cleanup_duration
         return self.cleanup_duration
 
-    @property
-    def current_price(self):
-        """Get the current price (discount price if available, otherwise base price)."""
-        if self.discount_price:
-            return self.discount_price
-        return self.base_price
 
-    @property
-    def has_discount(self):
-        """Check if arrangement has an active discount."""
-        return self.discount_price is not None and self.discount_price < self.base_price
+class ServiceArrangementPrice(models.Model):
+    """
+    Arrangement-specific pricing for a Service.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.CASCADE,
+        related_name="arrangement_prices",
+        verbose_name=_("service"),
+    )
+    service_arrangement = models.ForeignKey(
+        ServiceArrangement,
+        on_delete=models.CASCADE,
+        related_name="prices",
+        verbose_name=_("service arrangement"),
+    )
+    price = models.DecimalField(
+        _("price"),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    discounted_price = models.DecimalField(
+        _("discounted price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )
 
-    @property
-    def discount_percentage(self):
-        """Calculate discount percentage."""
-        if self.has_discount:
-            discount = ((self.base_price - self.discount_price) / self.base_price) * 100
-            return round(discount, 0)
-        return 0
+    class Meta:
+        verbose_name = _("service arrangement price")
+        verbose_name_plural = _("service arrangement prices")
+        unique_together = ["service", "service_arrangement"]
+
+    def __str__(self):
+        return f"{self.service.name} @ {self.service_arrangement.arrangement_label}: {self.price}"
+
+    def clean(self):
+        if self.discounted_price and self.price:
+            if self.discounted_price >= self.price:
+                raise ValidationError({
+                    "discounted_price": _("Discounted price must be less than price.")
+                })
+
+
+class ServiceArrangementAddOn(models.Model):
+    """
+    Arrangement-specific whitelisted Add-on Services.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    service_arrangement = models.ForeignKey(
+        ServiceArrangement,
+        on_delete=models.CASCADE,
+        related_name="add_ons",
+        verbose_name=_("service arrangement"),
+    )
+    add_on_services = models.ManyToManyField(
+        AddOnService,
+        related_name="arrangement_addons",
+        verbose_name=_("add-on services"),
+    )
+
+    class Meta:
+        verbose_name = _("service arrangement add-on")
+        verbose_name_plural = _("service arrangement add-ons")
+
+    def __str__(self):
+        return f"Add-ons for {self.service_arrangement.arrangement_label}"
+
+
 
 
 

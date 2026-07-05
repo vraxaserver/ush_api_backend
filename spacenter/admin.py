@@ -24,6 +24,8 @@ from .models import (
     Room,
     Service,
     ServiceArrangement,
+    ServiceArrangementPrice,
+    ServiceArrangementAddOn,
     ServiceImage,
     SpaCenter,
     SpaCenterOperatingHours,
@@ -261,7 +263,7 @@ class ServiceAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleH
         "image_count",
     ]
     list_filter = [CountryFilter, CityFilter, SpaCenterFilter, "is_active", "is_eligible_for_loyalty", "is_for_male", "is_for_female", "specialty"]
-    search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_centers__name"]
+    search_fields = ["name", "name_en", "name_ar", "description", "ideal_for", "spa_center__name"]
     ordering = ["sort_order", "name"]
     list_editable = ["sort_order", "is_active", "is_eligible_for_loyalty"]
     autocomplete_fields = ["specialty", "country", "city"]
@@ -386,10 +388,6 @@ class ServiceArrangementInline(admin.TabularInline):
         "room",
         "arrangement_type",
         "arrangement_label",
-        "allows_all_services",
-        "allows_all_add_ons",
-        "base_price",
-        "discount_price",
         "cleanup_duration",
         "is_active",
     ]
@@ -524,6 +522,24 @@ class RoomAdmin(ClearCacheActionMixin, admin.ModelAdmin):
     arrangement_count.short_description = "Active Arrangements"
 
 
+class ServiceArrangementPriceInline(admin.TabularInline):
+    model = ServiceArrangementPrice
+    extra = 1
+    autocomplete_fields = ["service"]
+
+
+class ServiceArrangementAddOnInline(admin.StackedInline):
+    model = ServiceArrangementAddOn
+    extra = 1
+    max_num = 1
+    filter_horizontal = ["add_on_services"]
+
+    def has_add_permission(self, request, obj=None):
+        if obj and obj.add_ons.exists():
+            return False
+        return super().has_add_permission(request, obj)
+
+
 @admin.register(ServiceArrangement)
 class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMixin, SimpleHistoryAdmin, admin.ModelAdmin):
     """Admin for ServiceArrangement model — room-based scheduling."""
@@ -533,34 +549,21 @@ class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMix
         "room",
         "arrangement_type",
         "arrangement_label",
-        "allows_all_services",
-        "allows_all_add_ons",
-        "base_price",
-        "discount_price",
-        "current_price_display",
         "is_active",
     ]
-    list_filter = [ServiceArrangementServiceFilter, SpaCenterFilter, "arrangement_type", "is_active"]
-    search_fields = ["arrangement_label", "allowed_services__name", "spa_center__name", "room__room_id"]
+    list_filter = [SpaCenterFilter, "arrangement_type", "is_active"]
+    search_fields = ["arrangement_label", "spa_center__name", "room__room_id"]
     autocomplete_fields = ["spa_center"]
     ordering = ["spa_center", "arrangement_type", "arrangement_label"]
     list_editable = ["is_active"]
+    inlines = [ServiceArrangementPriceInline, ServiceArrangementAddOnInline]
 
     fieldsets = (
         ("Spa Center & Room", {
             "fields": ("spa_center", "room")
         }),
-        ("Service Whitelist", {
-            "fields": ("allows_all_services", "allowed_services")
-        }),
-        ("Add-on Whitelist", {
-            "fields": ("allows_all_add_ons", "allowed_add_on_services")
-        }),
         ("Arrangement Details", {
             "fields": ("arrangement_type", "arrangement_label", "cleanup_duration")
-        }),
-        ("Pricing", {
-            "fields": ("base_price", "discount_price")
         }),
         ("Extra Minutes Pricing", {
             "fields": ("extra_minutes", "price_for_extra_minutes")
@@ -570,18 +573,21 @@ class ServiceArrangementAdmin(SpaCenterRestrictedAdminMixin, ClearCacheActionMix
         }),
     )
 
-    def current_price_display(self, obj):
-        if obj.has_discount:
-            return format_html(
-                '<span style="text-decoration: line-through; color: #999;">{}</span> '
-                '<span style="color: green; font-weight: bold;">{}</span> '
-                '<span style="color: red;">(-{}%)</span>',
-                obj.base_price,
-                obj.current_price,
-                obj.discount_percentage
-            )
-        return obj.base_price
-    current_price_display.short_description = "Current Price"
+
+@admin.register(ServiceArrangementPrice)
+class ServiceArrangementPriceAdmin(ClearCacheActionMixin, admin.ModelAdmin):
+    list_display = ["service_arrangement", "service", "price", "discounted_price"]
+    list_filter = ["service"]
+    search_fields = ["service_arrangement__arrangement_label", "service__name"]
+
+
+@admin.register(ServiceArrangementAddOn)
+class ServiceArrangementAddOnAdmin(ClearCacheActionMixin, admin.ModelAdmin):
+    list_display = ["service_arrangement"]
+    search_fields = ["service_arrangement__arrangement_label"]
+    filter_horizontal = ["add_on_services"]
+
+
 
 
 # =============================================================================

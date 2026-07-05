@@ -36,6 +36,8 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
     total_duration = serializers.SerializerMethodField()
     # Room extension (additive — no frontend breakage)
     room_info = serializers.SerializerMethodField()
+    allows_all_services = serializers.SerializerMethodField()
+    allows_all_add_ons = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -83,6 +85,12 @@ class ServiceArrangementSerializer(serializers.ModelSerializer):
         """Get total duration including service (if set) + cleanup."""
         return obj.cleanup_duration
 
+    def get_allows_all_services(self, obj):
+        return True
+
+    def get_allows_all_add_ons(self, obj):
+        return True
+
     def get_room_info(self, obj):
         """Return Room summary if a Room FK is set."""
         if obj.room:
@@ -101,6 +109,8 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
     service_name = serializers.SerializerMethodField()
     service_duration = serializers.SerializerMethodField()
     room_info = serializers.SerializerMethodField()
+    allows_all_services = serializers.SerializerMethodField()
+    allows_all_add_ons = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceArrangement
@@ -129,6 +139,12 @@ class ServiceArrangementListSerializer(serializers.ModelSerializer):
 
     def get_service_duration(self, obj):
         return None
+
+    def get_allows_all_services(self, obj):
+        return True
+
+    def get_allows_all_add_ons(self, obj):
+        return True
 
     def get_room_info(self, obj):
         if obj.room:
@@ -483,7 +499,12 @@ class BookingCreateSerializer(serializers.Serializer):
         # 6. Calculate Financials
         # ------------------------------------------------------------------
         from decimal import Decimal
-        base_price = selected_arrangement.base_price
+        from spacenter.models import ServiceArrangementPrice
+        arr_price_obj = ServiceArrangementPrice.objects.filter(
+            service=service,
+            service_arrangement=selected_arrangement
+        ).first()
+        base_price = arr_price_obj.price if arr_price_obj else service.base_price
         price_for_extra = Decimal(str(attrs.get("price_for_extra_minutes", 0)))
         attrs["calculated_subtotal"] = base_price + price_for_extra
 
@@ -520,7 +541,16 @@ class BookingCreateSerializer(serializers.Serializer):
         # Use client-provided total_price if available, else calculate: subtotal - discount
         final_payable = validated_data.get("total_price")
         if final_payable is None:
-            final_payable = subtotal - discount_amount
+            from spacenter.models import ServiceArrangementPrice
+            arr_price_obj = ServiceArrangementPrice.objects.filter(
+                service=service,
+                service_arrangement=arrangement
+            ).first()
+            if arr_price_obj and arr_price_obj.discounted_price:
+                discount_amount = arr_price_obj.price - arr_price_obj.discounted_price
+                final_payable = arr_price_obj.discounted_price + price_for_extra
+            else:
+                final_payable = subtotal - discount_amount
             if final_payable < 0:
                 final_payable = Decimal("0.00")
         

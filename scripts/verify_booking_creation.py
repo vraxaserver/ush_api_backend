@@ -26,13 +26,23 @@ def run_test():
         print("Error: Could not find SpaCenter or Service in database.")
         return
 
+    from spacenter.models import Room
+    room = Room.objects.filter(spa_center=spa).first()
+    if not room:
+        room = Room.objects.create(spa_center=spa, room_id="TEST-R1", name="Test Room")
+
     arrangement_type = ServiceArrangement.ArrangementType.COUPLE_ROOM
     arrangement, _ = ServiceArrangement.objects.get_or_create(
         spa_center=spa, 
-        service=service, 
+        room=room,
         arrangement_type=arrangement_type, 
-        room_count=1, 
-        defaults={"arrangement_label": "Test Room 101", "cleanup_duration": 15, "base_price": 100, "is_active": True}
+        defaults={"arrangement_label": "Test Room 101", "cleanup_duration": 15, "is_active": True}
+    )
+    from spacenter.models import ServiceArrangementPrice
+    ServiceArrangementPrice.objects.get_or_create(
+        service=service,
+        service_arrangement=arrangement,
+        defaults={"price": 100}
     )
 
     test_date = date.today() + timedelta(days=7)

@@ -67,10 +67,7 @@ class ServiceArrangementListView(generics.ListAPIView):
             .filter(
                 spa_center=service.spa_center,
                 is_active=True,
-            )
-            .filter(
-                Q(allows_all_services=True) | # whitelist: all
-                Q(allowed_services=service)   # whitelist: explicit
+                prices__service=service,
             )
             .select_related("spa_center", "room")
             .distinct()
@@ -165,10 +162,10 @@ class ServiceAvailabilityView(APIView):
         # ----------------------------------------------------------------
         arrangements = (
             ServiceArrangement.objects
-            .filter(spa_center=spa_center, is_active=True)
             .filter(
-                Q(allows_all_services=True) | # whitelist: all
-                Q(allowed_services=service)   # whitelist: explicit
+                spa_center=spa_center,
+                is_active=True,
+                prices__service=service,
             )
             .select_related("spa_center", "room")
             .distinct()
@@ -280,8 +277,8 @@ class ServiceAvailabilityView(APIView):
                         }
                         if arr.room else None
                     ),
-                    "allows_all_services": arr.allows_all_services,
-                    "allows_all_add_ons": arr.allows_all_add_ons,
+                    "allows_all_services": True,
+                    "allows_all_add_ons": True,
                     "add_on_services": AddOnServiceListSerializer(
                         arr.get_effective_add_on_services(service),
                         many=True,

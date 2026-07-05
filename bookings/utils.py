@@ -77,12 +77,10 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
     # ------------------------------------------------------------------
     arrangements = (
         ServiceArrangement.objects
-        .filter(spa_center=spa_center, is_active=True)
         .filter(
-            # Whitelist: allow all services
-            Q(allows_all_services=True) |
-            # Whitelist: explicit M2M membership
-            Q(allowed_services=service)
+            spa_center=spa_center,
+            is_active=True,
+            prices__service=service
         )
         .select_related("room")
         .distinct()
@@ -168,7 +166,25 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
     # ------------------------------------------------------------------
     unique: dict = {}
     for arr in arrangements:
-        key = (arr.arrangement_type, arr.base_price, arr.discount_price)
+        from spacenter.models import ServiceArrangementPrice
+        arr_price_obj = ServiceArrangementPrice.objects.filter(
+            service=service,
+            service_arrangement=arr
+        ).first()
+        if arr_price_obj:
+            base_price = arr_price_obj.price
+            discount_price = arr_price_obj.discounted_price
+            current_price = discount_price if discount_price else base_price
+            has_discount = discount_price is not None and discount_price < base_price
+            discount_percentage = round(((base_price - discount_price) / base_price) * 100, 0) if has_discount else 0
+        else:
+            base_price = service.base_price
+            discount_price = service.discount_price
+            current_price = service.current_price
+            has_discount = service.has_discount
+            discount_percentage = service.discount_percentage
+
+        key = (arr.arrangement_type, base_price, discount_price)
         if key not in unique:
             unique[key] = {
                 # Core fields (unchanged from original contract)
@@ -177,11 +193,11 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                 "type": arr.arrangement_type,
                 "arrangement_label": arr.arrangement_label,
                 "room_count": arr.capacity,
-                "base_price": str(arr.base_price),
-                "discount_price": str(arr.discount_price) if arr.discount_price else None,
-                "current_price": str(arr.current_price),
-                "has_discount": arr.has_discount,
-                "discount_percentage": arr.discount_percentage,
+                "base_price": str(base_price),
+                "discount_price": str(discount_price) if discount_price else None,
+                "current_price": str(current_price),
+                "has_discount": has_discount,
+                "discount_percentage": discount_percentage,
                 "extra_minutes": arr.extra_minutes,
                 "price_for_extra_minutes": (
                     str(arr.price_for_extra_minutes)
@@ -198,8 +214,8 @@ def calculate_service_availability(service, spa_center, date_from, date_to):
                     }
                     if arr.room else None
                 ),
-                "allows_all_services": arr.allows_all_services,
-                "allows_all_add_ons": arr.allows_all_add_ons,
+                "allows_all_services": True,
+                "allows_all_add_ons": True,
                 "add_on_services_queryset": arr.get_effective_add_on_services(service),
             }
         else:
