@@ -538,10 +538,22 @@ class ServiceArrangementPriceInline(admin.TabularInline):
 
 
 class ServiceArrangementAddOnInline(admin.StackedInline):
+    """
+    Optional inline for whitelisting specific Add-on Services on an arrangement.
+
+    Leave this section empty to allow ALL active add-on services (default behaviour).
+    Add an entry here only when you want to restrict which add-ons are offered for
+    this arrangement.
+    """
+
     model = ServiceArrangementAddOn
-    extra = 1
+    extra = 0          # Do not show an empty form by default — makes it truly optional
+    min_num = 0        # No minimum — the whole section is optional
     max_num = 1
+    can_delete = True  # Allow removing the add-on whitelist if it was previously set
     filter_horizontal = ["add_on_services"]
+    verbose_name = "Add-on Service Whitelist (optional)"
+    verbose_name_plural = "Add-on Services (optional — leave empty to allow all active add-ons)"
 
     def has_add_permission(self, request, obj=None):
         if obj and obj.add_ons.exists():
