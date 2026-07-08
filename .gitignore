@@ -1,7 +1,8 @@
 .venv
 .env
 .vscode
-
+.pytest_cache
+.coverage
 
 **/__pycache__
 **/*.pyc
