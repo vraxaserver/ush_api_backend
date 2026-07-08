@@ -55,523 +55,325 @@ A comprehensive Django REST Framework microservice for spa center management wit
 
 ---
 
-## Quick Start
+## Running Server Locally
 
-### 1. Clone and Setup Environment
+Follow these steps to set up the development environment on your local machine.
+
+### Prerequisites
+- Python 3.12+
+- PostgreSQL database
+- Redis cache server (running locally or via Docker)
+
+### 1. Environment Setup
 
 ```bash
+# Clone the repository and navigate to the project directory
+cd ush_api_backend
+
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Activate virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment file
+# Copy environment template file
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env and supply your local configuration values (DB credentials, Redis connection, etc.)
 ```
 
-### 2. Database Setup
+### 2. Database and Cache Configuration
+
+Ensure PostgreSQL and Redis are running. For a quick local setup of PostgreSQL and Redis, you can use Docker:
+```bash
+# Start Redis cache server using docker-compose helper (or start your local instance)
+docker compose up -d redis
+```
+
+Configure your `.env` variables accordingly:
+```ini
+DB_NAME=spa_center_db
+DB_USER=postgres
+DB_PASSWORD=your_secure_password
+DB_HOST=127.0.0.1
+DB_PORT=5432
+
+CACHE_REDIS_URL=redis://127.0.0.1:6379/1
+```
+
+### 3. Migrations & Initial Setup
 
 ```bash
-# Create PostgreSQL database
-createdb spa_center_db
-
-# Run migrations
+# Run migrations to initialize the database schema
 python manage.py migrate
 
-# Setup employee groups
+# Setup employee permission groups
 python manage.py setup_groups
 
-# Create admin user
+# Create a superuser / admin account
 python manage.py create_admin --email=admin@example.com --password=your-secure-password
 ```
 
-### 3. Seed Demo Data
+### 4. Seeding Demo Data
 
 ```bash
-# Seed all spa center data (locations, services, branches, therapists, products)
-python -Xutf8 manage.py dumpdata spacenter --indent 2 --output spacenter_data.json
-python -Xutf8 manage.py loaddata spacenter_data.json
-
-# Clear and reseed
+# Seed all spa center data (countries, cities, specialties, services, branches, therapists, products)
 python manage.py seed_all --clear
+
+# Seed promotions/gift cards template data
 python manage.py seed_promotions --clear
 ```
 
-### 4. Run Development Server
+### 5. Running the Development Server
 
 ```bash
-python manage.py runserver
+python manage.py runserver 0.0.0.0:8000
 ```
 
-### 5. Access API Documentation
+Once running, you can access the interactive API docs at:
+- **Swagger UI**: [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)
+- **ReDoc**: [http://localhost:8000/api/redoc/](http://localhost:8000/api/redoc/)
 
-- **Swagger UI**: http://localhost:8000/api/docs/
-- **ReDoc**: http://localhost:8000/api/redoc/
+---
+
+## Production Deployment
+
+This project is configured for containerized deployment in production using Docker, Gunicorn, and Nginx.
+
+### Docker Multi-Stage Build
+The included [Dockerfile](file:///d:/vraxa_projects/ush_spa_projects/ush_api_backend/Dockerfile) uses a multi-stage process:
+1. **Builder Stage**: Installs compiler headers, dependencies, and builds wheels.
+2. **Production Stage**: Copies the built wheels, installs them, adds a non-root system user (`appuser`), and configures directories for static and media assets.
+
+### Production Environment Settings
+Set the following settings in your production `.env` file:
+```ini
+ENV=prod
+DEBUG=False
+ALLOWED_HOSTS=api.spaush.com,yourdomain.com
+CORS_ALLOW_ALL_ORIGINS=False
+CORS_ALLOWED_ORIGINS=https://spaush.com,https://www.spaush.com
+```
+
+### Static & Media File Storage (AWS S3)
+When `ENV=prod` and `DEBUG=False`, the application automatically uploads and serves static and media assets via AWS S3:
+```ini
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_STORAGE_BUCKET_NAME=your-bucket-name
+AWS_REGION_NAME=me-central-1
+```
+
+### Nginx Reverse Proxy & Gunicorn Configuration
+Gunicorn runs the application inside the container, bound to port 8000. Use Nginx on the host machine to handle SSL/TLS termination and proxy requests to Gunicorn.
+An example Nginx configuration file is provided in [nginx.conf](file:///d:/vraxa_projects/ush_spa_projects/ush_api_backend/nginx.conf):
+- Proxies `/` requests to `http://127.0.0.1:8000`.
+- Optimizes static/media serving when hosted on local folders.
+- Implements security headers like `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy`.
+
+### Deployment via Docker Compose
+To deploy the application stack (web service + Redis container):
+```bash
+# Build and start services in detached mode
+docker compose up -d --build
+
+# Run database migrations inside the web container
+docker compose exec web python manage.py migrate --noinput
+
+# Seed initial settings
+docker compose exec web python manage.py setup_groups
+```
 
 ---
 
 ## API Endpoints
 
-### Authentication (`/api/v1/auth/`)
+### 🔑 Authentication (`/api/v1/auth/`)
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/register/` | Register with email/phone | No |
-| POST | `/register/phone/` | Register with phone only | No |
-| POST | `/login/` | Login with email/phone | No |
-| POST | `/logout/` | Logout (blacklist token) | Yes |
-| POST | `/token/refresh/` | Refresh access token | No |
-| POST | `/social/google/` | Google OAuth login | No |
-| POST | `/social/facebook/` | Facebook OAuth login | No |
-| POST | `/verify/send/` | Send verification code | Yes |
-| POST | `/verify/confirm/` | Verify email/phone | Yes |
-| POST | `/password/reset/` | Request password reset | No |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/health/` | Health check for auth microservice | No |
+| POST | `/register/` | Register with email & password | No |
+| POST | `/register/phone/` | Register with phone number only | No |
+| POST | `/login/` | User login (returns JWT access/refresh) | No |
+| POST | `/logout/` | Blacklist refresh token to logout | Yes |
+| POST | `/token/refresh/` | Obtain new access token | No |
+| POST | `/social/google/` | Google OAuth2 social authentication | No |
+| POST | `/social/facebook/` | Facebook OAuth2 social authentication | No |
+| POST | `/verify/send/` | Trigger phone/email verification code | Yes |
+| POST | `/verify/confirm/` | Confirm verification code | Yes |
+| POST | `/password/reset/` | Request password reset verification code | No |
 | POST | `/password/reset/confirm/` | Confirm password reset | No |
-| POST | `/password/change/` | Change password | Yes |
-| GET | `/user/` | Get current user | Yes |
-| PUT | `/user/` | Update current user | Yes |
+| POST | `/password/change/` | Change password for logged in user | Yes |
+| GET | `/user/` | Retrieve current user profile details | Yes |
+| PUT/PATCH | `/user/` | Update current user profile details | Yes |
+| POST | `/user/delete-request/` | Request data deletion (compliance) | Yes |
 
 ---
 
-### Account Management (`/api/v1/accounts/`)
+### 👥 Account Management (`/api/v1/accounts/`)
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/employees/` | List employees | Admin |
-| POST | `/employees/` | Create employee | Admin |
-| GET | `/employees/{id}/` | Get employee details | Admin |
-| PUT/PATCH | `/employees/{id}/` | Update employee | Admin |
-| DELETE | `/employees/{id}/` | Deactivate employee | Admin |
-| POST | `/employees/{id}/activate/` | Reactivate employee | Admin |
-| POST | `/employees/{id}/reset_password/` | Reset employee password | Admin |
-| GET | `/customers/` | List customers | Admin |
-| GET | `/customers/{id}/` | Get customer details | Admin |
-| GET | `/users/` | List all users | Admin |
-| GET | `/statistics/` | User statistics | Admin |
+*Endpoints in this section are restricted to administrators.*
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/customers/` | List customer accounts (supports filters) | Yes (Admin) |
+| GET | `/customers/{id}/` | Get customer user details | Yes (Admin) |
+| PUT/PATCH | `/customers/{id}/` | Update customer user details | Yes (Admin) |
+| GET | `/users/` | List all system users | Yes (Admin) |
+| GET | `/statistics/` | Retrieve user registration statistics | Yes (Admin) |
 
 ---
 
-### Profiles (`/api/v1/profiles/`)
+### 👤 Profiles (`/api/v1/profiles/`)
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/customer/me/` | Get own customer profile | Customer |
-| PUT | `/customer/me/` | Update own customer profile | Customer |
-| GET | `/employee/me/` | Get own employee profile | Employee |
-| PUT | `/employee/me/` | Update own employee profile | Employee |
-| GET | `/employee/me/schedules/` | Get own schedules | Employee |
-| POST | `/employee/me/schedules/` | Add schedule | Employee |
-| GET | `/admin/employees/` | List employee profiles | Admin |
-| GET | `/admin/employees/{id}/` | Get employee profile | Admin |
-| PUT | `/admin/employees/{id}/` | Update employee profile | Admin |
-| POST | `/admin/employees/{id}/assign_manager/` | Assign manager | Admin |
-| POST | `/admin/employees/{id}/change_role/` | Change role | Admin |
-| GET | `/admin/employees/{id}/team/` | Get team members | Admin |
-| GET | `/therapists/` | List available therapists | Public |
-| GET | `/therapists/{id}/` | Therapist details | Public |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/customer/me/` | Get current authenticated customer profile | Yes (Customer) |
+| PUT/PATCH | `/customer/me/` | Update customer profile parameters | Yes (Customer) |
+| GET | `/slides/` | Get active slideshow assets for home page | No |
 
 ---
 
-### Spa Center (`/api/v1/spa/`)
+### 🏢 Spa Center Management (`/api/v1/spa/`)
 
-#### Countries & Cities
+*All catalog endpoints are public.*
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/countries/` | List all countries | Public |
-| GET | `/countries/{id}/` | Get country details | Public |
-| GET | `/countries/{id}/cities/` | Get cities in country | Public |
-| GET | `/cities/` | List all cities | Public |
-| GET | `/cities/?country={code}` | Filter cities by country | Public |
-| GET | `/cities/{id}/` | Get city details | Public |
-
-#### Specialties
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/specialties/` | List all specialties | Public |
-| GET | `/specialties/{id}/` | Get specialty details | Public |
-
-#### Services
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/services/` | List all services | Public |
-| GET | `/services/?country={code}` | Filter by country | Public |
-| GET | `/services/?city={uuid}` | Filter by city | Public |
-| GET | `/services/?category={name}` | Filter by category | Public |
-| GET | `/services/?min_price=50&max_price=200` | Filter by price | Public |
-| GET | `/services/{id}/` | Get service details | Public |
-
-#### Spa Branches
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/branches/` | List all spa centers | Public |
-| GET | `/branches/?country={code}` | Filter by country | Public |
-| GET | `/branches/?city={uuid}` | Filter by city | Public |
-| GET | `/branches/?is_active=true` | Active branches only | Public |
-| GET | `/branches/{id}/` | Get branch details | Public |
-| GET | `/branches/{id}/services/` | Get branch services (paginated) | Public |
-| GET | `/branches/{id}/therapists/` | Get branch therapists (paginated) | Public |
-
-**Branch Services Endpoint** (`/branches/{id}/services/`)
-
-Query parameters:
-- `page`: Page number (default: 1)
-- `page_size`: Items per page (default: 10, max: 100)
-- `search`: Search by service name
-- `category`: Filter by category
-- `ordering`: Sort by `name`, `-name`, `price`, `-price`, `duration_minutes`, `sort_order`
-
-**Response:**
-```json
-{
-    "count": 25,
-    "next": "http://localhost:8000/api/v1/spa/branches/{id}/services/?page=2",
-    "previous": null,
-    "results": [
-        {
-            "id": "uuid",
-            "name": "Swedish Massage",
-            "name_en": "Swedish Massage",
-            "name_ar": "تدليك سويدي",
-            "category": "Massage",
-            "price": "150.00",
-            "duration_minutes": 60,
-            "image": "https://..."
-        }
-    ]
-}
-```
-
-**Branch Therapists Endpoint** (`/branches/{id}/therapists/`)
-
-Query parameters:
-- `page`: Page number (default: 1)
-- `page_size`: Items per page (default: 10, max: 100)
-- `search`: Search by therapist name
-- `specialty`: Filter by specialty UUID
-- `gender`: Filter by gender (M/F)
-- `ordering`: Sort by `experience_years`, `-experience_years`, `hourly_rate`, `-hourly_rate`
-
-**Response:**
-```json
-{
-    "count": 12,
-    "next": "http://localhost:8000/api/v1/spa/branches/{id}/therapists/?page=2",
-    "previous": null,
-    "results": [
-        {
-            "id": "uuid",
-            "full_name": "Jane Smith",
-            "gender": "F",
-            "experience_years": 5,
-            "hourly_rate": "75.00",
-            "specialties": ["Deep Tissue", "Aromatherapy"],
-            "is_available": true
-        }
-    ]
-}
-```
-
-#### Therapists
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/therapists/` | List all therapists | Public |
-| GET | `/therapists/?country={code}` | Filter by country | Public |
-| GET | `/therapists/?city={uuid}` | Filter by city | Public |
-| GET | `/therapists/?specialty={uuid}` | Filter by specialty | Public |
-| GET | `/therapists/?gender={M/F}` | Filter by gender | Public |
-| GET | `/therapists/?is_available=true` | Available only | Public |
-| GET | `/therapists/{id}/` | Get therapist details | Public |
-
-#### Product Categories
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/product-categories/` | List active categories | Public |
-| GET | `/product-categories/{id}/` | Get category details | Public |
-
-#### Products (SpaProduct)
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/products/` | List all products | Public |
-| GET | `/products/?country={code}` | Filter by country | Public |
-| GET | `/products/?city_name={name}` | Filter by city name | Public |
-| GET | `/products/?category={name}` | Filter by category | Public |
-| GET | `/products/?in_stock=true` | In-stock only | Public |
-| GET | `/products/?active=true` | Active products only | Public |
-| GET | `/products/{id}/` | Get product details | Public |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/countries/` | List all operational countries | No |
+| GET | `/countries/{id}/` | Get country details | No |
+| GET | `/cities/` | List all cities (optional `country` filter) | No |
+| GET | `/cities/{id}/` | Get city details | No |
+| GET | `/specialties/` | List therapist specialties | No |
+| GET | `/specialties/{id}/` | Get specialty details | No |
+| GET | `/add-on-services/` | List add-on services | No |
+| GET | `/add-on-services/{id}/` | Get add-on service details | No |
+| GET | `/services/` | List all services (supports country/city filters) | No |
+| GET | `/services/{id}/` | Get service details | No |
+| GET | `/branches/` | List all spa branch locations | No |
+| GET | `/branches/{id}/` | Get branch operational details | No |
+| GET | `/product-categories/` | List catalog product categories | No |
+| GET | `/product-categories/{id}/` | Get category details | No |
+| GET | `/products/` | List products with localized stock/pricing | No |
+| GET | `/products/{id}/` | Get product location stock details | No |
+| GET | `/home-services/` | List services offered at home | No |
+| GET | `/home-services/{id}/` | Get home service details | No |
 
 ---
 
-### Promotions (`/api/v1/promotions/`)
+### 📅 Bookings & Orders (`/api/v1/bookings/`)
 
-#### Gift Card Templates
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/gift-card-templates/` | List available templates | Public |
-| GET | `/gift-card-templates/{id}/` | Get template details | Public |
-
-#### Gift Cards
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/gift-cards/` | List user's gift cards | Yes |
-| POST | `/gift-cards/` | Purchase gift card | Yes |
-| GET | `/gift-cards/{id}/` | Get gift card details | Yes |
-| POST | `/gift-cards/validate/` | Validate gift card | Public |
-| POST | `/gift-cards/check_balance/` | Check balance | Public |
-| POST | `/gift-cards/redeem/` | Redeem amount | Yes |
-| POST | `/gift-cards/transfer/` | Transfer to user | Yes |
-| GET | `/gift-cards/{id}/transactions/` | Transaction history | Yes |
-| GET | `/gift-card-transactions/` | All user transactions | Yes |
-
-**Purchase Gift Card Request:**
-```json
-{
-    "template_id": "uuid-here",
-    "recipient_email": "friend@example.com",
-    "recipient_name": "John Doe",
-    "recipient_message": "Happy Birthday!",
-    "payment_reference": "PAY-123"
-}
-```
-
-**Redeem Gift Card Request:**
-```json
-{
-    "code": "ABCD-EFGH-IJKL-MNOP",
-    "pin": "1234",
-    "amount": 50.00,
-    "order_reference": "ORD-456",
-    "order_type": "product_order"
-}
-```
-
-**Transfer Gift Card Request:**
-```json
-{
-    "code": "ABCD-EFGH-IJKL-MNOP",
-    "new_owner_email": "newowner@example.com"
-}
-```
-
-#### Combined Discounts
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/apply-discounts/` | Apply gift card discount | Yes |
-
-**Request:**
-```json
-{
-    "amount": 200.00,
-    "gift_card_code": "ABCD-EFGH-IJKL-MNOP",
-    "gift_card_pin": "1234",
-    "gift_card_amount": 50.00
-}
-```
-
-**Response:**
-```json
-{
-    "original_amount": "200.00",
-    "gift_card_amount": "50.00",
-    "final_amount": "150.00",
-    "gift_card": {
-        "code": "ABCD-EFGH-IJKL-MNOP",
-        "balance_before": "100.00",
-        "balance_after": "50.00"
-    }
-}
-```
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/upcoming-bookings/` | Get upcoming bookings for customer | Yes |
+| GET | `/past-bookings/` | Get past bookings for customer | Yes |
+| GET | `/services/{service_id}/arrangements/` | Get arrangements/rooms supporting service | No |
+| GET | `/services/{service_id}/availability/` | Get time slot availability for service | No |
+| GET/POST | `/` | List or create regular spa bookings | Yes |
+| GET/PUT/PATCH/DELETE | `/{id}/` | View, update, or cancel booking | Yes |
+| POST | `/{id}/confirm/` | Confirm booking (Staff only) | Yes (Staff) |
+| POST | `/{id}/complete/` | Complete booking (Staff only) | Yes (Staff) |
+| POST | `/update-payment-status/` | Update status after online payment | Yes |
+| GET/POST | `/home-bookings/` | List or request home service bookings | Yes |
+| GET/PUT/PATCH/DELETE | `/home-bookings/{id}/` | View, update, or cancel home booking | Yes |
+| POST | `/home-bookings/update-payment-status/` | Update payment status for home booking | Yes |
+| GET/POST | `/orders/` | List or create product delivery orders | Yes |
+| GET/PUT/PATCH/DELETE | `/orders/{id}/` | View or modify product order | Yes |
 
 ---
 
-### Payments (`/api/v1/payments/`)
+### 🎟️ Promotions & Loyalty Program (`/api/v1/promotions/`)
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/payment-sheet/` | Create PaymentSheet params for React Native | Yes |
-| POST | `/webhook/` | Stripe webhook handler | No |
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/loyalty-trackers/` | View current user's loyalty program points | Yes |
+| GET | `/loyalty-rewards/` | List redeemable loyalty rewards | Yes |
+| GET | `/loyalty/status/` | Detailed loyalty tiers and tier points progress | Yes |
+| GET | `/gift-cards/` | List all gift cards in the system | Yes (Admin) |
+| GET | `/my-gift-cards/` | Get gift cards owned by authenticated user | Yes |
+| GET | `/my-sent-gift-cards/` | Get gift cards sent by user to others | Yes |
+| POST | `/gift-cards/{public_token}/fulfill/` | Manually fulfill a gift card | Yes (Admin) |
 
-**Create Payment Sheet Request:**
-```json
-{
-    "amount": 1000,
-    "currency": "usd",
-    "booking_id": 123
-}
-```
+---
 
-**Response:**
-```json
-{
-    "paymentIntent": "pi_xxx_secret_xxx",
-    "customerSessionClientSecret": "cuss_xxx",
-    "customer": "cus_xxx",
-    "publishableKey": "pk_test_xxx"
-}
-```
+### 💳 Payments (`/api/v1/payments/`)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/payment-sheet/` | Generate Stripe checkout PaymentSheet parameters | Yes |
+| POST | `/webhook/` | Stripe webhook listener (updates payment statuses) | No |
+
+---
+
+### ✉️ Notifications & Contact (`/api/v1/notifications/`)
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/contact/` | Submit general query contact form | No |
+| GET | `/contact/list/` | List submitted queries (Admin/Staff only) | Yes (Staff) |
+| GET | `/contact/{id}/` | Retrieve contact query detail (Admin/Staff only)| Yes (Staff) |
+
+---
+
+### 🎁 Public Gift Card Flow (`/gift-cards/`)
+
+*Served outside the standard API namespace for web page rendering & guest checkouts.*
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/public/{public_token}/` | Render HTML template displaying gift card | No |
+| GET | `/redeem/{public_token}/` | Render redemption page for guest/customer | No |
+| POST | `/api/verify-code/` | Verify gift card code & PIN | No |
+| GET | `/api/availability/{public_token}/` | Get availability for redemption | No |
+| POST | `/api/redeem-booking/` | Book service using gift card code | No |
+| POST | `/api/check-validity/` | Retrieve card validity & balance status | No |
+| POST | `/api/redeem/` | Deduct balance from gift card | No |
 
 ---
 
 ## Data Models
 
 ### Accounts App
-- **User**: Custom user model with email/phone authentication
-- **VerificationCode**: Email/phone verification codes
+- **User**: Custom user model supporting email/phone registration, verification codes, and client roles (Customer, Therapist, Branch Manager, Admin).
+- **VerificationCode**: Validates registration/login via transient codes.
 
 ### Profiles App
-- **CustomerProfile**: Customer personal information
-- **EmployeeProfile**: Employee details, roles, schedules
+- **CustomerProfile**: Extends user credentials with specific customer preference attributes.
+- **Slide**: Home screen banner promotional images.
 
 ### Spacenter App
-- **Country**: Countries with code, currency, phone code
-- **City**: Cities linked to countries
-- **Specialty**: Therapist specialties
-- **Service**: Spa services with pricing
-- **ServiceImage**: Service gallery images
-- **SpaCenter**: Spa branch locations
-- **SpaCenterOperatingHours**: Branch hours
-- **TherapistProfile**: Therapist details
-- **ProductCategory**: Product categories
-- **BaseProduct**: Master product catalog
-- **SpaProduct**: Location-specific stock/pricing
+- **Country & City**: Geographical setup supporting localized branches.
+- **SpaCenter**: Operational branches details (operating hours, default locations).
+- **Service**: Service metadata (durations, categories, price structures).
+- **ServiceArrangement**: Linkage of rooms/equipment to service execution bounds.
+- **TherapistProfile**: Staff schedules and specialization mappings.
+- **BaseProduct & SpaProduct**: Inventory control and pricing catalog details.
+
+### Bookings App
+- **Booking**: Spa booking records tracking state transitions (`requested`, `payment_pending`, `payment_success`, `confirmed`, `completed`, `canceled`).
+- **HomeServiceBooking**: Extended model for bookings executed at client home addresses.
+- **TimeSlot**: Booking scheduler allocations.
+- **ProductOrder & OrderItem**: Deliverable merchandise order structures.
 
 ### Promotions App
-- **GiftCardTemplate**: Gift card denominations
-- **GiftCard**: Individual gift cards
-- **GiftCardTransaction**: Transaction history
+- **GiftCardTemplate**: Fixed templates mapping denominations.
+- **GiftCard**: Unique active instances (balance, secure token, code/PIN combination).
+- **GiftCardTransaction**: Audit records tracking credits, debits, and transfers.
+- **LoyaltyTracker & LoyaltyReward**: Points accumulation records and tier benefits.
 
 ### Payments App
-- **StripeCustomer**: Links users to Stripe customer IDs
-- **Payment**: Payment transactions with status tracking
-
----
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SECRET_KEY` | Django secret key | Required |
-| `DEBUG` | Debug mode | `False` |
-| `DB_NAME` | Database name | `spa_center_db` |
-| `DB_USER` | Database user | `postgres` |
-| `DB_PASSWORD` | Database password | Required |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Optional |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth secret | Optional |
-| `FACEBOOK_APP_ID` | Facebook App ID | Optional |
-| `FACEBOOK_APP_SECRET` | Facebook App secret | Optional |
-| `TWILIO_ACCOUNT_SID` | Twilio account SID | Optional |
-| `TWILIO_AUTH_TOKEN` | Twilio auth token | Optional |
-| `TWILIO_PHONE_NUMBER` | Twilio phone number | Optional |
-| `CORS_ALLOW_ALL_ORIGINS` | Allow all CORS | `True` |
-| `STRIPE_SECRET_KEY` | Stripe secret key | Required |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key | Required |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook secret | Required |
-
-### JWT Configuration
-
-```python
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-}
-```
-
----
-
-## Project Structure
-
-```
-auth_service/
-├── config/                     # Project configuration
-│   ├── settings.py            # Django settings
-│   ├── urls.py                # Main URL routing
-│   ├── celery.py              # Celery configuration
-│   └── wsgi.py                # WSGI application
-├── accounts/                   # Authentication app
-│   ├── models.py              # User, VerificationCode
-│   ├── serializers.py         # Auth serializers
-│   ├── views/                 # Auth views
-│   ├── urls/                  # Auth URLs
-│   ├── permissions.py         # Custom permissions
-│   └── tasks.py               # Celery tasks
-├── profiles/                   # User profiles app
-│   ├── models.py              # Customer/Employee profiles
-│   ├── serializers.py         # Profile serializers
-│   ├── views.py               # Profile views
-│   └── urls.py                # Profile URLs
-├── spacenter/                  # Spa center management app
-│   ├── models.py              # All spa models
-│   ├── serializers.py         # Spa serializers
-│   ├── views.py               # Spa views
-│   ├── urls.py                # Spa URLs
-│   ├── admin.py               # Admin configuration
-│   ├── translation.py         # Translation config
-│   └── management/commands/   # Seed commands
-│       ├── seed_all.py
-│       ├── seed_locations.py
-│       ├── seed_services.py
-│       ├── seed_branches.py
-│       ├── seed_therapists.py
-│       ├── seed_products.py
-│       └── seed_specialties.py
-├── promotions/                 # Gift Cards app
-│   ├── models.py              # GiftCard models
-│   ├── serializers.py         # Promotion serializers
-│   ├── views.py               # Promotion views
-│   ├── urls.py                # Promotion URLs
-│   ├── admin.py               # Admin configuration
-│   └── management/commands/
-│       └── seed_promotions.py
-├── payments/                   # Stripe payment integration
-│   ├── models.py              # StripeCustomer, Payment
-│   ├── serializers.py         # Payment serializers
-│   ├── views.py               # PaymentSheet, Webhook views
-│   ├── urls.py                # Payment URLs
-│   └── admin.py               # Admin configuration
-├── templates/                  # Email templates
-├── locale/                     # Translations (en, ar)
-├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Docker configuration
-├── docker-compose.yml         # Docker Compose
-├── .env.example               # Environment template
-└── README.md                  # This file
-```
-
----
-
-## Docker Deployment
-
-```bash
-# Build and run
-docker-compose up -d --build
-
-# Run migrations
-docker-compose exec web python manage.py migrate
-
-# Seed data
-docker-compose exec web python manage.py seed_all
-docker-compose exec web python manage.py seed_promotions
-
-# Create admin
-docker-compose exec web python manage.py create_admin --email=admin@example.com --password=admin123
-```
+- **StripeCustomer**: Binds local users with Stripe portal tokens.
+- **Payment**: Local records documenting transaction responses.
 
 ---
 
 ## License
 
 MIT License
+
