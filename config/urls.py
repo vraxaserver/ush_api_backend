@@ -15,6 +15,8 @@ from django.contrib import admin, messages
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import include, path
+from django.views.decorators.csrf import csrf_exempt
+from django.views.i18n import set_language
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -120,7 +122,9 @@ urlpatterns = [
     # Gift Card Public Pages & API (outside /api/v1/ namespace)
     path("gift-cards/", include("promotions.gift_card_urls")),
 
-    # i18n
+    # i18n — csrf_exempt so the public gift-card language switcher works for
+    # unauthenticated visitors (set_language validates Referer as its own guard).
+    path("i18n/setlang/", csrf_exempt(set_language), name="set_language"),
     path("i18n/", include("django.conf.urls.i18n")),
 
     # API Documentation
