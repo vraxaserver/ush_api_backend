@@ -443,8 +443,6 @@ class Service(models.Model):
         default=None,
         help_text=_("Free-text description of session benefits"),
     )
-    
-
 
     # Spa Center
     spa_center = models.ForeignKey(
@@ -453,7 +451,6 @@ class Service(models.Model):
         related_name="services",
         verbose_name=_("spa center"),
     )
-    
     
     # Loyalty program
     is_eligible_for_loyalty = models.BooleanField(
@@ -1103,10 +1100,7 @@ class ServiceArrangementPrice(models.Model):
         max_length=10,
         choices=[
             ("0", _("No extra time")),
-            ("15", _("15 minutes")),
-            ("30", _("30 minutes")),
-            ("45", _("45 minutes")),
-            ("60", _("60 minutes")),
+            ("30", _("30 minutes"))
         ],
         default="0",
     )
